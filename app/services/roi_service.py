@@ -1,21 +1,20 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import desc, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models import ROICalculation, User
 from app.schemas import ROICalculationRequest, ROICalculationResponse
-
 
 MONEY_QUANT = Decimal("0.01")
 PERCENT_QUANT = Decimal("0.01")
 
 
 class ROIService:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+    def __init__(self, db_session: Session) -> None:
+        self.db = db_session
 
-    async def calculate_roi(self, payload: ROICalculationRequest, user: User | None = None) -> ROICalculationResponse:
+    def calculate_roi(self, payload: ROICalculationRequest, user: User | None = None) -> ROICalculationResponse:
         total_cost = payload.tuition_cost * Decimal(payload.study_duration_years)
         projected_income_5y = self.calculate_income_projection(
             payload.expected_salary_after_graduation,
@@ -65,7 +64,7 @@ class ROIService:
                 projected_income_10y=response.projected_income_10y,
             )
             self.db.add(calculation)
-            await self.db.commit()
+            self.db.commit()
 
         return response
 
@@ -101,8 +100,8 @@ class ROIService:
             current_salary *= growth_multiplier
         return total.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
 
-    async def get_history(self, user: User) -> list[ROICalculationResponse]:
-        result = await self.db.execute(
+    def get_history(self, user: User) -> list[ROICalculationResponse]:
+        result = self.db.execute(
             select(ROICalculation)
             .where(ROICalculation.user_id == user.id)
             .order_by(desc(ROICalculation.created_at))

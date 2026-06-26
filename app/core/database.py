@@ -1,31 +1,31 @@
-from collections.abc import AsyncGenerator
+import os
+from flask import Flask, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+from dotenv import load_dotenv
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
+load_dotenv()
 
-from app.core.config import get_settings
+app = Flask(__name__)
 
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-class Base(DeclarativeBase):
-    pass
-
-
-settings = get_settings()
-
-engine = create_async_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    echo=settings.debug,
-)
-
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False,
-)
+# Створюємо глобальний об'єкт бази даних
+db = SQLAlchemy(app)
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        yield session
+@app.route('/status')
+def check_status():
+    # db.session — це готова синхронна сесія.
+    # Вона доступна у будь-якому маршруті автоматично.
+    result = db.session.execute(text("SELECT 1")).scalar()
+
+    return jsonify({
+        "status": "healthy",
+        "db_response": result
+    })
+
+
+if __name__ == '__main__':
+    app.run(debug=True)

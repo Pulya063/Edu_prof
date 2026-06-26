@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   </head>
   <body class="min-h-screen bg-zinc-50 text-zinc-950">
     <header class="border-b border-zinc-200 bg-white">
@@ -23,6 +23,6 @@
     <main>
       {% block content %}{% endblock %}
     </main>
-    <script src="{{ url_for('static', path='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   </body>
 </html>

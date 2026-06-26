@@ -1,53 +1,27 @@
-from typing import Annotated
+from flask import Blueprint, Response, jsonify, render_template, request
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import get_db
-from app.core.dependencies import get_current_user
-from app.models import User
-from app.schemas import ROICalculationRequest, ROICalculationResponse
-from app.services.auth_service import AuthService
+from app.core.database import db
+from app.core.dependencies import get_current_user, get_optional_user
+from app.core.exceptions import AppError
+from app.schemas import ROICalculationRequest
 from app.services.roi_service import ROIService
 
-
-router = APIRouter(prefix="/roi", tags=["ROI"])
-optional_bearer = HTTPBearer(auto_error=False)
+blueprint = Blueprint("roi", __name__)
 
 
-async def get_optional_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_bearer)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> User | None:
-    if credentials is None:
-        return None
-    return await AuthService(db).get_current_user(credentials.credentials)
-
-
-@router.post("/calculate", response_model=ROICalculationResponse | None)
-async def calculate_roi(
-    payload: ROICalculationRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[User | None, Depends(get_optional_user)],
-    request: Request,
-) -> ROICalculationResponse | HTMLResponse:
-    result = await ROIService(db).calculate_roi(payload, user)
+@blueprint.post("/calculate")
+def calculate_roi() -> Response | str:
+    payload = ROICalculationRequest.model_validate(request.get_json(silent=True) or request.form.to_dict())
+    result = ROIService(db.session).calculate_roi(payload, get_optional_user())
     if request.headers.get("HX-Request") == "true":
-        template = request.app.state.templates
-        return template.TemplateResponse(
-            "partials/roi_results.html",
-            {"request": request, "result": result},
-        )
-    return result
+        return render_template("partials/roi_results.html", result=result)
+    return jsonify(result.model_dump(mode="json"))
 
 
-@router.get("/history", response_model=list[ROICalculationResponse])
-async def roi_history(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[User, Depends(get_current_user)],
-) -> list[ROICalculationResponse]:
+@blueprint.get("/history")
+def roi_history() -> Response:
+    user = get_current_user()
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
-    return await ROIService(db).get_history(user)
+        raise AppError("Inactive user", status_code=403)
+    history = ROIService(db.session).get_history(user)
+    return jsonify([item.model_dump(mode="json") for item in history])

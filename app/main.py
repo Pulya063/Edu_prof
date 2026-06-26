@@ -1,14 +1,16 @@
 import logging
-from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator
 
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from flask import Flask, Response, jsonify
+from pydantic import ValidationError
+from werkzeug.exceptions import HTTPException
 
 from app.api import auth, pages, roi
-from app.core.config import get_settings
+from app.core.database import db
+from app.core.exceptions import AppError
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,19 +19,42 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logger.info("Starting Education ROI Calculator")
-    yield
-    logger.info("Stopping Education ROI Calculator")
+def create_app() -> Flask:
+    flask_app = Flask(__name__)
+    flask_app.config.update(
+        DEBUG=True,
+        SECRET_KEY=os.getenv("SECRET_KEY"),
+        SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL"),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    )
+
+    db.init_app(flask_app)
+
+    flask_app.register_blueprint(pages.blueprint)
+    flask_app.register_blueprint(auth.blueprint, url_prefix="/api/auth")
+    flask_app.register_blueprint(roi.blueprint, url_prefix="/api/roi")
+
+    @flask_app.errorhandler(AppError)
+    def handle_app_error(error: AppError) -> Response:
+        response = jsonify(detail=error.message)
+        response.status_code = error.status_code
+        for header, value in error.headers.items():
+            response.headers[header] = value
+        return response
+
+    @flask_app.errorhandler(ValidationError)
+    def handle_validation_error(error: ValidationError) -> tuple[Response, int]:
+        return jsonify(detail=error.errors(include_url=False, include_context=False)), 422
+
+    @flask_app.errorhandler(HTTPException)
+    def handle_http_error(error: HTTPException) -> tuple[Response, int]:
+        return jsonify(detail=error.description), error.code or 500
+
+    logger.info("Created Education ROI Calculator Flask app")
+    return flask_app
 
 
-settings = get_settings()
-app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
+app = create_app()
 
-app.state.templates = Jinja2Templates(directory="app/templates")
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-app.include_router(pages.router)
-app.include_router(auth.router, prefix="/api")
-app.include_router(roi.router, prefix="/api")
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000, debug=True)

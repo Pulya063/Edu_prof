@@ -1,23 +1,23 @@
-from typing import Annotated
+from flask import Blueprint, Response, jsonify, request
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import get_db
-from app.schemas import APIResponse, LoginSchema, RegisterSchema, TokenResponse
+from app.core.database import db
+from app.schemas import APIResponse, LoginSchema, RegisterSchema
 from app.services.auth_service import AuthService
 
-
-router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=APIResponse[TokenResponse])
-async def register(payload: RegisterSchema, db: Annotated[AsyncSession, Depends(get_db)]) -> APIResponse[TokenResponse]:
-    service = AuthService(db)
-    user = await service.register(payload)
-    return APIResponse(message="Registration successful", data=service.create_access_token(user))
+blueprint = Blueprint("auth", __name__)
 
 
-@router.post("/login", response_model=TokenResponse)
-async def login(payload: LoginSchema, db: Annotated[AsyncSession, Depends(get_db)]) -> TokenResponse:
-    return await AuthService(db).login(payload)
+@blueprint.post("/register")
+def register() -> tuple[Response, int]:
+    payload = RegisterSchema.model_validate(request.get_json(silent=True) or {})
+    service = AuthService(db.session)
+    user = service.register(payload)
+    response = APIResponse(message="Registration successful", data=service.create_access_token(user))
+    return jsonify(response.model_dump(mode="json")), 201
+
+
+@blueprint.post("/login")
+def login() -> Response:
+    payload = LoginSchema.model_validate(request.get_json(silent=True) or {})
+    token = AuthService(db.session).login(payload)
+    return jsonify(token.model_dump(mode="json"))

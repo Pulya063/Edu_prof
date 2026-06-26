@@ -1,8 +1,7 @@
 from decimal import Decimal
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, ValidationInfo, field_validator
-
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator
 
 T = TypeVar("T")
 

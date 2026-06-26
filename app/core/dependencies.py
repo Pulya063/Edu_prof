@@ -1,26 +1,36 @@
-from typing import Annotated
+from flask import request
+from flask import g
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import get_db
+from functools import wraps
+from app.core.database import db
+from app.core.exceptions import AppError
 from app.models import User
 from app.services.auth_service import AuthService
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+def get_current_user(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        scheme, _, token = auth_header.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            return None
 
+        token = token.strip()
+        if token is None:
+            return None
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> User:
-    user = await AuthService(db).get_current_user(token)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
+        user = AuthService(db.session).get_current_user(token)
+
+        if user is None:
+            raise AppError(
+                "Could not validate credentials",
+                status_code=401,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        g.current_user = user
+
+        return user
+
+    return wrapper

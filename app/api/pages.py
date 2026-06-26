@@ -1,25 +1,23 @@
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from flask import Blueprint, render_template
+
+blueprint = Blueprint("pages", __name__)
 
 
-router = APIRouter(tags=["Pages"])
+@blueprint.get("/")
+def home() -> str:
+    return render_template("home.html")
 
 
-@router.get("/", response_class=HTMLResponse)
-async def home(request: Request) -> HTMLResponse:
-    return request.app.state.templates.TemplateResponse("home.html", {"request": request})
+@blueprint.get("/login")
+def login_page() -> str:
+    return render_template("login.html")
 
 
-@router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request) -> HTMLResponse:
-    return request.app.state.templates.TemplateResponse("login.html", {"request": request})
+@blueprint.get("/register")
+def register_page() -> str:
+    return render_template("register.html")
 
 
-@router.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request) -> HTMLResponse:
-    return request.app.state.templates.TemplateResponse("register.html", {"request": request})
-
-
-@router.get("/calculator", response_class=HTMLResponse)
-async def calculator_page(request: Request) -> HTMLResponse:
-    return request.app.state.templates.TemplateResponse("calculator.html", {"request": request})
+@blueprint.get("/calculator")
+def calculator_page() -> str:
+    return render_template("calculator.html")

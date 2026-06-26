@@ -3,9 +3,9 @@ from decimal import Decimal
 from typing import ClassVar
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
-from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.database import Base
+from app.core.database import db
 
 
 class BaseIDMixin:
@@ -30,7 +30,7 @@ class ReprMixin:
         return f"{self.__class__.__name__}({values})"
 
 
-class User(BaseIDMixin, TimestampMixin, ReprMixin, Base):
+class User(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "users"
     repr_fields = ("id", "email")
 
@@ -45,7 +45,7 @@ class User(BaseIDMixin, TimestampMixin, ReprMixin, Base):
     )
 
 
-class University(BaseIDMixin, TimestampMixin, ReprMixin, Base):
+class University(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "universities"
     repr_fields = ("id", "name")
 
@@ -61,7 +61,7 @@ class University(BaseIDMixin, TimestampMixin, ReprMixin, Base):
     )
 
 
-class EducationProgram(BaseIDMixin, TimestampMixin, ReprMixin, Base):
+class EducationProgram(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "education_programs"
     repr_fields = ("id", "name")
 
@@ -77,7 +77,7 @@ class EducationProgram(BaseIDMixin, TimestampMixin, ReprMixin, Base):
     roi_calculations: Mapped[list["ROICalculation"]] = relationship(back_populates="program")
 
 
-class SalaryStatistic(BaseIDMixin, TimestampMixin, ReprMixin, Base):
+class SalaryStatistic(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "salary_statistics"
     repr_fields = ("id", "profession", "country")
 
@@ -87,7 +87,7 @@ class SalaryStatistic(BaseIDMixin, TimestampMixin, ReprMixin, Base):
     growth_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
 
 
-class CareerForecast(BaseIDMixin, TimestampMixin, ReprMixin, Base):
+class CareerForecast(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "career_forecasts"
     repr_fields = ("id", "profession", "forecast_year")
 
@@ -98,7 +98,7 @@ class CareerForecast(BaseIDMixin, TimestampMixin, ReprMixin, Base):
     forecast_year: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
 
 
-class ROICalculation(BaseIDMixin, TimestampMixin, ReprMixin, Base):
+class ROICalculation(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "roi_calculations"
     repr_fields = ("id", "user_id", "program_id")
 

@@ -4,20 +4,22 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://education:education@postgres:5432/education_roi
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     volumes:
       - .:/app
 
-  postgres:
+  db:
     image: postgres:17
     environment:
-      POSTGRES_USER: education
-      POSTGRES_PASSWORD: education
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: education_roi
     ports:
       - "5432:5432"
