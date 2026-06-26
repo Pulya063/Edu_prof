@@ -1,0 +1,46 @@
+[project]
+name = "education-roi-calculator"
+version = "0.1.0"
+description = "Production-ready MVP backend skeleton for an Education ROI Calculator"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.13.3",
+    "asyncpg>=0.29.0",
+    "email-validator>=2.2.0",
+    "fastapi>=0.115.0",
+    "jinja2>=3.1.4",
+    "passlib[bcrypt]>=1.7.4",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.5.2",
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart>=0.0.12",
+    "sqlalchemy[asyncio]>=2.0.35",
+    "uvicorn[standard]>=0.30.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.11.2",
+    "pre-commit>=3.8.0",
+    "ruff>=0.6.8",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "ANN"]
+ignore = ["ANN401"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+exclude = ["alembic/versions"]
+
+[[tool.mypy.overrides]]
+module = ["jose.*", "passlib.*"]
+ignore_missing_imports = true

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Calculator | Education ROI{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-6xl gap-8 px-4 py-12 lg:grid-cols-[0.95fr_1.05fr]">
+  <div>
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Calculate education ROI</h1>
+    <p class="mt-3 text-zinc-600">Enter tuition, duration, starting salary, and salary growth to model your return.</p>
+    <form
+      class="mt-8 grid gap-5 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm"
+      hx-post="/api/roi/calculate"
+      hx-ext="json-enc"
+      hx-target="#roi-results"
+      hx-swap="innerHTML"
+    >
+      <div>
+        <label for="university" class="text-sm font-medium text-zinc-700">University</label>
+        <input id="university" name="university" required class="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 focus:border-emerald-600 focus:outline-none">
+      </div>
+      <div>
+        <label for="degree_program" class="text-sm font-medium text-zinc-700">Degree Program</label>
+        <input id="degree_program" name="degree_program" required class="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 focus:border-emerald-600 focus:outline-none">
+      </div>
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label for="tuition_cost" class="text-sm font-medium text-zinc-700">Tuition Cost</label>
+          <input id="tuition_cost" name="tuition_cost" type="number" min="1" step="0.01" required class="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 focus:border-emerald-600 focus:outline-none">
+        </div>
+        <div>
+          <label for="study_duration_years" class="text-sm font-medium text-zinc-700">Study Duration</label>
+          <input id="study_duration_years" name="study_duration_years" type="number" min="1" max="12" step="1" required class="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 focus:border-emerald-600 focus:outline-none">
+        </div>
+      </div>
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label for="expected_salary_after_graduation" class="text-sm font-medium text-zinc-700">Expected Salary</label>
+          <input id="expected_salary_after_graduation" name="expected_salary_after_graduation" type="number" min="1" step="0.01" required class="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 focus:border-emerald-600 focus:outline-none">
+        </div>
+        <div>
+          <label for="annual_salary_growth_percent" class="text-sm font-medium text-zinc-700">Annual Salary Growth %</label>
+          <input id="annual_salary_growth_percent" name="annual_salary_growth_percent" type="number" min="-50" max="100" step="0.01" required class="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 focus:border-emerald-600 focus:outline-none">
+        </div>
+      </div>
+      <button type="submit" class="rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Calculate ROI</button>
+    </form>
+  </div>
+  <div id="roi-results" class="lg:pt-24">
+    <div class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500">
+      Results appear here after calculation.
+    </div>
+  </div>
+</section>
+{% endblock %}

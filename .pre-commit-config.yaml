@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/Pulya063/Edu_prof.git
+    rev: v0.6.8
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+  - repo: https://github.com/Pulya063/Edu_prof.git
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.9.0
+          - pydantic-settings>=2.5.2
+          - sqlalchemy[asyncio]>=2.0.35
+          - fastapi>=0.115.0

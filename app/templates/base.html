@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Education ROI Calculator{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+  </head>
+  <body class="min-h-screen bg-zinc-50 text-zinc-950">
+    <header class="border-b border-zinc-200 bg-white">
+      <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+        <a href="/" class="text-lg font-semibold tracking-tight">Education ROI</a>
+        <div class="flex items-center gap-2">
+          <a href="/calculator" class="rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100">Calculator</a>
+          <a href="/login" class="rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100">Login</a>
+          <a href="/register" class="rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800">Register</a>
+        </div>
+      </nav>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <script src="{{ url_for('static', path='js/app.js') }}"></script>
+  </body>
+</html>

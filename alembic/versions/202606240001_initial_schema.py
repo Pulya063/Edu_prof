@@ -1,0 +1,143 @@
+"""initial schema
+
+Revision ID: 202606240001
+Revises:
+Create Date: 2026-06-24 00:01:00.000000
+"""
+
+from collections.abc import Sequence
+
+import sqlalchemy as sa
+from alembic import op
+
+
+revision: str = "202606240001"
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "users",
+        sa.Column("email", sa.String(length=255), nullable=False),
+        sa.Column("password_hash", sa.String(length=255), nullable=False),
+        sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
+    op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
+
+    op.create_table(
+        "universities",
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("country", sa.String(length=120), nullable=False),
+        sa.Column("city", sa.String(length=120), nullable=False),
+        sa.Column("website", sa.String(length=500), nullable=True),
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_universities_country"), "universities", ["country"], unique=False)
+    op.create_index(op.f("ix_universities_id"), "universities", ["id"], unique=False)
+    op.create_index(op.f("ix_universities_name"), "universities", ["name"], unique=False)
+
+    op.create_table(
+        "salary_statistics",
+        sa.Column("profession", sa.String(length=255), nullable=False),
+        sa.Column("country", sa.String(length=120), nullable=False),
+        sa.Column("average_salary", sa.Numeric(precision=14, scale=2), nullable=False),
+        sa.Column("growth_rate", sa.Numeric(precision=5, scale=2), nullable=False),
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_salary_statistics_country"), "salary_statistics", ["country"], unique=False)
+    op.create_index(op.f("ix_salary_statistics_id"), "salary_statistics", ["id"], unique=False)
+    op.create_index(op.f("ix_salary_statistics_profession"), "salary_statistics", ["profession"], unique=False)
+
+    op.create_table(
+        "career_forecasts",
+        sa.Column("profession", sa.String(length=255), nullable=False),
+        sa.Column("demand_score", sa.Integer(), nullable=False),
+        sa.Column("ai_risk_score", sa.Integer(), nullable=False),
+        sa.Column("forecast_growth_percent", sa.Numeric(precision=5, scale=2), nullable=False),
+        sa.Column("forecast_year", sa.Integer(), nullable=False),
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_career_forecasts_forecast_year"), "career_forecasts", ["forecast_year"], unique=False)
+    op.create_index(op.f("ix_career_forecasts_id"), "career_forecasts", ["id"], unique=False)
+    op.create_index(op.f("ix_career_forecasts_profession"), "career_forecasts", ["profession"], unique=False)
+
+    op.create_table(
+        "education_programs",
+        sa.Column("university_id", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("duration_years", sa.Integer(), nullable=False),
+        sa.Column("tuition_cost", sa.Numeric(precision=14, scale=2), nullable=False),
+        sa.Column("expected_start_salary", sa.Numeric(precision=14, scale=2), nullable=False),
+        sa.Column("annual_growth_percent", sa.Numeric(precision=5, scale=2), nullable=False),
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["university_id"], ["universities.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_education_programs_id"), "education_programs", ["id"], unique=False)
+    op.create_index(op.f("ix_education_programs_name"), "education_programs", ["name"], unique=False)
+    op.create_index(op.f("ix_education_programs_university_id"), "education_programs", ["university_id"], unique=False)
+
+    op.create_table(
+        "roi_calculations",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("program_id", sa.Integer(), nullable=True),
+        sa.Column("total_cost", sa.Numeric(precision=14, scale=2), nullable=False),
+        sa.Column("roi_percent", sa.Numeric(precision=10, scale=2), nullable=False),
+        sa.Column("break_even_months", sa.Integer(), nullable=False),
+        sa.Column("projected_income_5y", sa.Numeric(precision=14, scale=2), nullable=False),
+        sa.Column("projected_income_10y", sa.Numeric(precision=14, scale=2), nullable=False),
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["program_id"], ["education_programs.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_roi_calculations_id"), "roi_calculations", ["id"], unique=False)
+    op.create_index(op.f("ix_roi_calculations_program_id"), "roi_calculations", ["program_id"], unique=False)
+    op.create_index(op.f("ix_roi_calculations_user_id"), "roi_calculations", ["user_id"], unique=False)
+
+
+def downgrade() -> None:
+    op.drop_index(op.f("ix_roi_calculations_user_id"), table_name="roi_calculations")
+    op.drop_index(op.f("ix_roi_calculations_program_id"), table_name="roi_calculations")
+    op.drop_index(op.f("ix_roi_calculations_id"), table_name="roi_calculations")
+    op.drop_table("roi_calculations")
+    op.drop_index(op.f("ix_education_programs_university_id"), table_name="education_programs")
+    op.drop_index(op.f("ix_education_programs_name"), table_name="education_programs")
+    op.drop_index(op.f("ix_education_programs_id"), table_name="education_programs")
+    op.drop_table("education_programs")
+    op.drop_index(op.f("ix_career_forecasts_profession"), table_name="career_forecasts")
+    op.drop_index(op.f("ix_career_forecasts_id"), table_name="career_forecasts")
+    op.drop_index(op.f("ix_career_forecasts_forecast_year"), table_name="career_forecasts")
+    op.drop_table("career_forecasts")
+    op.drop_index(op.f("ix_salary_statistics_profession"), table_name="salary_statistics")
+    op.drop_index(op.f("ix_salary_statistics_id"), table_name="salary_statistics")
+    op.drop_index(op.f("ix_salary_statistics_country"), table_name="salary_statistics")
+    op.drop_table("salary_statistics")
+    op.drop_index(op.f("ix_universities_name"), table_name="universities")
+    op.drop_index(op.f("ix_universities_id"), table_name="universities")
+    op.drop_index(op.f("ix_universities_country"), table_name="universities")
+    op.drop_table("universities")
+    op.drop_index(op.f("ix_users_id"), table_name="users")
+    op.drop_index(op.f("ix_users_email"), table_name="users")
+    op.drop_table("users")
