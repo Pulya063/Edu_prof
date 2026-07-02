@@ -1,36 +1,38 @@
-from flask import request
-from flask import g
-
 from functools import wraps
+
+from flask import g, request
+
 from app.core.database import db
 from app.core.exceptions import AppError
-from app.models import User
 from app.services.auth_service import AuthService
 
 
 def get_current_user(func):
+    """Декоратор: витягує JWT з заголовка, валідує і кладе user у g.current_user."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         auth_header = request.headers.get("Authorization", "")
         scheme, _, token = auth_header.partition(" ")
-        if scheme.lower() != "bearer" or not token:
-            return None
 
-        token = token.strip()
-        if token is None:
-            return None
-
-        user = AuthService(db.session).get_current_user(token)
-
-        if user is None:
+        if scheme.lower() != "bearer" or not token.strip():
             raise AppError(
-                "Could not validate credentials",
+                "Необхідна авторизація",
                 status_code=401,
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        g.current_user = user
+        user = AuthService(db.session).get_current_user(token.strip())
 
-        return user
+        if user is None:
+            raise AppError(
+                "Недійсні облікові дані",
+                status_code=401,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        # Викликаємо оригінальний роут
+
+        kwargs["user"] = user
+
+        return func(*args, **kwargs)
 
     return wrapper

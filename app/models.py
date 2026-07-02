@@ -34,9 +34,12 @@ class User(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "users"
     repr_fields = ("id", "email")
 
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    is_admin: Mapped[bool] = mapped_column(default=False)
 
     roi_calculations: Mapped[list["ROICalculation"]] = relationship(
         back_populates="user",

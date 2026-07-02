@@ -1,0 +1,28 @@
+/* ============================================================
+   auth.css — стилі для login.html і register.html
+   ============================================================ */
+
+.auth-section {
+  max-width: 28rem;
+  margin-inline: auto;
+  padding: 4rem 1rem;
+}
+
+.auth-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--clr-text);
+  margin-bottom: 2rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.auth-footer {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--clr-text-muted);
+}

@@ -1,18 +1,18 @@
-<div class="grid gap-4 sm:grid-cols-2">
-  <article class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-    <p class="text-sm font-medium text-zinc-500">ROI %</p>
-    <p class="mt-2 text-3xl font-semibold text-emerald-700">{{ result.roi_percent }}%</p>
-  </article>
-  <article class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-    <p class="text-sm font-medium text-zinc-500">Break-even Point</p>
-    <p class="mt-2 text-3xl font-semibold">{{ result.break_even_months }} months</p>
-  </article>
-  <article class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-    <p class="text-sm font-medium text-zinc-500">Projected Income (5 Years)</p>
-    <p class="mt-2 text-3xl font-semibold">${{ result.projected_income_5y }}</p>
-  </article>
-  <article class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-    <p class="text-sm font-medium text-zinc-500">Projected Income (10 Years)</p>
-    <p class="mt-2 text-3xl font-semibold">${{ result.projected_income_10y }}</p>
-  </article>
+<div class="results-grid">
+  <div class="card">
+    <p class="result-card__label">ROI %</p>
+    <p class="result-card__value result-card__value--accent">{{ result.roi_percent }}%</p>
+  </div>
+  <div class="card">
+    <p class="result-card__label">Термін окупності</p>
+    <p class="result-card__value">{{ result.break_even_months }} міс.</p>
+  </div>
+  <div class="card">
+    <p class="result-card__label">Дохід за 5 років</p>
+    <p class="result-card__value">${{ result.projected_income_5y }}</p>
+  </div>
+  <div class="card">
+    <p class="result-card__label">Дохід за 10 років</p>
+    <p class="result-card__value">${{ result.projected_income_10y }}</p>
+  </div>
 </div>

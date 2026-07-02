@@ -9,18 +9,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 
 secret_key = os.getenv("SECRET_KEY")
 access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 algorithm = os.getenv("ALGORITHM")
 
 def hash_password(password: str) -> str:
+    # Using pbkdf2_sha256 natively avoids bcrypt's 72-byte limit completely
     return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
-    return pwd_context.verify(plain_password, password_hash)
+    try:
+        return pwd_context.verify(plain_password, password_hash)
+    except ValueError:
+        # Handles edge cases where old bcrypt hashes are verified against long passwords
+        return False
 
 
 def create_jwt_access_token(subject: str, expires_delta: timedelta | None = None) -> str:

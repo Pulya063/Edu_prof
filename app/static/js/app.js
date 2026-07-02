@@ -38,3 +38,23 @@ document.body.addEventListener("htmx:configRequest", (event) => {
     event.detail.headers.Authorization = `Bearer ${token}`;
   }
 });
+
+// Theme Toggle
+const themeToggleBtn = document.getElementById("theme-toggle");
+if (themeToggleBtn) {
+  // Check local storage for theme preference, default to light
+  if (localStorage.getItem("theme") === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+
+  themeToggleBtn.addEventListener("click", () => {
+    document.documentElement.classList.toggle("dark");
+    if (document.documentElement.classList.contains("dark")) {
+      localStorage.setItem("theme", "dark");
+    } else {
+      localStorage.setItem("theme", "light");
+    }
+  });
+}

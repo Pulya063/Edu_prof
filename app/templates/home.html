@@ -1,47 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Education ROI Calculator{% endblock %}
+{% block title %}Калькулятор ROI освіти{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
 {% block content %}
-<section class="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-[1.1fr_0.9fr] md:items-center md:py-24">
-  <div>
-    <h1 class="max-w-3xl text-4xl font-semibold tracking-tight text-zinc-950 md:text-6xl">Education ROI Calculator</h1>
-    <p class="mt-5 max-w-2xl text-lg leading-8 text-zinc-600">Calculate whether your education investment is worth it.</p>
-    <div class="mt-8 flex flex-wrap gap-3">
-      <a href="/calculator" class="rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">Start Calculation</a>
-      <a href="/login" class="rounded-md border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-800 hover:bg-zinc-100">Login</a>
+<section class="hero container">
+  <div class="hero__col">
+    <h1 class="hero__title">Калькулятор ROI освіти</h1>
+    <p class="hero__subtitle">Дізнайтесь, чи варта ваша освіта вкладених коштів.</p>
+    <div class="hero__actions">
+      <a href="/calculator" class="btn btn--primary">Розпочати розрахунок</a>
+      <a href="/login" class="btn btn--outline">Увійти</a>
     </div>
   </div>
-  <div class="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-    <div class="grid gap-4">
-      <div class="rounded-md bg-emerald-50 p-4">
-        <p class="text-sm font-medium text-emerald-800">10 year projection</p>
-        <p class="mt-2 text-3xl font-semibold">$850,000</p>
+
+  <div class="card preview-card">
+    <div class="stat-tile stat-tile--emerald">
+      <p class="stat-tile__label">Прогноз на 10 років</p>
+      <p class="stat-tile__value">$850,000</p>
+    </div>
+    <div class="preview-card__row">
+      <div class="stat-tile stat-tile--sky">
+        <p class="stat-tile__label">ROI</p>
+        <p class="stat-tile__value stat-tile__value--sm">250.5%</p>
       </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="rounded-md bg-sky-50 p-4">
-          <p class="text-sm font-medium text-sky-800">ROI</p>
-          <p class="mt-2 text-2xl font-semibold">250.5%</p>
-        </div>
-        <div class="rounded-md bg-amber-50 p-4">
-          <p class="text-sm font-medium text-amber-800">Break-even</p>
-          <p class="mt-2 text-2xl font-semibold">18 mo</p>
-        </div>
+      <div class="stat-tile stat-tile--amber">
+        <p class="stat-tile__label">Окупність</p>
+        <p class="stat-tile__value stat-tile__value--sm">18 міс.</p>
       </div>
     </div>
   </div>
 </section>
-<section class="border-t border-zinc-200 bg-white">
-  <div class="mx-auto grid max-w-6xl gap-4 px-4 py-12 md:grid-cols-3">
-    <article class="rounded-lg border border-zinc-200 p-6">
-      <h2 class="text-lg font-semibold">Tuition Cost Analysis</h2>
-      <p class="mt-3 text-sm leading-6 text-zinc-600">Compare total education investment against projected earnings.</p>
+
+<section class="features">
+  <div class="features__grid container">
+    <article class="card">
+      <h2 class="feature__title">Аналіз вартості навчання</h2>
+      <p class="feature__desc">Порівняйте загальні витрати на освіту з прогнозованими доходами.</p>
     </article>
-    <article class="rounded-lg border border-zinc-200 p-6">
-      <h2 class="text-lg font-semibold">Salary Forecasting</h2>
-      <p class="mt-3 text-sm leading-6 text-zinc-600">Model salary growth across five and ten year windows.</p>
+    <article class="card">
+      <h2 class="feature__title">Прогноз заробітної плати</h2>
+      <p class="feature__desc">Моделюйте зростання зарплати на 5 та 10 років вперед.</p>
     </article>
-    <article class="rounded-lg border border-zinc-200 p-6">
-      <h2 class="text-lg font-semibold">ROI Calculation</h2>
-      <p class="mt-3 text-sm leading-6 text-zinc-600">Estimate payback timing and long-term return on investment.</p>
+    <article class="card">
+      <h2 class="feature__title">Розрахунок ROI</h2>
+      <p class="feature__desc">Оцініть терміни окупності та довгострокову рентабельність.</p>
     </article>
   </div>
 </section>

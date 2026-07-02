@@ -1,7 +1,7 @@
-html {
-  color-scheme: light;
-}
-
-input {
-  min-height: 2.5rem;
-}
+/* styles.css — видаліть цей файл або тримайте порожнім.
+   Всі стилі тепер розподілені по:
+     css/base.css        — спільна база (всі сторінки)
+     css/home.css        — головна сторінка
+     css/auth.css        — login / register
+     css/calculator.css  — сторінка калькулятора
+*/

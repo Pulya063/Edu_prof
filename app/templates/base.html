@@ -1,22 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="uk">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Education ROI Calculator{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>{% block title %}Калькулятор ROI освіти{% endblock %}</title>
+    <!-- Тема застосовується ДО завантаження CSS, щоб уникнути мигання -->
+    <script>
+      (function () {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (!saved && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      }());
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    {% block styles %}{% endblock %}
+    <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js" defer></script>
   </head>
-  <body class="min-h-screen bg-zinc-50 text-zinc-950">
-    <header class="border-b border-zinc-200 bg-white">
-      <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <a href="/" class="text-lg font-semibold tracking-tight">Education ROI</a>
-        <div class="flex items-center gap-2">
-          <a href="/calculator" class="rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100">Calculator</a>
-          <a href="/login" class="rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100">Login</a>
-          <a href="/register" class="rounded-md bg-zinc-950 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800">Register</a>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav container">
+        <a href="/" class="site-nav__brand">ROI освіти</a>
+        <div class="site-nav__links">
+          <button id="theme-toggle" class="nav-link">🌗 Тема</button>
+          <a href="/calculator" class="nav-link">Калькулятор</a>
+          <a href="/login" class="nav-link">Увійти</a>
+          <a href="/register" class="btn btn--dark btn--sm">Реєстрація</a>
         </div>
       </nav>
     </header>

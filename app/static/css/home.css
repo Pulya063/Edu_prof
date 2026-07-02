@@ -1,0 +1,128 @@
+/* ============================================================
+   home.css — стилі лише для головної сторінки
+   ============================================================ */
+
+/* --- Hero -------------------------------------------------- */
+.hero {
+  display: grid;
+  gap: 2.5rem;
+  padding-block: 4rem;
+}
+
+@media (min-width: 768px) {
+  .hero {
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: center;
+    padding-block: 6rem;
+  }
+}
+
+.hero__title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--clr-text);
+  margin-bottom: 1.25rem;
+  max-width: 32rem;
+}
+
+@media (min-width: 768px) { .hero__title { font-size: 3.75rem; } }
+
+.hero__subtitle {
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: var(--clr-text-muted);
+  margin-bottom: 2rem;
+  max-width: 32rem;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* --- Preview stats card ------------------------------------ */
+.preview-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.preview-card__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* --- Stat tile --------------------------------------------- */
+.stat-tile {
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.stat-tile__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.stat-tile__value {
+  font-size: 1.875rem;
+  font-weight: 700;
+}
+
+.stat-tile__value--sm { font-size: 1.5rem; }
+
+/* emerald */
+.stat-tile--emerald                    { background-color: #ecfdf5; }
+.stat-tile--emerald .stat-tile__label  { color: #065f46; }
+.stat-tile--emerald .stat-tile__value  { color: #064e3b; }
+.dark .stat-tile--emerald              { background-color: rgba(6,78,59,.25); }
+.dark .stat-tile--emerald .stat-tile__label { color: #6ee7b7; }
+.dark .stat-tile--emerald .stat-tile__value { color: #d1fae5; }
+
+/* sky */
+.stat-tile--sky                    { background-color: #f0f9ff; }
+.stat-tile--sky .stat-tile__label  { color: #0c4a6e; }
+.stat-tile--sky .stat-tile__value  { color: #082f49; }
+.dark .stat-tile--sky              { background-color: rgba(8,47,73,.25); }
+.dark .stat-tile--sky .stat-tile__label { color: #7dd3fc; }
+.dark .stat-tile--sky .stat-tile__value { color: #e0f2fe; }
+
+/* amber */
+.stat-tile--amber                    { background-color: #fffbeb; }
+.stat-tile--amber .stat-tile__label  { color: #78350f; }
+.stat-tile--amber .stat-tile__value  { color: #451a03; }
+.dark .stat-tile--amber              { background-color: rgba(69,26,3,.25); }
+.dark .stat-tile--amber .stat-tile__label { color: #fcd34d; }
+.dark .stat-tile--amber .stat-tile__value { color: #fef3c7; }
+
+/* --- Features section -------------------------------------- */
+.features {
+  border-top: 1px solid var(--clr-border);
+  background-color: var(--clr-bg);
+  transition: var(--transition);
+}
+
+.features__grid {
+  display: grid;
+  gap: 1rem;
+  padding-block: 3rem;
+}
+
+@media (min-width: 768px) {
+  .features__grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.feature__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--clr-text);
+  margin-bottom: 0.75rem;
+}
+
+.feature__desc {
+  font-size: 0.875rem;
+  line-height: 1.75;
+  color: var(--clr-text-muted);
+}

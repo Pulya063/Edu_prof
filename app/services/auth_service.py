@@ -19,13 +19,26 @@ class AuthService:
         self.db = db_session
 
     def register(self, payload: RegisterSchema) -> User:
-        user = User(email=str(payload.email).lower(), password_hash=hash_password(payload.password))
+        email = str(payload.email).lower()
+        # Генеруємо унікальний username з email-префіксу
+        base_username = email.split("@")[0][:50]
+        username = base_username
+        counter = 1
+        while self.db.execute(select(User).where(User.username == username)).scalar_one_or_none():
+            username = f"{base_username}{counter}"[:50]
+            counter += 1
+
+        user = User(
+            email=email,
+            username=username,
+            password_hash=hash_password(payload.password),
+        )
         self.db.add(user)
         try:
             self.db.commit()
         except IntegrityError as exc:
             self.db.rollback()
-            raise AppError("A user with this email already exists", status_code=409) from exc
+            raise AppError("Користувач з таким email вже існує", status_code=409) from exc
         self.db.refresh(user)
         return user
 
@@ -43,7 +56,7 @@ class AuthService:
     def create_access_token(self, user: User) -> TokenResponse:
         token = create_jwt_access_token(
             subject=str(user.id),
-            expires_delta=timedelta(minutes=os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")),
+            expires_delta=timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))),
         )
         return TokenResponse(access_token=token)
 
