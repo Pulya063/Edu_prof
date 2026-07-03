@@ -54,7 +54,6 @@ class University(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
 
     name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     country: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
-    city: Mapped[str] = mapped_column(String(120), nullable=False)
     website: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     programs: Mapped[list["EducationProgram"]] = relationship(

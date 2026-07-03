@@ -4,12 +4,14 @@ from app.core.database import db
 from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas import ROICalculationRequest
+from app.services.external_api import get_tuition_history, search_universities
 from app.services.roi_service import ROIService
 
 blueprint = Blueprint("roi", __name__)
 
 
-# @blueprint.post повинен бути БЛИЖЧИМ до функції, @get_current_user — зовнішнім
+# ── ROI калькулятор ───────────────────────────────────────────────────────────
+
 @blueprint.post("/calculate")
 @get_current_user
 def calculate_roi(user: User) -> Response | str:
@@ -24,6 +26,44 @@ def calculate_roi(user: User) -> Response | str:
 
 @blueprint.get("/history")
 @get_current_user
-def roi_history(user: User) -> Response:
+def roi_history(user, **kwargs) -> Response:
     history = ROIService(db.session).get_history(user)
     return jsonify([item.model_dump(mode="json") for item in history])
+
+
+# ── Пошук університетів ───────────────────────────────────────────────────────
+
+@blueprint.get("/universities/search")
+def universities_search() -> Response:
+    """
+    GET /api/roi/universities/search?q=Harvard
+    Повертає список університетів з Hipolabs + College Scorecard (USA).
+    """
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify([])
+    results = search_universities(query)
+    return jsonify(results)
+
+
+# ── Вартість навчання по роках ────────────────────────────────────────────────
+
+@blueprint.get("/universities/tuition")
+def universities_tuition() -> Response:
+    """
+    GET /api/roi/universities/tuition?scorecard_id=123456&country=Ukraine
+    Повертає вартість навчання по роках (2018–2023).
+
+    - scorecard_id — ID з College Scorecard (для університетів США)
+    - country      — назва країни (для вбудованого словника)
+    """
+    raw_id  = request.args.get("scorecard_id")
+    country = (request.args.get("country") or "").strip()
+
+    scorecard_id = int(raw_id) if raw_id and raw_id.isdigit() else None
+
+    if not scorecard_id and not country:
+        return jsonify({"error": "Потрібен scorecard_id або country"}), 400
+
+    history = get_tuition_history(scorecard_id, country)
+    return jsonify(history)

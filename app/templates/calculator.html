@@ -5,62 +5,110 @@
 {% endblock %}
 {% block content %}
 <div class="calc-section container">
+
+  <!-- ── Ліва колонка: форма ──────────────────────────────────────── -->
   <div>
     <h1 class="calc-title">Розрахунок ROI освіти</h1>
-    <p class="calc-subtitle">
-      Введіть вартість навчання, тривалість, стартову зарплату та ріст — отримайте прогноз.
-    </p>
+    <p class="calc-subtitle">Знайдіть університет, оберіть рік — решту порахуємо самі.</p>
+
     <form
       class="card calc-form"
+      id="roi-form"
       hx-post="/api/roi/calculate"
       hx-ext="json-enc"
       hx-target="#roi-results"
       hx-swap="innerHTML"
+      hx-indicator="#calc-spinner"
     >
+      <!-- Університет (autocomplete) -->
       <div class="form-group">
         <label for="university" class="form-label">Університет</label>
-        <input id="university" name="university" required
-               class="form-input" placeholder="Назва університету">
+        <div class="autocomplete-wrap">
+          <input
+            id="university" name="university" required
+            class="form-input" placeholder="Почніть вводити назву..."
+            autocomplete="off"
+          >
+          <ul class="autocomplete-list" id="university-dropdown" role="listbox" hidden></ul>
+        </div>
+        <!-- Прихований scorecard_id -->
+        <input type="hidden" id="scorecard-id" name="_scorecard_id">
+        <input type="hidden" id="uni-country" name="_country">
       </div>
+
+      <!-- Таблиця вартості навчання по роках (з'являється після вибору) -->
+      <div id="tuition-history-wrap" class="tuition-history" hidden>
+        <p class="tuition-history__title">Вартість навчання по роках</p>
+        <div class="tuition-source" id="tuition-source"></div>
+        <div class="tuition-table-wrap">
+          <table class="tuition-table" id="tuition-table">
+            <thead>
+              <tr>
+                <th>Рік</th>
+                <th>Вартість (за рік)</th>
+                <th>Чиста ціна</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tuition-table-body"></tbody>
+          </table>
+        </div>
+        <p class="tuition-hint">
+          Натисніть «Обрати» поруч з роком — вартість підставиться у форму.
+        </p>
+      </div>
+
+      <!-- Спеціальність -->
       <div class="form-group">
         <label for="degree_program" class="form-label">Спеціальність</label>
         <input id="degree_program" name="degree_program" required
-               class="form-input" placeholder="Назва спеціальності">
+               class="form-input" placeholder="Наприклад: Computer Science">
       </div>
+
+      <!-- Рядок: Вартість + Тривалість -->
       <div class="calc-form__row">
         <div class="form-group">
-          <label for="tuition_cost" class="form-label">Вартість навчання ($)</label>
-          <input id="tuition_cost" name="tuition_cost" type="number" min="1" step="0.01" required
-                 class="form-input" placeholder="5000">
+          <label for="tuition_cost" class="form-label">
+            Вартість навчання за рік ($)
+          </label>
+          <input id="tuition_cost" name="tuition_cost" type="number"
+                 min="1" step="0.01" required class="form-input" placeholder="5000">
         </div>
         <div class="form-group">
           <label for="study_duration_years" class="form-label">Тривалість (років)</label>
-          <input id="study_duration_years" name="study_duration_years" type="number"
-                 min="1" max="12" step="1" required class="form-input" placeholder="4">
+          <input id="study_duration_years" name="study_duration_years"
+                 type="number" min="1" max="12" step="1" required class="form-input" placeholder="4">
         </div>
       </div>
-      <div class="calc-form__row">
-        <div class="form-group">
-          <label for="expected_salary_after_graduation" class="form-label">Очікувана зарплата ($)</label>
-          <input id="expected_salary_after_graduation" name="expected_salary_after_graduation"
-                 type="number" min="1" step="0.01" required class="form-input" placeholder="2000">
-        </div>
-        <div class="form-group">
-          <label for="annual_salary_growth_percent" class="form-label">Ріст зарплати на рік (%)</label>
-          <input id="annual_salary_growth_percent" name="annual_salary_growth_percent"
-                 type="number" min="-50" max="100" step="0.01" required class="form-input" placeholder="5">
-        </div>
+
+      <!-- Рядок: Зарплата -->
+      <div class="form-group">
+        <label for="expected_salary_after_graduation" class="form-label">
+          Очікувана зарплата після навчання ($/рік)
+        </label>
+        <input id="expected_salary_after_graduation"
+               name="expected_salary_after_graduation"
+               type="number" min="1" step="0.01" required class="form-input" placeholder="50000">
       </div>
-      <button type="submit" class="btn btn--primary">Розрахувати ROI</button>
+
+      <div class="calc-form__footer">
+        <button type="submit" class="btn btn--primary">
+          Розрахувати ROI
+        </button>
+        <span class="calc-spinner" id="calc-spinner">Рахуємо…</span>
+      </div>
     </form>
   </div>
 
+  <!-- ── Права колонка: результати ───────────────────────────────── -->
   <div class="results-panel">
     <div id="roi-results">
       <div class="results-placeholder">
-        Результати з'являться тут після розрахунку.
+        <span class="results-placeholder__icon">📊</span>
+        <p>Результати з'являться тут після розрахунку</p>
       </div>
     </div>
   </div>
+
 </div>
 {% endblock %}

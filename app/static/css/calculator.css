@@ -1,15 +1,15 @@
 /* ============================================================
-   calculator.css — стилі для calculator.html
+   calculator.css — сторінка калькулятора
    ============================================================ */
 
+/* --- Layout ------------------------------------------------ */
 .calc-section {
   display: grid;
   gap: 2rem;
   padding-block: 3rem;
 }
-
 @media (min-width: 1024px) {
-  .calc-section { grid-template-columns: 0.95fr 1.05fr; }
+  .calc-section { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 
 .calc-title {
@@ -17,74 +17,331 @@
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--clr-text);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
-
 @media (min-width: 768px) { .calc-title { font-size: 2.25rem; } }
 
 .calc-subtitle {
   font-size: 0.9375rem;
   color: var(--clr-text-muted);
-  margin-bottom: 2rem;
+  margin-bottom: 1.75rem;
   line-height: 1.6;
 }
 
-.calc-form {
-  display: grid;
-  gap: 1.25rem;
-}
+/* --- Form -------------------------------------------------- */
+.calc-form { display: grid; gap: 1.25rem; }
 
 .calc-form__row {
   display: grid;
   gap: 1.25rem;
 }
-
-@media (min-width: 640px) {
+@media (min-width: 560px) {
   .calc-form__row { grid-template-columns: 1fr 1fr; }
 }
 
-/* --- Results panel ----------------------------------------- */
-.results-panel {
+.calc-form__footer {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  align-items: center;
+  gap: 1rem;
 }
 
-@media (min-width: 1024px) { .results-panel { padding-top: 6rem; } }
+/* --- Spinner ----------------------------------------------- */
+.calc-spinner {
+  display: none;
+  font-size: 0.875rem;
+  color: var(--clr-text-muted);
+}
+.htmx-request .calc-spinner { display: inline; }
+
+/* --- Autocomplete ------------------------------------------ */
+.autocomplete-wrap { position: relative; }
+
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background-color: var(--clr-bg-card);
+  border: 1px solid var(--clr-border-input);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.autocomplete-list[hidden] { display: none; }
+
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+.autocomplete-item:hover,
+.autocomplete-item--active {
+  background-color: var(--clr-border);
+}
+
+.autocomplete-item__name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--clr-text);
+}
+.autocomplete-item__meta {
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
+  margin-top: 0.125rem;
+}
+.autocomplete-item__badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.4rem;
+  border-radius: 999px;
+  background-color: var(--clr-accent);
+  color: #fff;
+  flex-shrink: 0;
+}
+.autocomplete-item__badge--world {
+  background-color: var(--clr-border-input);
+  color: var(--clr-text-muted);
+}
+
+.autocomplete-loading {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--clr-text-muted);
+  text-align: center;
+}
+
+/* --- Tuition history table --------------------------------- */
+.tuition-history {
+  background-color: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  animation: slide-down 0.2s ease;
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tuition-history[hidden] { display: none; }
+
+.tuition-history__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--clr-text);
+  margin-bottom: 0.5rem;
+}
+
+.tuition-source {
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.tuition-table-wrap { overflow-x: auto; }
+
+.tuition-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.tuition-table th,
+.tuition-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--clr-border);
+}
+.tuition-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tuition-table tbody tr:last-child td { border-bottom: none; }
+.tuition-table tbody tr:hover td { background-color: var(--clr-border); }
+
+.tuition-table .btn--xs {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background-color: var(--clr-accent);
+  color: #fff;
+  border: none;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+.tuition-table .btn--xs:hover { background-color: var(--clr-accent-hover); }
+
+.tuition-hint {
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
+  margin-top: 0.5rem;
+}
+
+/* --- Results panel ---------------------------------------- */
+.results-panel {
+  position: sticky;
+  top: 1.5rem;
+}
 
 .results-placeholder {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 12rem;
+  gap: 0.75rem;
+  min-height: 14rem;
   border: 2px dashed var(--clr-border-input);
   border-radius: var(--radius-md);
   background-color: var(--clr-bg-card);
   color: var(--clr-text-muted);
-  font-size: 0.9375rem;
   text-align: center;
   padding: 2rem;
   transition: var(--transition);
 }
+.results-placeholder__icon { font-size: 2.5rem; }
+.results-placeholder p { font-size: 0.9375rem; }
 
-/* --- Results grid (roi_results.html partial) ---------------- */
-.results-grid {
+/* --- ROI results ------------------------------------------ */
+.roi-results-wrap { display: grid; gap: 1.25rem; }
+
+/* KPI cards */
+.kpi-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.result-card__label {
-  font-size: 0.875rem;
-  font-weight: 500;
+.kpi-card {
+  background-color: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  transition: var(--transition);
+}
+.kpi-card--accent { border-color: var(--clr-accent); }
+.kpi-card--full   { grid-column: 1 / -1; }
+
+.kpi-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--clr-text-muted);
-  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.375rem;
 }
-
-.result-card__value {
-  font-size: 1.875rem;
+.kpi-card__value {
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--clr-text);
 }
+.kpi-card--accent .kpi-card__value { color: var(--clr-accent); }
+.kpi-card__value--lg { font-size: 1.875rem; }
 
-.result-card__value--accent { color: var(--clr-accent); }
+/* Salary bar chart */
+.salary-chart-wrap {
+  background-color: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.salary-chart__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--clr-text);
+  margin-bottom: 1rem;
+}
+
+.salary-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.25rem;
+  height: 8rem;
+}
+
+.salary-bar {
+  flex: 1;
+  background-color: var(--clr-accent);
+  border-radius: 3px 3px 0 0;
+  height: var(--bar-height, 10%);
+  min-height: 6px;
+  position: relative;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+  cursor: default;
+}
+.salary-bar:hover { opacity: 1; }
+
+.salary-bar__label {
+  position: absolute;
+  bottom: -1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+
+.salary-chart__legend {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
+}
+
+/* Salary table */
+.salary-table-wrap { overflow-x: auto; }
+
+.salary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  background-color: var(--clr-bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.salary-table th,
+.salary-table td {
+  padding: 0.5rem 0.875rem;
+  text-align: left;
+  border-bottom: 1px solid var(--clr-border);
+}
+.salary-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background-color: var(--clr-bg);
+}
+.salary-table tbody tr:last-child td { border-bottom: none; }
+.salary-table tbody tr:hover td { background-color: var(--clr-border); }
+
+/* Growth badges */
+.growth-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--clr-border);
+  color: var(--clr-text-muted);
+}
+.growth-badge--high { background-color: #dcfce7; color: #15803d; }
+.growth-badge--mid  { background-color: #dbeafe; color: #1d4ed8; }
+.growth-badge--low  { background-color: #fef3c7; color: #b45309; }
+.dark .growth-badge--high { background-color: rgba(21,128,61,.25); color: #86efac; }
+.dark .growth-badge--mid  { background-color: rgba(29,78,216,.25); color: #93c5fd; }
+.dark .growth-badge--low  { background-color: rgba(180,83,9,.25);  color: #fcd34d; }

@@ -1,18 +1,80 @@
-<div class="results-grid">
-  <div class="card">
-    <p class="result-card__label">ROI %</p>
-    <p class="result-card__value result-card__value--accent">{{ result.roi_percent }}%</p>
+<div class="roi-results-wrap">
+  <!-- ── KPI плитки ─────────────────────────────────── -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-card--accent">
+      <p class="kpi-card__label">ROI</p>
+      <p class="kpi-card__value">{{ result.roi_percent }}%</p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-card__label">Окупність</p>
+      <p class="kpi-card__value">{{ result.break_even_months }} міс.</p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-card__label">Дохід за 5 р.</p>
+      <p class="kpi-card__value">${{ result.projected_income_5y }}</p>
+    </div>
+    <div class="kpi-card">
+      <p class="kpi-card__label">Дохід за 10 р.</p>
+      <p class="kpi-card__value">${{ result.projected_income_10y }}</p>
+    </div>
+    <div class="kpi-card kpi-card--full">
+      <p class="kpi-card__label">Загальні інвестиції</p>
+      <p class="kpi-card__value kpi-card__value--lg">${{ result.total_education_investment }}</p>
+    </div>
   </div>
-  <div class="card">
-    <p class="result-card__label">Термін окупності</p>
-    <p class="result-card__value">{{ result.break_even_months }} міс.</p>
+
+  <!-- ── Прогноз зарплати по роках ─────────────────── -->
+  <div class="salary-chart-wrap">
+    <p class="salary-chart__title">Прогноз зарплати (модель Мінсера)</p>
+    <div class="salary-bars" id="salary-bars">
+      {% for salary in result.career_growth_projection %}
+      <div
+        class="salary-bar"
+        data-salary="{{ salary }}"
+        data-year="{{ loop.index0 }}"
+        title="Рік {{ loop.index0 }}: ${{ salary }}"
+      >
+        <span class="salary-bar__label">Р{{ loop.index0 }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="salary-chart__legend">
+      <span>Рік 0 = старт після навчання</span>
+    </div>
   </div>
-  <div class="card">
-    <p class="result-card__label">Дохід за 5 років</p>
-    <p class="result-card__value">${{ result.projected_income_5y }}</p>
-  </div>
-  <div class="card">
-    <p class="result-card__label">Дохід за 10 років</p>
-    <p class="result-card__value">${{ result.projected_income_10y }}</p>
+
+  <!-- ── Таблиця по роках ───────────────────────────── -->
+  <div class="salary-table-wrap">
+    <table class="salary-table">
+      <thead>
+        <tr>
+          <th>Рік</th>
+          <th>Зарплата ($/рік)</th>
+          <th>Зростання</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for salary in result.career_growth_projection %}
+        <tr>
+          <td>{{ loop.index0 }}</td>
+          <td>${{ salary }}</td>
+          <td>
+            {% if loop.index0 == 0 %}—
+            {% elif loop.index0 <= 3 %}
+            <span class="growth-badge growth-badge--high">+8%</span>
+            {% elif loop.index0 <= 6 %}
+            <span class="growth-badge growth-badge--mid">+5%</span>
+            {% elif loop.index0 <= 10 %}
+            <span class="growth-badge growth-badge--low">+3%</span>
+            {% else %}
+            <span class="growth-badge">+2%</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
+
+

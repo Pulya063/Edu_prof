@@ -4,16 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Калькулятор ROI освіти{% endblock %}</title>
-    <!-- Тема застосовується ДО завантаження CSS, щоб уникнути мигання -->
-    <script>
-      (function () {
-        var saved = localStorage.getItem('theme');
-        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (saved === 'dark' || (!saved && prefersDark)) {
-          document.documentElement.classList.add('dark');
-        }
-      }());
-    </script>
+    <!-- theme-init.js: без defer — виконується синхронно до CSS (усуває мигання) -->
+    <script src="{{ url_for('static', filename='js/theme-init.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     {% block styles %}{% endblock %}
     <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>

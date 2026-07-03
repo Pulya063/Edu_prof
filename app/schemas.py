@@ -86,13 +86,9 @@ class ROICalculationRequest(BaseModel):
     degree_program: str = Field(min_length=2, max_length=255)
     tuition_cost: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
     study_duration_years: int = Field(ge=1, le=12)
-    expected_salary_after_graduation: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    annual_salary_growth_percent: Decimal = Field(
-        ge=Decimal("-50"),
-        le=Decimal("100"),
-        max_digits=5,
-        decimal_places=2,
-    )
+    expected_start_salary: Decimal
+    annual_growth_percent: Decimal
+
     program_id: int | None = Field(default=None, gt=0)
 
 

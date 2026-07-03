@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import g, request
+from flask import request
 
 from app.core.database import db
 from app.core.exceptions import AppError
