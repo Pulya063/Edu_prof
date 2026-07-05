@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import db
@@ -42,6 +42,11 @@ class User(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     is_admin: Mapped[bool] = mapped_column(default=False)
 
     roi_calculations: Mapped[list["ROICalculation"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    roadmaps: Mapped[list["UserRoadmap"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -118,3 +123,15 @@ class ROICalculation(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
 
     user: Mapped[User] = relationship(back_populates="roi_calculations")
     program: Mapped[EducationProgram | None] = relationship(back_populates="roi_calculations")
+
+
+class UserRoadmap(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    __tablename__ = "user_roadmaps"
+    repr_fields = ("id", "user_id", "target_job")
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    target_job: Mapped[str] = mapped_column(String(255), nullable=False)
+    dreamwork_plan_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    roadmap_data: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    user: Mapped["User"] = relationship(back_populates="roadmaps")

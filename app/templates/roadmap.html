@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Мій Roadmap | Education ROI Calculator{% endblock %}
+
+{% block content %}
+<section class="container mx-auto px-4 py-12 max-w-4xl w-full">
+  <div class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 sm:p-10 transition-all">
+    <div class="text-center mb-10">
+      <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 mb-4">
+        Кар'єрний Roadmap
+      </h1>
+      <p class="text-slate-500 dark:text-slate-400 text-lg max-w-2xl mx-auto">
+        Ваш персоналізований навчальний план, згенерований штучним інтелектом. 
+        Він адаптований до вашого графіку та поточних навичок.
+      </p>
+    </div>
+
+    <!-- Якщо плану ще немає, показуємо форму -->
+    {% if not roadmap %}
+    <div id="roadmap-generator-container">
+      <div class="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700/50">
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-6">Створити новий Roadmap</h3>
+        
+        <form hx-post="/roadmap/generate" 
+              hx-target="#roadmap-generator-container" 
+              hx-swap="innerHTML"
+              hx-indicator="#roadmap-spinner"
+              class="space-y-6">
+          
+          <div class="flex flex-col">
+            <label for="target_job" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Цільова посада</label>
+            <input type="text" id="target_job" name="target_job" required placeholder="Напр., Junior Python Developer" 
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500">
+          </div>
+          
+          <div class="flex flex-col">
+            <label for="hours_per_week" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Годин на тиждень для навчання</label>
+            <input type="number" id="hours_per_week" name="hours_per_week" value="10" min="1" max="168" 
+                   class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500">
+          </div>
+
+          <button type="submit" class="w-full inline-flex justify-center items-center rounded-lg bg-blue-600 hover:bg-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all active:scale-95 group mt-4">
+            <span>Згенерувати AI Roadmap</span>
+            <svg id="roadmap-spinner" class="animate-spin ml-2 h-4 w-4 text-white hidden htmx-indicator" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    
+    <div id="roadmap-timeline">
+      {% include "partials/roadmap_timeline.html" %}
+    </div>
+    
+    <div class="mt-12 text-center border-t border-slate-200 dark:border-slate-800 pt-8">
+      <p class="text-slate-500 dark:text-slate-400 mb-4 font-medium">Хочете оновити або змінити план?</p>
+      <form hx-post="/roadmap/generate" 
+            hx-target="#roadmap-timeline" 
+            hx-swap="innerHTML"
+            hx-indicator="#refresh-spinner"
+            class="inline-block">
+        <input type="hidden" name="target_job" value="{{ roadmap.target_job }}">
+        <input type="hidden" name="hours_per_week" value="10">
+        <button type="submit" class="inline-flex justify-center items-center rounded-lg bg-white dark:bg-[#0f172a] border border-slate-300 dark:border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm transition-all active:scale-95 group">
+          <span>Перегенерувати Roadmap</span>
+          <svg id="refresh-spinner" class="animate-spin ml-2 h-4 w-4 text-slate-500 dark:text-slate-400 hidden htmx-indicator" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        </button>
+      </form>
+    </div>
+    
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

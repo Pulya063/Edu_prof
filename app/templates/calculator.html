@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Калькулятор | ROI освіти{% endblock %}
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/calculator.css') }}">
-{% endblock %}
+{% block styles %}{% endblock %}
 {% block content %}
-<div class="calc-section container">
+<section class="container mx-auto px-4 py-8 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 w-full max-w-7xl">
 
-  <!-- ── Ліва колонка: форма ──────────────────────────────────────── -->
-  <div>
-    <h1 class="calc-title">Розрахунок ROI освіти</h1>
-    <p class="calc-subtitle">Знайдіть університет, оберіть рік — решту порахуємо самі.</p>
+  <!-- ── Left Column: Form ──────────────────────────────────────── -->
+  <div class="w-full lg:w-5/12 flex-shrink-0">
+    <div class="mb-8">
+      <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Розрахунок ROI</h1>
+      <p class="text-slate-500 dark:text-slate-400 mt-2">Знайдіть університет, оберіть рік — решту порахуємо самі.</p>
+    </div>
 
     <form
-      class="card calc-form"
+      class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 flex flex-col"
       id="roi-form"
       hx-post="/api/roi/calculate"
       hx-ext="json-enc"
@@ -20,95 +20,110 @@
       hx-swap="innerHTML"
       hx-indicator="#calc-spinner"
     >
-      <!-- Університет (autocomplete) -->
-      <div class="form-group">
-        <label for="university" class="form-label">Університет</label>
-        <div class="autocomplete-wrap">
+      <!-- University Autocomplete -->
+      <div class="flex flex-col relative">
+        <label for="university" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Університет</label>
+        <div class="autocomplete-wrap relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+             <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+          </div>
           <input
             id="university" name="university" required
-            class="form-input" placeholder="Почніть вводити назву..."
+            class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500 pl-10" placeholder="Почніть вводити назву..."
             autocomplete="off"
           >
           <ul class="autocomplete-list" id="university-dropdown" role="listbox" hidden></ul>
         </div>
-        <!-- Прихований scorecard_id -->
         <input type="hidden" id="scorecard-id" name="_scorecard_id">
         <input type="hidden" id="uni-country" name="_country">
       </div>
 
-      <!-- Таблиця вартості навчання по роках (з'являється після вибору) -->
-      <div id="tuition-history-wrap" class="tuition-history" hidden>
-        <p class="tuition-history__title">Вартість навчання по роках</p>
-        <div class="tuition-source" id="tuition-source"></div>
-        <div class="tuition-table-wrap">
-          <table class="tuition-table" id="tuition-table">
-            <thead>
+      <!-- Tuition History Table (Reveals on select) -->
+      <div id="tuition-history-wrap" class="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700/50 p-4" hidden>
+        <div class="flex justify-between items-center mb-3">
+          <p class="font-semibold text-sm text-slate-700 dark:text-slate-300">Вартість навчання по роках</p>
+        </div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mb-3" id="tuition-source"></div>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300" id="tuition-table">
+            <thead class="bg-slate-100 dark:bg-slate-800 text-xs uppercase font-semibold">
               <tr>
-                <th>Рік</th>
-                <th>Вартість (за рік)</th>
-                <th>Чиста ціна</th>
-                <th></th>
+                <th class="px-3 py-2">Рік</th>
+                <th class="px-3 py-2">Вартість</th>
+                <th class="px-3 py-2 hidden sm:table-cell">Чиста ціна</th>
+                <th class="px-3 py-2"></th>
               </tr>
             </thead>
-            <tbody id="tuition-table-body"></tbody>
+            <tbody id="tuition-table-body" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-[#1e293b]">
+              <!-- Dynamically filled by JS -->
+            </tbody>
           </table>
         </div>
-        <p class="tuition-hint">
+        <p class="text-xs text-slate-500 mt-3 flex items-start">
+          <svg class="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           Натисніть «Обрати» поруч з роком — вартість підставиться у форму.
         </p>
       </div>
 
-      <!-- Спеціальність -->
-      <div class="form-group">
-        <label for="degree_program" class="form-label">Спеціальність</label>
+      <!-- Degree Program -->
+      <div class="flex flex-col relative">
+        <label for="degree_program" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Спеціальність</label>
         <input id="degree_program" name="degree_program" required
-               class="form-input" placeholder="Наприклад: Computer Science">
+               class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500" placeholder="Наприклад: Computer Science">
       </div>
 
-      <!-- Рядок: Вартість + Тривалість -->
-      <div class="calc-form__row">
-        <div class="form-group">
-          <label for="tuition_cost" class="form-label">
-            Вартість навчання за рік ($)
+      <!-- Cost & Duration Row -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col">
+          <label for="tuition_cost" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Вартість за рік ($)
           </label>
           <input id="tuition_cost" name="tuition_cost" type="number"
-                 min="1" step="0.01" required class="form-input" placeholder="5000">
+                 min="1" step="0.01" required class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500 font-mono" placeholder="5000">
         </div>
-        <div class="form-group">
-          <label for="study_duration_years" class="form-label">Тривалість (років)</label>
+        <div class="flex flex-col">
+          <label for="study_duration_years" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Тривалість (років)</label>
           <input id="study_duration_years" name="study_duration_years"
-                 type="number" min="1" max="12" step="1" required class="form-input" placeholder="4">
+                 type="number" min="1" max="12" step="1" required class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500 font-mono" placeholder="4">
         </div>
       </div>
 
-      <!-- Рядок: Зарплата -->
-      <div class="form-group">
-        <label for="expected_salary_after_graduation" class="form-label">
-          Очікувана зарплата після навчання ($/рік)
+      <!-- Salary Expectation -->
+      <div class="flex flex-col">
+        <label for="expected_start_salary" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+          Очікувана стартова зарплата ($/рік)
         </label>
-        <input id="expected_salary_after_graduation"
-               name="expected_salary_after_graduation"
-               type="number" min="1" step="0.01" required class="form-input" placeholder="50000">
+        <input id="expected_start_salary"
+               name="expected_start_salary"
+               type="number" min="1" step="0.01" required class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500 font-mono" placeholder="50000">
       </div>
 
-      <div class="calc-form__footer">
-        <button type="submit" class="btn btn--primary">
+      <div class="pt-4 flex items-center gap-4">
+        <button type="submit" class="w-full inline-flex justify-center items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 shadow-sm hover:shadow transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex-1">
           Розрахувати ROI
         </button>
-        <span class="calc-spinner" id="calc-spinner">Рахуємо…</span>
+        <span class="flex items-center text-blue-600 font-medium htmx-indicator" id="calc-spinner">
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+          Рахуємо...
+        </span>
       </div>
     </form>
   </div>
 
-  <!-- ── Права колонка: результати ───────────────────────────────── -->
-  <div class="results-panel">
-    <div id="roi-results">
-      <div class="results-placeholder">
-        <span class="results-placeholder__icon">📊</span>
-        <p>Результати з'являться тут після розрахунку</p>
+  <!-- ── Right Column: Results ───────────────────────────────── -->
+  <div class="w-full lg:w-7/12 flex flex-col">
+    <div id="roi-results" class="flex-grow h-full min-h-[400px]">
+      <div class="w-full h-full flex flex-col items-center justify-center p-12 bg-white dark:bg-[#1e293b] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 border-dashed border-2 text-center">
+        <div class="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
+          <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+        </div>
+        <h3 class="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2">Готові до розрахунку</h3>
+        <p class="text-slate-500 dark:text-slate-400 max-w-sm">
+          Заповніть форму ліворуч і натисніть "Розрахувати ROI", щоб побачити детальний фінансовий прогноз.
+        </p>
       </div>
     </div>
   </div>
 
-</div>
+</section>
 {% endblock %}

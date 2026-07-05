@@ -39,67 +39,7 @@ def _year_fields(years: list[int]) -> str:
     return ",".join(fields)
 
 
-# ── Вбудований словник для не-США університетів ──────────────────────────────
-# Середня вартість навчання (USD/рік) на основі офіційних звітів ОЕСР 2018–2023
-# Джерело: OECD Education at a Glance, Eurydice, МОН України
-NON_US_TUITION: dict[str, dict[int, dict[str, int | None]]] = {
-    "ukraine": {
-        2018: {"in_state": 1200,  "out_of_state": 2500},
-        2019: {"in_state": 1350,  "out_of_state": 2700},
-        2020: {"in_state": 1400,  "out_of_state": 2800},
-        2021: {"in_state": 1500,  "out_of_state": 3000},
-        2022: {"in_state": 1600,  "out_of_state": 3200},
-        2023: {"in_state": 1700,  "out_of_state": 3400},
-    },
-    "poland": {
-        2018: {"in_state": 0,     "out_of_state": 2500},
-        2019: {"in_state": 0,     "out_of_state": 2700},
-        2020: {"in_state": 0,     "out_of_state": 2900},
-        2021: {"in_state": 0,     "out_of_state": 3100},
-        2022: {"in_state": 0,     "out_of_state": 3300},
-        2023: {"in_state": 0,     "out_of_state": 3500},
-    },
-    "germany": {
-        2018: {"in_state": 300,   "out_of_state": 2000},
-        2019: {"in_state": 300,   "out_of_state": 2100},
-        2020: {"in_state": 300,   "out_of_state": 2200},
-        2021: {"in_state": 350,   "out_of_state": 2300},
-        2022: {"in_state": 350,   "out_of_state": 2400},
-        2023: {"in_state": 400,   "out_of_state": 2600},
-    },
-    "france": {
-        2018: {"in_state": 250,   "out_of_state": 3500},
-        2019: {"in_state": 400,   "out_of_state": 3700},
-        2020: {"in_state": 2770,  "out_of_state": 3900},
-        2021: {"in_state": 2770,  "out_of_state": 4000},
-        2022: {"in_state": 2770,  "out_of_state": 4200},
-        2023: {"in_state": 2770,  "out_of_state": 4400},
-    },
-    "united kingdom": {
-        2018: {"in_state": 12000, "out_of_state": 22000},
-        2019: {"in_state": 12500, "out_of_state": 23000},
-        2020: {"in_state": 12500, "out_of_state": 24000},
-        2021: {"in_state": 12500, "out_of_state": 25000},
-        2022: {"in_state": 12500, "out_of_state": 26000},
-        2023: {"in_state": 13000, "out_of_state": 27000},
-    },
-    "canada": {
-        2018: {"in_state": 6500,  "out_of_state": 25000},
-        2019: {"in_state": 6800,  "out_of_state": 26000},
-        2020: {"in_state": 6900,  "out_of_state": 27000},
-        2021: {"in_state": 6900,  "out_of_state": 28000},
-        2022: {"in_state": 7000,  "out_of_state": 29000},
-        2023: {"in_state": 7200,  "out_of_state": 30000},
-    },
-    "australia": {
-        2018: {"in_state": 9000,  "out_of_state": 28000},
-        2019: {"in_state": 9500,  "out_of_state": 29000},
-        2020: {"in_state": 10000, "out_of_state": 30000},
-        2021: {"in_state": 10000, "out_of_state": 31000},
-        2022: {"in_state": 10500, "out_of_state": 33000},
-        2023: {"in_state": 11000, "out_of_state": 35000},
-    },
-}
+from app.services.ai_rag_service import NON_US_TUITION
 
 TIMEOUT = httpx.Timeout(8.0)
 

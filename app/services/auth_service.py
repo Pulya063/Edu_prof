@@ -47,7 +47,7 @@ class AuthService:
         user = result.scalar_one_or_none()
         if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
             raise AppError(
-                "Invalid email or password",
+                "Невірний email або пароль",
                 status_code=401,
                 headers={"WWW-Authenticate": "Bearer"},
             )
@@ -69,3 +69,34 @@ class AuthService:
 
         result = self.db.execute(select(User).where(User.id == user_id, User.is_active.is_(True)))
         return result.scalar_one_or_none()
+
+    def request_password_reset(self, email: str) -> None:
+        from app.tasks.email_tasks import send_verification_email
+        
+        email = email.lower()
+        result = self.db.execute(select(User).where(User.email == email, User.is_active.is_(True)))
+        user = result.scalar_one_or_none()
+        
+        if user:
+            # Створюємо короткочасний токен на 15 хвилин
+            token = create_jwt_access_token(
+                subject=str(user.id),
+                expires_delta=timedelta(minutes=15),
+            )
+            send_verification_email.delay(email, token)
+            
+    def reset_password(self, token: str, new_password: str) -> None:
+        try:
+            subject = decode_access_token(token)
+            user_id = int(subject)
+        except (ValueError, TypeError):
+            raise AppError("Недійсний або прострочений токен", status_code=400)
+            
+        result = self.db.execute(select(User).where(User.id == user_id, User.is_active.is_(True)))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise AppError("Користувача не знайдено", status_code=404)
+            
+        user.password_hash = hash_password(new_password)
+        self.db.commit()

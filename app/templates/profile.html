@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Мій Профіль | ROI освіти{% endblock %}
+{% block styles %}
+{% endblock %}
+{% block content %}
+<section class="container mx-auto px-4 py-12 max-w-3xl w-full">
+  <div class="mb-10 text-center">
+    <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Мій Профіль</h1>
+    <p class="text-slate-500 dark:text-slate-400 mt-2 text-lg">Налаштування та безпека вашого акаунту</p>
+  </div>
+  
+  <div class="space-y-8">
+    <div class="bg-white/60 dark:bg-[#1e293b]/60 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 sm:p-8">
+      <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Зміна пароля</h3>
+      <p class="text-slate-500 dark:text-slate-400 mb-6">Для скидання пароля ми надішлемо вам інструкції на пошту (імітація через Celery).</p>
+      
+      <form data-auth-form="password-reset-request">
+        <div class="flex flex-col">
+          <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Ваша електронна пошта</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
+            </div>
+            <input id="email" name="email" type="email" required class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] py-2.5 pr-4 pl-10 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500" placeholder="example@mail.com">
+          </div>
+        </div>
+        <p class="mt-3 text-sm font-medium text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg hidden" data-form-error></p>
+        <button type="submit" class="w-full inline-flex justify-center items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 shadow-sm hover:shadow transition-all active:scale-95 mt-6 group">
+          <span>Відправити запит</span>
+          <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+        </button>
+      </form>
+    </div>
+    
+    <div class="bg-slate-50 dark:bg-[#0f172a]/50 border border-blue-100 dark:border-blue-900/30 rounded-2xl shadow-sm p-6 sm:p-8 hidden" id="reset-form-container">
+      <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-6">Введення нового пароля</h3>
+      
+      <form data-auth-form="password-reset">
+        <div class="space-y-5">
+          <div class="flex flex-col">
+            <label for="token" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Секретний код з листа</label>
+            <input id="token" name="token" type="text" required class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500" placeholder="Код...">
+          </div>
+          <div class="flex flex-col">
+            <label for="new_password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Новий пароль</label>
+            <input id="new_password" name="new_password" type="password" required minlength="8" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0f172a] px-4 py-2.5 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-slate-400 dark:placeholder-slate-500" placeholder="••••••••">
+          </div>
+        </div>
+        
+        <p class="mt-3 text-sm font-medium text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg hidden" data-form-error></p>
+        
+        <button type="submit" class="w-full inline-flex justify-center items-center rounded-lg bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow transition-all active:scale-95 mt-6 group">
+          <span>Зберегти пароль</span>
+          <svg class="w-4 h-4 ml-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Show the second form after request
+  const requestForm = document.querySelector('[data-auth-form="password-reset-request"]');
+  if (requestForm) {
+    requestForm.addEventListener('submit', function() {
+      setTimeout(() => {
+        const resetContainer = document.getElementById('reset-form-container');
+        if(resetContainer) {
+          resetContainer.classList.remove('hidden');
+          resetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 1500); 
+    });
+  }
+</script>
+{% endblock %}

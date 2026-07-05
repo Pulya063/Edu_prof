@@ -18,53 +18,38 @@ function initSalaryBars() {
 document.addEventListener('DOMContentLoaded', initSalaryBars);
 document.body.addEventListener('htmx:afterSwap', initSalaryBars);
 
-const themeToggleBtn = document.getElementById('theme-toggle');
-if (themeToggleBtn) {
-  themeToggleBtn.addEventListener('click', () => {
-    const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  });
+// ── Тема ───────────────────────────────────────────────────────────────────────
+if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+  document.documentElement.classList.add('dark');
+} else {
+  document.documentElement.classList.remove('dark');
 }
 
-// ── Auth форми (login / register) ────────────────────────────────────────────
-document.querySelectorAll('[data-auth-form]').forEach(form => {
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const mode    = form.dataset.authForm;
-    const errorEl = form.querySelector('[data-form-error]');
-    const payload = Object.fromEntries(new FormData(form).entries());
+// Делегування подій для перемикача теми (працює після HTMX swap)
+document.body.addEventListener('click', (e) => {
+  const themeToggleBtn = e.target.closest('#theme-toggle');
+  if (themeToggleBtn) {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }
+});
 
-    errorEl?.classList.add('hidden');
+// ── Динамічна навігація ──────────────────────────────────────────────────────
+// ── Навігація ────────────────────────────────────────────────────────────────
+// Тепер меню перемикається на сервері через Jinja {% if g.user %}
 
+// ── Глобальна обробка кліків (Event Delegation) ────────────────────────────────
+document.body.addEventListener('click', async (e) => {
+  const logoutBtn = e.target.closest('#logout-btn');
+  if (logoutBtn) {
     try {
-      const res  = await fetch(`/api/auth/${mode}`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(
-          Array.isArray(data.detail) ? data.detail[0].msg : data.detail || 'Помилка запиту'
-        );
-      }
-      const token = data.access_token || data.data?.access_token;
-      if (token) localStorage.setItem('access_token', token);
-      window.location.href = '/calculator';
-    } catch (err) {
-      if (errorEl) {
-        errorEl.textContent = err instanceof Error ? err.message : 'Помилка запиту';
-        errorEl.classList.remove('hidden');
-      }
-    }
-  });
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch(err) {}
+    window.location.href = '/';
+  }
 });
 
-// ── HTMX: JWT у заголовок ─────────────────────────────────────────────────────
-document.body.addEventListener('htmx:configRequest', (e) => {
-  const token = localStorage.getItem('access_token');
-  if (token) e.detail.headers.Authorization = `Bearer ${token}`;
-});
+// Auth forms are now handled exclusively by HTMX (hx-post, hx-ext="json-enc")
 
 // ── Фільтруємо приховані _-поля з форми перед відправкою через HTMX ──────────
 document.body.addEventListener('htmx:configRequest', (e) => {
@@ -76,8 +61,15 @@ document.body.addEventListener('htmx:configRequest', (e) => {
   });
 });
 
+// ── HTMX: Обробка помилок авторизації (401) ───────────────────────────────────
+document.body.addEventListener('htmx:responseError', (e) => {
+  if (e.detail.xhr.status === 401) {
+    alert("Час вашої сесії вичерпано. Будь ласка, увійдіть знову.");
+    window.location.href = "/login";
+  }
+});
 // ── Університет: autocomplete ─────────────────────────────────────────────────
-(function initUniversityAutocomplete() {
+function initUniversityAutocomplete() {
   const input    = document.getElementById('university');
   const dropdown = document.getElementById('university-dropdown');
   const hiddenId = document.getElementById('scorecard-id');
@@ -249,7 +241,10 @@ document.body.addEventListener('htmx:configRequest', (e) => {
         </tr>`;
     }).join('');
   }
-}());
+}
+
+document.addEventListener('DOMContentLoaded', initUniversityAutocomplete);
+document.body.addEventListener('htmx:afterSwap', initUniversityAutocomplete);
 
 // ── Глобальна функція: підставити вартість у форму ─────────────────────────
 window.applyTuition = function (cost, year) {

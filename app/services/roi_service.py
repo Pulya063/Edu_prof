@@ -23,12 +23,7 @@ PERCENT = Decimal("0.01")
 # Рік 4–6: стабільне зростання (+5%) — спеціаліст
 # Рік 7–10: уповільнення (+3%) — старший фахівець
 # Рік 11+: плато (+2%) — приріст дорівнює інфляції
-MINCER_GROWTH_RATES = {
-    range(1, 4):   Decimal("0.08"),
-    range(4, 7):   Decimal("0.05"),
-    range(7, 11):  Decimal("0.03"),
-}
-MINCER_PLATEAU = Decimal("0.02")
+from app.services.ai_rag_service import MINCER_GROWTH_RATES, MINCER_PLATEAU
 
 
 def _mincer_rate(year: int) -> Decimal:
@@ -50,24 +45,39 @@ class ROIService:
         payload: ROICalculationRequest,
         user: User | None = None,
     ) -> ROICalculationResponse:
-
-        total_cost = (payload.tuition_cost * Decimal(payload.study_duration_years)).quantize(
+        
+        start_salary = payload.expected_start_salary
+        prospects = None
+        if start_salary is None:
+            from app.services.ai_rag_service import AIRAGService
+            ai_service = AIRAGService()
+            prospects = ai_service.predict_career_prospects(payload.degree_program, payload.country)
+            start_salary = Decimal(str(prospects.get("expected_start_salary", 45000.0)))
+            
+        tuition = payload.tuition_cost
+        if tuition is None:
+            tuition = Decimal("5000.00") # TODO: fetch from historical data
+            
+        total_cost = (tuition * Decimal(payload.study_duration_years)).quantize(
             MONEY, rounding=ROUND_HALF_UP
         )
 
-        # Прогнози доходу
-        projected_5y  = self._cumulative_income(payload.expected_salary_after_graduation, years=5)
-        projected_10y = self._cumulative_income(payload.expected_salary_after_graduation, years=10)
+        # Деталізований прогноз по роках (рік 0 = стартова зарплата)
+        yearly_projection = self._yearly_salaries(start_salary, years=10)
+
+        # Сумарний дохід за 10 років для розрахунку ROI
+        cumulative_10y = sum(yearly_projection[1:11], Decimal("0"))
 
         # ROI = (сумарний дохід за 10р − витрати) / витрати × 100
-        roi_percent = ((projected_10y - total_cost) / total_cost * Decimal("100")).quantize(
+        roi_percent = ((cumulative_10y - total_cost) / total_cost * Decimal("100")).quantize(
             PERCENT, rounding=ROUND_HALF_UP
         )
 
-        break_even_months = self._break_even(total_cost, payload.expected_salary_after_graduation)
+        break_even_months = self._break_even(total_cost, start_salary)
 
-        # Деталізований прогноз по роках (рік 0 = стартова зарплата)
-        yearly_projection = self._yearly_salaries(payload.expected_salary_after_graduation, years=10)
+        # Сумарний дохід за 5 і 10 років (замість щомісячного)
+        projected_5y = sum(yearly_projection[1:6], Decimal("0")).quantize(MONEY, rounding=ROUND_HALF_UP)
+        projected_10y = sum(yearly_projection[1:11], Decimal("0")).quantize(MONEY, rounding=ROUND_HALF_UP)
 
         response = ROICalculationResponse(
             roi_percent=roi_percent,
@@ -79,7 +89,7 @@ class ROIService:
         )
 
         if user is not None:
-            self._save(user, payload, response)
+            self._save(user, payload, response, prospects)
 
         return response
 
@@ -126,7 +136,10 @@ class ROIService:
 
         return months
 
-    def _save(self, user: User, payload: ROICalculationRequest, resp: ROICalculationResponse) -> None:
+    def _save(self, user: User, payload: ROICalculationRequest, resp: ROICalculationResponse, prospects: dict | None = None) -> None:
+        from app.models import ROICalculation, SalaryStatistic, CareerForecast
+        import datetime
+        
         calc = ROICalculation(
             user_id=user.id,
             program_id=payload.program_id,
@@ -137,6 +150,25 @@ class ROIService:
             projected_income_10y=resp.projected_income_10y,
         )
         self.db.add(calc)
+        
+        if prospects is not None:
+            stat = SalaryStatistic(
+                profession=payload.degree_program,
+                country=payload.country,
+                average_salary=Decimal(str(prospects.get("average_salary", 60000.0))),
+                growth_rate=Decimal(str(prospects.get("forecast_growth_percent", 3.0)))
+            )
+            self.db.add(stat)
+            
+            forecast = CareerForecast(
+                profession=payload.degree_program,
+                demand_score=int(prospects.get("demand_score", 70)),
+                ai_risk_score=int(prospects.get("ai_risk_score", 30)),
+                forecast_growth_percent=Decimal(str(prospects.get("forecast_growth_percent", 3.0))),
+                forecast_year=datetime.datetime.now().year + 5
+            )
+            self.db.add(forecast)
+            
         self.db.commit()
 
     # ── Історія ─────────────────────────────────────────────────────────────

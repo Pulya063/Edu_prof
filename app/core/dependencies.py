@@ -7,32 +7,20 @@ from app.core.exceptions import AppError
 from app.services.auth_service import AuthService
 
 
+from flask import g, redirect, url_for
+
 def get_current_user(func):
-    """Декоратор: витягує JWT з заголовка, валідує і кладе user у g.current_user."""
+    """Декоратор: перевіряє g.user, встановлений у before_request."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        scheme, _, token = auth_header.partition(" ")
+        if not getattr(g, "user", None):
+            # Якщо це HTMX-запит або API-запит, повертаємо 401 для обробки JS
+            if request.headers.get("HX-Request") == "true" or request.path.startswith("/api/"):
+                raise AppError("Необхідна авторизація", status_code=401)
+            # Якщо це звичайний GET-запит сторінки (наприклад, /roadmap), редірект на логін
+            return redirect(url_for("pages.login_page"))
 
-        if scheme.lower() != "bearer" or not token.strip():
-            raise AppError(
-                "Необхідна авторизація",
-                status_code=401,
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        user = AuthService(db.session).get_current_user(token.strip())
-
-        if user is None:
-            raise AppError(
-                "Недійсні облікові дані",
-                status_code=401,
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        # Викликаємо оригінальний роут
-
-        kwargs["user"] = user
-
+        kwargs["user"] = g.user
         return func(*args, **kwargs)
 
     return wrapper
