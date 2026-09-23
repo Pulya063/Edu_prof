@@ -15,30 +15,33 @@ class DreamworkClient:
         self.username = os.getenv("DREAMWORK_USERNAME", "service_account@example.com")
         self.password = os.getenv("DREAMWORK_PASSWORD", "secret_password")
         self._access_token = None
+        self._registration_attempted = False
 
     def _authenticate(self) -> str:
         if self._access_token:
             return self._access_token
 
         login_url = f"{self.base_url}/api/auth/login"
-        data = {
-            "username": self.username,
-            "password": self.password,
-        }
+        data = {"email": self.username, "password": self.password}
 
-        with httpx.Client() as client:
+        with httpx.Client(timeout=15.0) as client:
             try:
-                response = client.post(login_url, data=data)
+                response = client.post(login_url, json=data)
+                # Support DreamWork deployments that use OAuth2 form login.
+                if response.status_code in (400, 415, 422):
+                    response = client.post(login_url, data={"username": self.username, "password": self.password})
                 response.raise_for_status()
                 token_data = response.json()
+                token_data = token_data.get("data") or token_data
                 self._access_token = token_data.get("access_token")
                 if not self._access_token:
                     raise DreamworkClientError("No access token in response.")
                 return self._access_token
             except httpx.HTTPStatusError as e:
                 # Attempt to register if not found
-                if e.response.status_code == 401:
+                if e.response.status_code == 401 and not self._registration_attempted:
                     logger.info("Service account not found or invalid credentials, attempting to register.")
+                    self._registration_attempted = True
                     self._register()
                     return self._authenticate()
                 logger.error(f"Failed to authenticate with DreamWork API: {e.response.text}")
@@ -56,7 +59,7 @@ class DreamworkClient:
             "confirm_password": self.password,
             "full_name": "Egzamin Service"
         }
-        with httpx.Client() as client:
+        with httpx.Client(timeout=15.0) as client:
             response = client.post(register_url, json=data)
             if response.status_code not in (200, 201):
                 raise DreamworkClientError(f"Registration failed: {response.text}")

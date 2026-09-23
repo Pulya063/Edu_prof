@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from decimal import Decimal
@@ -10,19 +9,6 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import JsonOutputParser
 
 logger = logging.getLogger(__name__)
-
-# ── Заглушки: Вартість навчання ─────────────────────────────────────────────
-NON_US_TUITION = {
-    "ukraine": {
-        2018: {"in_state": 1200,  "out_of_state": 2500},
-        2019: {"in_state": 1350,  "out_of_state": 2700},
-        2020: {"in_state": 1400,  "out_of_state": 2800},
-        2021: {"in_state": 1500,  "out_of_state": 3000},
-        2022: {"in_state": 1600,  "out_of_state": 3200},
-        2023: {"in_state": 1700,  "out_of_state": 3400},
-    },
-    # ... інші країни залишаються у словнику, якщо потрібно
-}
 
 MINCER_GROWTH_RATES = {
     range(1, 4):   Decimal("0.08"),

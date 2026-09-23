@@ -11,5 +11,5 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 
 COPY . .
 
-EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "app.main:app"]
+EXPOSE 8122
+CMD ["gunicorn", "--bind", "0.0.0.0:8122", "--workers", "2", "--timeout", "120", "app.main:app"]

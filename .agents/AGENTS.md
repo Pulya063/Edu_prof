@@ -45,6 +45,7 @@ This file contains specific Customizations (rules) for the AI agent to better un
 ## Testing Rules
 - **Coverage**: Whenever adding a new feature or complex logic (e.g., ROI math), write accompanying Pytest tests.
 - **Mocking**: External API calls (like Hipolabs or College Scorecard) must be mocked using `unittest.mock` during testing to prevent flaky tests.
+- **Final Checks**: Do not run final build, test, lint, or type-check commands unless the user explicitly asks for them.
 
 ## Git, Environment, and Documentation Workflow
 - **Commits**: Write clear, descriptive, and atomic commits using Conventional Commits format (e.g., `feat: add history table`, `fix: correct ROI math`).

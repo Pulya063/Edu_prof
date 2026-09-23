@@ -4,18 +4,22 @@ external_api.py — інтеграція з зовнішніми API для ун
 Джерела:
   1. College Scorecard (api.data.gov) — університети США, вартість навчання по роках (2015–2023)
   2. Hipolabs Universities API — пошук університетів по всьому світу (назва, країна, сайт)
-  3. Вбудований словник — середня вартість навчання для не-американських університетів
-     (дані з відкритих звітів ОЕСР, Eurydice, МОН України)
+  3. TuitionPrice table — normalized yearly tuition data for non-US countries.
 """
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
 import httpx
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+
+from app.core.logging_config import log_call
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # ── Налаштування ─────────────────────────────────────────────────────────────
 
@@ -39,24 +43,25 @@ def _year_fields(years: list[int]) -> str:
     return ",".join(fields)
 
 
-from app.services.ai_rag_service import NON_US_TUITION
-
 TIMEOUT = httpx.Timeout(8.0)
 
 
 # ── Hipolabs: пошук університетів по всьому світу ───────────────────────────
 
+@log_call
 def search_universities_world(name: str, limit: int = 8) -> list[dict[str, Any]]:
     """
     Шукає університети за назвою через Hipolabs API.
     Повертає список {name, country, web_pages, source}.
     """
+    logger.info("Calling Hipolabs university search")
     try:
         with httpx.Client(timeout=TIMEOUT) as client:
             resp = client.get(HIPOLABS_BASE, params={"name": name, "limit": limit})
             resp.raise_for_status()
             data = resp.json()
     except Exception:
+        logger.exception("Hipolabs university search failed")
         return []
 
     results = []
@@ -73,11 +78,13 @@ def search_universities_world(name: str, limit: int = 8) -> list[dict[str, Any]]
 
 # ── College Scorecard: пошук + вартість по роках (лише США) ─────────────────
 
+@log_call
 def search_universities_usa(name: str, limit: int = 8) -> list[dict[str, Any]]:
     """
     Шукає університети США через College Scorecard API.
     Повертає {name, city, state, scorecard_id, source}.
     """
+    logger.info("Calling College Scorecard university search")
     try:
         with httpx.Client(timeout=TIMEOUT) as client:
             resp = client.get(
@@ -92,6 +99,7 @@ def search_universities_usa(name: str, limit: int = 8) -> list[dict[str, Any]]:
             resp.raise_for_status()
             data = resp.json()
     except Exception:
+        logger.exception("College Scorecard university search failed")
         return []
 
     results = []
@@ -107,11 +115,13 @@ def search_universities_usa(name: str, limit: int = 8) -> list[dict[str, Any]]:
     return results
 
 
+@log_call
 def get_tuition_history_usa(scorecard_id: int) -> list[dict[str, Any]]:
     """
     Повертає вартість навчання по роках (2018–2023) для конкретного
     американського університету через College Scorecard.
     """
+    logger.info("Calling College Scorecard tuition history")
     try:
         with httpx.Client(timeout=TIMEOUT) as client:
             resp = client.get(
@@ -125,6 +135,7 @@ def get_tuition_history_usa(scorecard_id: int) -> list[dict[str, Any]]:
             resp.raise_for_status()
             data = resp.json()
     except Exception:
+        logger.exception("College Scorecard tuition history failed")
         return []
 
     results_raw = data.get("results", [])
@@ -147,30 +158,20 @@ def get_tuition_history_usa(scorecard_id: int) -> list[dict[str, Any]]:
     return history
 
 
-def get_tuition_history_non_us(country: str) -> list[dict[str, Any]]:
+@log_call
+def get_tuition_history_non_us(country: str, db_session: Session) -> list[dict[str, Any]]:
     """
     Повертає середню вартість навчання по роках (2018–2023)
-    для не-американських університетів з вбудованого словника.
+    для не-американських університетів з таблиці TuitionPrice.
     """
-    key = country.strip().lower()
-    country_data = NON_US_TUITION.get(key)
-    if not country_data:
-        return []
+    from app.services.tuition_service import get_tuition_history
 
-    history = []
-    for year in SCORECARD_YEARS:
-        row = country_data.get(year, {})
-        history.append({
-            "year":                  year,
-            "tuition_in_state":      row.get("in_state"),
-            "tuition_out_of_state":  row.get("out_of_state"),
-            "avg_net_price":         row.get("in_state"),
-        })
-    return history
+    return get_tuition_history(db_session, country)
 
 
 # ── Єдиний публічний інтерфейс ───────────────────────────────────────────────
 
+@log_call
 def search_universities(name: str) -> list[dict[str, Any]]:
     """
     Шукає університети по всьому світу + США.
@@ -183,12 +184,13 @@ def search_universities(name: str) -> list[dict[str, Any]]:
     return usa + world
 
 
-def get_tuition_history(scorecard_id: int | None, country: str) -> list[dict[str, Any]]:
+@log_call
+def get_tuition_history(scorecard_id: int | None, country: str, db_session: Session) -> list[dict[str, Any]]:
     """
     Повертає вартість навчання по роках.
     Якщо є scorecard_id → College Scorecard (США).
-    Інакше → вбудований словник по країні.
+    Інакше → таблиця TuitionPrice по країні.
     """
     if scorecard_id is not None:
         return get_tuition_history_usa(scorecard_id)
-    return get_tuition_history_non_us(country)
+    return get_tuition_history_non_us(country, db_session)

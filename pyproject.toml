@@ -5,6 +5,7 @@ description = "Production-ready MVP backend skeleton for an Education ROI Calcul
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.13.3",
+    "asgiref>=3.8.1",
     "email-validator>=2.2.0",
     "flask>=3.0.3",
     "flask-sqlalchemy>=3.1.1",
@@ -15,6 +16,7 @@ dependencies = [
     "pydantic-settings>=2.5.2",
     "python-jose[cryptography]>=3.3.0",
     "sqlalchemy>=2.0.35",
+    "uvicorn>=0.30.0",
 ]
 
 [project.optional-dependencies]

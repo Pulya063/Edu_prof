@@ -9,7 +9,21 @@ docker compose up -d
 docker compose exec api alembic upgrade head
 ```
 
-Open `http://localhost:8000`.
+Open backend at `http://localhost:8122` and PostgreSQL at host port `5442`.
+
+## Next.js frontend
+
+The Jinja/HTMX templates are being replaced by the Node.js frontend in `frontend/`.
+Flask remains the API service and Next.js proxies `/api/*` and `/roadmap/*` to it.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:3221`. Set `FLASK_API_URL` in `frontend/.env.local` when the
+Flask API is not running on `http://localhost:8122`.
 
 For local development without Docker:
 
@@ -18,8 +32,25 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 alembic upgrade head
-flask --app app.main run --debug --port 8000
+flask --app app.main run --debug --port 8122
 ```
+
+If you start the Flask app with Uvicorn, use the ASGI adapter entry point:
+
+```bash
+uvicorn app.asgi:asgi_app --reload --port 8122
+```
+
+Do not run `uvicorn app.main:app`: `app` is a WSGI Flask application and
+Uvicorn cannot call it directly.
+
+## Logging
+
+The backend logs every request (method, path, status, and duration) and
+important service function calls to both the console and a rotating file:
+`app/logs/app.log`. The directory is excluded from git. Optional environment
+variables are `LOG_LEVEL` (default `INFO`) and `LOG_FILE` (default
+`app/logs/app.log`).
 
 ## Migration commands
 

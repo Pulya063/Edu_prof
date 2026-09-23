@@ -2,6 +2,8 @@ import pytest
 from app.services.auth_service import AuthService
 from app.schemas import RegisterSchema, LoginSchema
 from app.core.exceptions import AppError
+from app.core.security import create_jwt_access_token
+from app.schemas import PasswordResetSchema
 
 def test_register_user(db_session):
     """Перевірка реєстрації нового користувача."""
@@ -71,3 +73,24 @@ def test_login_invalid_password(db_session):
         
     assert exc.value.status_code == 401
     assert "invalid email or password" in str(exc.value.message).lower()
+
+
+def test_access_token_cannot_be_used_as_password_reset_token(db_session):
+    """Access tokens must not be accepted by the password reset flow."""
+    service = AuthService(db_session)
+    user = service.register(RegisterSchema(
+        email="reset-purpose@example.com",
+        password="ValidPassword1",
+        confirm_password="ValidPassword1",
+    ))
+    access_token = create_jwt_access_token(subject=str(user.id))
+
+    with pytest.raises(AppError) as exc:
+        service.reset_password(access_token, "NewPassword2")
+
+    assert exc.value.status_code == 400
+
+
+def test_password_reset_schema_enforces_password_strength():
+    with pytest.raises(ValueError):
+        PasswordResetSchema(token="token", new_password="weakpassword")

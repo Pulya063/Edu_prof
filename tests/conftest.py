@@ -6,12 +6,12 @@ from app.main import create_app
 from app.core.database import db
 
 @pytest.fixture
-def app() -> Flask:
+def app(monkeypatch: pytest.MonkeyPatch) -> Flask:
     """Створює екземпляр Flask для тестування з in-memory SQLite БД."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     app = create_app()
     app.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "WTF_CSRF_ENABLED": False,
         "SECRET_KEY": "test-secret-key"
     })

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="education_roi@localhost" uuid="3dd579ec-bcb8-4f09-af58-c1fe01dc0c8c">
+    <data-source source="LOCAL" name="education_roi@localhost" uuid="39340be4-c1ed-4ed7-909c-cf5b0506d4e0">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
-      <jdbc-url>jdbc:postgresql://localhost:5432/education_roi</jdbc-url>
+      <jdbc-url>jdbc:postgresql://localhost:5442/education_roi</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

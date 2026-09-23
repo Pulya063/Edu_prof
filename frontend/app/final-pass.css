@@ -1,0 +1,3038 @@
+/* Final editorial pass: shared light chapters and crisp chapter boundaries. */
+:root { --fence-surface: #e7e9ed; --fence-ink: #171819; --ease-fence: ease-in-out; --ease-out: ease-in-out; }
+
+/* At the top of the page, the header is fully transparent with no border/boundary.
+   When scrolling begins, it smoothly becomes an Apple-style translucent material. */
+.landing-header { background:transparent !important; border:none !important; border-bottom:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; box-shadow:none !important; transition:color .5s ease-in-out,background-color .5s ease-in-out,backdrop-filter .5s ease-in-out,-webkit-backdrop-filter .5s ease-in-out !important; }
+.landing-header::before { background:transparent !important; opacity:0 !important; }
+.landing-header:not(.is-scrolled) { background:transparent !important; border-color:transparent !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; box-shadow:none !important; }
+.landing-header[data-theme="dark"]:not(.is-scrolled) { background:transparent !important; color:var(--fence-warm-white) !important; }
+.landing-header.is-scrolled[data-theme="light"] { background:rgba(247,247,243,.42) !important; border:none !important; backdrop-filter:blur(24px) saturate(180%) !important; -webkit-backdrop-filter:blur(24px) saturate(180%) !important; box-shadow:none !important; }
+.landing-header.is-scrolled[data-theme="dark"] { background:rgba(23,24,25,.45) !important; border:none !important; backdrop-filter:blur(24px) saturate(180%) !important; -webkit-backdrop-filter:blur(24px) saturate(180%) !important; box-shadow:none !important; }
+
+.calculator-section,
+.roadmap-section,
+.scholarships-section { background:var(--fence-surface) !important; background-image:none !important; }
+
+.calculator-section { padding-bottom:clamp(80px,10vw,154px) !important; }
+.forecast-note { position:relative; isolation:isolate; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:#050505 !important; box-shadow:none !important; }
+.forecast-note::before { content:""; position:absolute; z-index:-1; top:-88px; right:-58px; width:218px; height:218px; border-radius:50%; background:#303235; box-shadow:0 0 0 31px #202123,0 0 0 62px #161719; filter:blur(10px); opacity:.78; }
+.forecast-note::after { content:""; position:absolute; z-index:-1; right:-34px; bottom:-48px; width:180px; height:94px; border-top:1px solid rgba(247,247,243,.18); border-radius:50%; transform:rotate(12deg); }
+.forecast-note > * { position:relative; z-index:1; }
+
+.dashboard-device,
+.calculator-board { border-color:#171819 !important; outline:0 !important; background:#171819 !important; }
+.dashboard-device { box-shadow:22px 30px 38px rgba(0,0,0,.23) !important; }
+.dashboard-device.macbook-device { border:0 !important; background:transparent !important; box-shadow:none !important; overflow:visible !important; }
+.dashboard-device img { transform:scale(1.018); transform-origin:center; }
+.calculator-board { box-shadow:22px 30px 38px rgba(0,0,0,.2) !important; }
+.calculator-board .calculator-main { border-left:0 !important; background:#f7f7f3 !important; color:#171819 !important; }
+
+.header-progress { display:none !important; }
+
+/* One uninterrupted editorial surface: changes in content and tone, never inserted bands. */
+.feature-section,
+.testimonials-section,
+.fence-footer { margin-top:0 !important; border-top:0 !important; }
+.dark-feature { background-color:#171819 !important; background-image:none !important; }
+.dark-feature::before,
+.testimonials-section::before { background:none !important; opacity:0 !important; }
+.comparison-section::before { background:none !important; }
+.comparison-shell { position:relative; z-index:1; }
+.university-card--dark { background:#1b1c1d !important; }
+
+/* Motion uses a relaxed cadence: sections smoothly reveal and fade over one second. */
+.feature-intro,.calculator-board,.university-card,.factor-card,.roadmap-card,.scholarship-card,.decision-route { transition:opacity .8s ease-in-out,transform 1s var(--ease-out),box-shadow .4s ease-in-out !important; }
+.motion-section:not(.hero-section) .section-navline,.motion-section:not(.hero-section) h2,.motion-section:not(.hero-section) .path-description,.motion-section:not(.hero-section) .eyebrow { transition:opacity .8s ease-in-out,transform 1s var(--ease-out),clip-path 1s var(--ease-out) !important; }
+.header-cta:hover { animation:none !important; transform:translateY(-2px); }
+
+/* Five roadmap cards become an ascending story instead of a flat rail. */
+.roadmap-section { padding-top:clamp(90px,11vw,164px) !important; padding-bottom:32px !important; }
+.roadmap-section::before { background:none !important; opacity:0 !important; }
+.roadmap-journey { position:relative !important; display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:start; gap:16px; min-height:520px !important; margin-top:50px !important; padding:0 4px 16px !important; overflow:visible !important; }
+.roadmap-line { position:absolute !important; top:45px; right:-1.5vw; left:-1.5vw; z-index:1; display:block !important; width:auto !important; height:180px !important; overflow:visible !important; background:none !important; }
+.roadmap-line::before { content:none !important; }
+.roadmap-line > i { display:none !important; }
+.roadmap-line svg { width:100%; height:100%; overflow:visible; }
+.roadmap-line-base { fill:none; stroke:#171819; stroke-width:8; stroke-linecap:round; stroke-linejoin:round; }
+.roadmap-line-progress { fill:none; stroke:#b7ff2a; stroke-width:10; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:100; transition:stroke-dashoffset 1s ease-in-out; }
+.roadmap-line circle { fill:#f7f7f3; stroke:#171819; stroke-width:4; }
+.roadmap-line circle:nth-of-type(-n+3) { fill:#b7ff2a; }
+.roadmap-card { position:relative; z-index:2; min-width:0; box-shadow:none !important; }
+.roadmap-card:nth-of-type(1) { margin-top:116px; }.roadmap-card:nth-of-type(2) { margin-top:72px; }.roadmap-card:nth-of-type(3) { margin-top:36px; }.roadmap-card:nth-of-type(4) { margin-top:0; }.roadmap-card:nth-of-type(5) { margin-top:23px; }
+.roadmap-card.is-current { box-shadow:0 0 0 2px #171819 !important; }
+
+/* Scholarship begins as one open light chapter — no inherited black crest. */
+.scholarship-crest { display:none !important; }
+.scholarships-section { padding-top:clamp(56px,6vw,96px) !important; }
+.scholarships-section .lime-marker { background:rgba(183,255,42,.62) !important; }
+.testimonials-section,#testimonials { margin-top:0 !important; background:#171819 !important; color:#f7f7f3 !important; }
+.testimonials-section::after { display:none !important; }
+.testimonials-copy { color:#f7f7f3; }#testimonials .testimonials-copy h2 { color:#f7f7f3 !important; }.testimonials-copy .eyebrow { color:#b7ff2a !important; }.testimonials-description,.rating-summary small { color:#c5c9cb !important; }.rating-summary strong { color:#f7f7f3; }.testimonial-arrow--previous { border-color:rgba(247,247,243,.6); color:#f7f7f3; }.testimonial-arrow--next { border-color:#f7f7f3; background:#f7f7f3; color:#171819; }
+
+/* Section handoffs: background events, not separate decorative strips. */
+.feature-section > .feature-shell,
+.testimonials-inner,
+.final-shell { position:relative; z-index:2; }
+.calculator-section::before,
+.comparison-section::before,
+.factors-section::before,
+.roadmap-section::before,
+.testimonials-section::before,
+.final-decision-section::before { content:""; position:absolute; z-index:1; display:block; pointer-events:none; transition:opacity .8s ease-in-out,transform 1s ease-in-out; }
+
+/* Light to light: three quiet decision signals enter with the calculator. */
+.calculator-section::before { top:clamp(24px,4vw,62px); right:7vw; width:162px; height:54px; opacity:.26; background:radial-gradient(circle at 10px 28px,#b7ff2a 0 4px,transparent 4.8px),radial-gradient(circle at 78px 12px,#171819 0 3px,transparent 3.8px),radial-gradient(circle at 145px 36px,#d7c7ff 0 4px,transparent 4.8px); transform:translate3d(-26px,8px,0); }
+.calculator-section.is-visible::before { opacity:.82; transform:translate3d(0,0,0); }
+
+/* Light to dark: the dark chapter receives a restrained, soft bevel at its edge. */
+.calculator-section::after { z-index:1 !important; bottom:0 !important; height:94px !important; background:linear-gradient(169deg,transparent 0 42%,rgba(23,24,25,.06) 43% 57%,rgba(23,24,25,.24) 58% 72%,rgba(23,24,25,.7) 73% 100%) !important; filter:blur(1.5px); opacity:.62; transform:translateY(14px); transition:opacity .8s ease-in-out,transform 1s ease-in-out; pointer-events:none; }
+.calculator-section.is-visible::after { opacity:1; transform:translateY(0); }
+.comparison-section::before { inset:0 0 auto; height:112px; opacity:.18; background:linear-gradient(171deg,rgba(247,247,243,.2) 0 2%,rgba(23,24,25,.16) 3% 54%,transparent 55%); clip-path:polygon(0 0,100% 0,100% 43%,0 100%); filter:blur(5px); transform:translate3d(0,-16px,0); }
+.comparison-section.is-visible::before { opacity:1; transform:translate3d(0,0,0); }
+
+/* Dark to dark: a shallow radial contour field makes the outcome chapter breathe. */
+.factors-section::before { inset:0; opacity:.14; background:repeating-radial-gradient(ellipse 76% 70% at 54% -22%,transparent 0 18px,rgba(247,247,243,.16) 19px 20px,transparent 21px 36px); background-repeat:no-repeat; background-size:100% 280px; transform:translate3d(0,-26px,0); }
+.factors-section.is-visible::before { opacity:.54; transform:translate3d(0,0,0); }
+
+/* Dark to light: a soft angled release, held inside the light roadmap chapter. */
+.roadmap-section::before { inset:0 0 auto; height:138px !important; opacity:.18 !important; background:linear-gradient(166deg,rgba(23,24,25,.58) 0 18%,rgba(23,24,25,.19) 50%,transparent 68%) !important; clip-path:polygon(0 0,100% 0,100% 34%,0 100%); filter:blur(7px); transform:translate3d(0,-20px,0); }
+.roadmap-section.is-visible::before { opacity:1 !important; transform:translate3d(0,0,0); }
+
+/* Light to dark and dark to dark: one shadowed bevel, then a fine contour echo. */
+.testimonials-section::before { inset:0 0 auto; z-index:1; height:116px; opacity:.18 !important; background:linear-gradient(169deg,rgba(247,247,243,.15) 0 2%,rgba(247,247,243,.035) 43%,transparent 44%) !important; clip-path:polygon(0 0,100% 0,100% 40%,0 100%); filter:blur(5px); transform:translate3d(0,-14px,0); }
+.testimonials-section.is-visible::before { opacity:1 !important; transform:translate3d(0,0,0); }
+.final-decision-section::before { inset:0; opacity:.08; background:repeating-radial-gradient(ellipse 66% 52% at 50% -30%,transparent 0 24px,rgba(247,247,243,.12) 25px 26px,transparent 27px 47px); background-repeat:no-repeat; background-size:100% 250px; transform:translate3d(0,-22px,0); }
+.final-decision-section.is-visible::before { opacity:.56; transform:translate3d(0,0,0); }
+
+/* Line masks carry the editorial rhythm through each chapter; words never type in. */
+.headline-line { display:block; -webkit-clip-path:polygon(-15% -20%, 115% -20%, 115% 100%, -15% 100%); clip-path:polygon(-15% -20%, 115% -20%, 115% 100%, -15% 100%); padding-bottom:.08em; margin-bottom:-.08em; }
+.headline-line > span { display:block; transform:translate3d(0,0,0); transition:transform var(--motion-slow) var(--ease-fence),opacity var(--motion-base) ease; }
+.landing-page.js-ready .motion-section:not(.is-visible) .headline-line > span,
+.landing-page.js-ready .fence-footer:not(.is-visible) .headline-line > span { opacity:0; transform:translate3d(0,105%,0); }
+.motion-section.is-visible .headline-line:nth-child(2) > span,
+.fence-footer.is-visible .headline-line:nth-child(2) > span { transition-delay:var(--section-stagger); }
+.motion-section.is-visible .headline-line:nth-child(3) > span { transition-delay:calc(var(--section-stagger) * 2); }
+.motion-section.is-visible .headline-line:nth-child(4) > span { transition-delay:calc(var(--section-stagger) * 3); }
+.headline-line .oval-highlight::before,.headline-line .rect-highlight::before,.headline-line .footer-oval::before,.headline-line .footer-lime::before { transition:background-color var(--motion-base) var(--ease-fence),transform var(--motion-base) var(--ease-fence); }
+.landing-page.js-ready .motion-section:not(.is-visible) .headline-line .oval-highlight::before,
+.landing-page.js-ready .motion-section:not(.is-visible) .headline-line .rect-highlight::before { background-color:transparent!important; }
+
+/* The central lime trajectory changes its local grammar at every chapter. */
+.calculator-section .calculator-form input[type="range"],
+.scholarship-controls .progress-rail,
+.testimonial-progress,
+.decision-branches { isolation:isolate; }
+.scholarship-controls .progress-rail,.testimonial-progress { position:relative; }
+.calculator-section .calculator-form input[type="range"] { transition:filter var(--motion-base) var(--ease-fence); }
+.calculator-section.is-visible .calculator-form input[type="range"] { filter:drop-shadow(0 0 1px rgba(183,255,42,.7)); }
+.scholarship-controls .progress-rail::after { content:""; position:absolute; z-index:-1; top:50%; right:calc(100% - 10px); width:min(13vw,156px); height:1px; background:var(--fence-lime); opacity:0; transform:translateX(-18px) scaleX(.7); transform-origin:right; transition:opacity var(--motion-base) var(--ease-fence),transform var(--motion-slow) var(--ease-fence); }
+.scholarships-section.is-visible .scholarship-controls .progress-rail::after { opacity:.78; transform:translateX(0) scaleX(1); }
+.factor-orbit::after { content:""; position:absolute; z-index:0; top:21%; left:21%; width:58%; height:58%; border:1px solid rgba(183,255,42,.7); border-radius:50%; opacity:0; transform:scale(.72); transition:opacity var(--motion-base) var(--ease-fence),transform var(--motion-slow) var(--ease-fence); pointer-events:none; }
+.factors-section.is-visible .factor-orbit::after { opacity:.58; transform:scale(1); }
+.roadmap-line-progress { transition:stroke-dashoffset var(--motion-slow) var(--ease-fence)!important; }
+.testimonials-section .testimonial-progress::before { content:""; position:absolute; z-index:-1; right:100%; top:50%; width:clamp(32px,7vw,108px); height:1px; background:var(--fence-lime); opacity:.65; transform-origin:right; transform:scaleX(var(--testimonials-progress)); }
+.final-decision-section .decision-branches { transition:opacity var(--motion-base) var(--ease-fence),transform var(--motion-slow) var(--ease-fence); }
+.landing-page.js-ready .final-decision-section:not(.is-visible) .decision-branches { opacity:0; transform:translate3d(0,22px,0) scaleX(.84); }
+.fence-footer .footer-boundary::after { display:none; }
+
+/* Cards arrive along their chapter's geometry, not from one generic direction. */
+.landing-page.js-ready .comparison-section:not(.is-visible) .university-card:nth-child(1) { transform:translate3d(-36px,42px,0) scale(.96); }
+.landing-page.js-ready .comparison-section:not(.is-visible) .university-card:nth-child(2) { transform:translate3d(0,-34px,0) scale(.96); }
+.landing-page.js-ready .comparison-section:not(.is-visible) .university-card:nth-child(3) { transform:translate3d(36px,42px,0) scale(.96); }
+.landing-page.js-ready .factors-section:not(.is-visible) .factor-card--0,.landing-page.js-ready .factors-section:not(.is-visible) .factor-card--4 { transform:translate3d(-28px,12px,0) scale(.92); }
+.landing-page.js-ready .factors-section:not(.is-visible) .factor-card--1,.landing-page.js-ready .factors-section:not(.is-visible) .factor-card--3 { transform:translate3d(28px,-16px,0) scale(.92); }
+.landing-page.js-ready .factors-section:not(.is-visible) .factor-card--2,.landing-page.js-ready .factors-section:not(.is-visible) .factor-card--5 { transform:translate3d(0,32px,0) scale(.92); }
+.landing-page.js-ready .roadmap-section:not(.is-visible) .roadmap-card:nth-child(2) { transform:translate3d(-22px,30px,0); }.landing-page.js-ready .roadmap-section:not(.is-visible) .roadmap-card:nth-child(3) { transform:translate3d(-12px,18px,0); }.landing-page.js-ready .roadmap-section:not(.is-visible) .roadmap-card:nth-child(4) { transform:translate3d(0,8px,0); }.landing-page.js-ready .roadmap-section:not(.is-visible) .roadmap-card:nth-child(5) { transform:translate3d(14px,18px,0); }.landing-page.js-ready .roadmap-section:not(.is-visible) .roadmap-card:nth-child(6) { transform:translate3d(24px,28px,0); }
+.landing-page.js-ready .scholarships-section:not(.is-visible) .scholarship-card:nth-child(1) { transform:translate3d(-24px,22px,0) scale(.97); }.landing-page.js-ready .scholarships-section:not(.is-visible) .scholarship-card:nth-child(2) { transform:translate3d(14px,36px,0) scale(.97); }.landing-page.js-ready .scholarships-section:not(.is-visible) .scholarship-card:nth-child(3) { transform:translate3d(-10px,12px,0) scale(.97); }.landing-page.js-ready .scholarships-section:not(.is-visible) .scholarship-card:nth-child(4) { transform:translate3d(24px,30px,0) scale(.97); }
+.landing-page.js-ready .final-decision-section:not(.is-visible) .decision-route:nth-child(1) { transform:translate3d(-28px,30px,0) scale(.97); }.landing-page.js-ready .final-decision-section:not(.is-visible) .decision-route:nth-child(2) { transform:translate3d(0,22px,0) scale(.97); }.landing-page.js-ready .final-decision-section:not(.is-visible) .decision-route:nth-child(3) { transform:translate3d(28px,30px,0) scale(.97); }
+
+/* Never insert a grey sheet between chapters. Tone changes happen on the actual section surface. */
+.calculator-section::after,
+.comparison-section::before,
+.roadmap-section::before,
+.testimonials-section::before { display:none!important; }
+.comparison-section,.factors-section,.testimonials-section,.final-decision-section { background-color:var(--fence-black)!important; background-image:repeating-linear-gradient(132deg,transparent 0 17px,rgba(247,247,243,.035) 18px 19px)!important; }
+.comparison-section,.factors-section { box-shadow:inset 0 1px 0 rgba(247,247,243,.09); }
+.roadmap-section,.scholarships-section { box-shadow:inset 0 1px 0 rgba(23,24,25,.1); }
+.factor-orbit { isolation:isolate; }
+.factor-orbit::after { z-index:-1; }
+
+@media (max-width:1100px) and (min-width:901px) {
+  .roadmap-journey { grid-template-columns:repeat(5,minmax(180px,1fr)); overflow-x:auto !important; scrollbar-gutter:stable; }
+  .roadmap-line { right:0; left:0; min-width:970px; }
+  .roadmap-card:nth-of-type(1) { margin-top:82px; }.roadmap-card:nth-of-type(2) { margin-top:52px; }.roadmap-card:nth-of-type(3) { margin-top:26px; }.roadmap-card:nth-of-type(4) { margin-top:0; }.roadmap-card:nth-of-type(5) { margin-top:18px; }
+}
+
+/* Stable horizontal interaction: native trackpad/touch scrolling stays continuous;
+   snapping only settles near a card instead of fighting the user's gesture. */
+@media (max-width:900px) {
+  .university-cards,
+  .scholarship-carousel,
+  .roadmap-journey {
+    scroll-behavior:auto !important;
+    scroll-snap-type:x proximity !important;
+    overscroll-behavior-x:contain;
+    scrollbar-gutter:stable;
+  }
+  .university-card,
+  .scholarship-card,
+  .roadmap-card { scroll-snap-align:center; }
+}
+
+/* ============================================================
+   HEADER / HERO SEPARATION
+   The fixed header owns its first-frame space. The hero starts below it,
+   then the scrolled glass material can safely float over later chapters.
+   ============================================================ */
+:root { --landing-header-height:90px; }
+.hero-section { padding-top:calc(var(--landing-header-height) + 20px) !important; }
+
+/* ============================================================
+   LIVE IPAD COMPOSITING
+   The device artwork remains the media layer. The calculator is one live,
+   adjustable interface layer whose scale and origin are exposed as CSS vars.
+   ============================================================ */
+.calculator-board.ipad-device {
+  position:relative !important;
+  display:block !important;
+  width:100%;
+  min-height:0 !important;
+  aspect-ratio:1470 / 1144;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  overflow:visible !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  transform:none !important;
+  transition:none !important;
+  perspective:none !important;
+}
+.calculator-board.ipad-device:hover {
+  transform:none !important;
+  transition:none !important;
+}
+.calculator-board.ipad-device::before,
+.calculator-board.ipad-device::after { display:none !important; }
+.calculator-board.ipad-device .calculator-device-art {
+  position:absolute;
+  inset:0;
+  z-index:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  pointer-events:none;
+  user-select:none;
+  image-rendering:-webkit-optimize-contrast;
+  image-rendering:crisp-edges;
+  filter:drop-shadow(0 26px 54px rgba(0,0,0,0.36)) contrast(1.04) brightness(1.02);
+}
+.calculator-board.ipad-device .calculator-rail { display:none !important; }
+.calculator-board.ipad-device .calculator-main {
+position:absolute;
+z-index:2;
+top:0 !important;
+left:0 !important;
+opacity:1 !important;
+display:grid;
+width:520px !important;
+min-height:440px !important;
+max-height:440px !important;
+margin:0 !important;
+padding:24px 32px !important;
+overflow-y:auto;
+overflow-x:hidden;
+border:1.5px solid rgba(255,255,255,0.75) !important;
+border-radius:27px !important;
+background:rgba(247,247,243,0.98) !important;
+box-shadow:0 20px 48px rgba(0,0,0,0.24), 0 2px 8px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+-webkit-font-smoothing:antialiased;
+-moz-osx-font-smoothing:grayscale;
+text-rendering:geometricPrecision;
+image-rendering:-webkit-optimize-contrast;
+backface-visibility:hidden;
+scrollbar-width:thin;
+scrollbar-color:rgba(0,0,0,0.18) transparent;
+transform:matrix3d(0.639277, -0.221291, 0, 0.00022730, 0.269179, 0.655740, 0, 0.00005623, 0, 0, 1, 0, 202.83, 183.09, 0, 1.000000) !important;
+transform-origin:0 0 !important;
+transform-style:preserve-3d;
+transition:none !important;
+}
+.calculator-board.ipad-device .calculator-main::-webkit-scrollbar {
+width: 4px;
+}
+.calculator-board.ipad-device .calculator-main::-webkit-scrollbar-track {
+background: transparent;
+}
+.calculator-board.ipad-device .calculator-main::-webkit-scrollbar-thumb {
+background: rgba(0, 0, 0, 0.15);
+border-radius: 4px;
+}
+.calculator-board.ipad-device .calculator-main:hover {
+transform:matrix3d(0.639277, -0.221291, 0, 0.00022730, 0.269179, 0.655740, 0, 0.00005623, 0, 0, 1, 0, 202.83, 183.09, 0, 1.000000) !important;
+transition:none !important;
+}
+
+.calculator-board.ipad-device .calculator-results {
+  gap:8px !important;
+}
+.calculator-board.ipad-device .calculator-results article {
+  min-height:105px !important;
+  padding:12px 14px !important;
+}
+.calculator-board.ipad-device .calculator-results article small {
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Interactive Drag Handles Overlay */
+.calculator-handles-overlay {
+  position:absolute;
+  inset:0;
+  z-index:999;
+  pointer-events:none;
+}
+.calculator-handle {
+  position:absolute;
+  width:32px;
+  height:32px;
+  margin-left:-16px;
+  margin-top:-16px;
+  border-radius:50%;
+  background:rgba(17,18,19,0.92);
+  border:2.5px solid var(--fence-lime, #b7ff2a);
+  box-shadow:0 0 14px rgba(183,255,42,0.9), 0 4px 12px rgba(0,0,0,0.7);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--fence-lime, #b7ff2a);
+  font-family:monospace;
+  font-size:10px;
+  font-weight:900;
+  cursor:grab;
+  pointer-events:auto;
+  user-select:none;
+  touch-action:none;
+  transition:transform .12s ease, background .15s ease;
+}
+.calculator-handle:hover {
+  transform:scale(1.25);
+  background:var(--fence-lime, #b7ff2a);
+  color:#000;
+}
+.calculator-handle:active,
+.calculator-handle.is-active {
+  cursor:grabbing;
+  transform:scale(1.35);
+  background:#38bdf8;
+  border-color:#38bdf8;
+  color:#000;
+  box-shadow:0 0 18px rgba(56,189,248,1);
+}
+.calculator-handle-center {
+  width:40px;
+  height:40px;
+  margin-left:-20px;
+  margin-top:-20px;
+  border-radius:10px;
+  border-color:#38bdf8;
+  color:#38bdf8;
+  background:rgba(15,23,42,0.92);
+  box-shadow:0 0 14px rgba(56,189,248,0.9), 0 4px 12px rgba(0,0,0,0.7);
+}
+.calculator-handle-center:hover {
+  background:#38bdf8;
+  color:#000;
+}
+.calculator-handles-quad {
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+.calculator-handles-quad polygon {
+  fill:rgba(183,255,42,0.06);
+  stroke:rgba(183,255,42,0.6);
+  stroke-width:1.5;
+  stroke-dasharray:4 4;
+}
+
+@media (max-width: 768px) {
+  .calculator-handles-overlay {
+    display: none !important;
+  }
+}
+
+.calculator-tuner {
+  position:fixed;
+  z-index:99999;
+  left:16px;
+  bottom:16px;
+  width:min(340px, calc(100vw - 32px));
+  max-height:calc(100vh - 32px);
+  overflow-y:auto;
+  padding:14px;
+  border:2px solid rgba(183,255,42,.6);
+  border-radius:14px;
+  background:rgba(15,16,18,.96);
+  color:#f7f7f3;
+  box-shadow:0 20px 50px rgba(0,0,0,.6);
+  font-family:system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size:12px;
+}
+.calculator-tuner-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:10px;
+  padding-bottom:8px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+}
+.calculator-tuner-header h4 {
+  margin:0;
+  font-size:13px;
+  font-weight:700;
+  color:var(--fence-lime, #b7ff2a);
+}
+.calculator-tuner-grid {
+  display:grid;
+  gap:8px;
+}
+.calculator-tuner-row {
+  display:grid;
+  gap:3px;
+}
+.calculator-tuner-row-label {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:11px;
+  color:#cbd5e1;
+}
+.calculator-tuner-row-label output {
+  color:var(--fence-lime, #b7ff2a);
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.calculator-tuner-inputs {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.calculator-tuner-inputs input[type="range"] {
+  flex:1;
+  accent-color:var(--fence-lime, #b7ff2a);
+  cursor:pointer;
+}
+.calculator-tuner-inputs input[type="number"] {
+  width:55px;
+  padding:2px 4px;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:4px;
+  background:#22252a;
+  color:#fff;
+  font-size:11px;
+  text-align:right;
+}
+.calculator-tuner-dpad {
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:4px;
+  max-width:140px;
+  margin:8px auto;
+}
+.calculator-tuner-dpad button,
+.calculator-tuner-btn {
+  padding:5px 8px;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:6px;
+  background:#262930;
+  color:#fff;
+  font-size:11px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .15s ease;
+}
+.calculator-tuner-dpad button:hover,
+.calculator-tuner-btn:hover {
+  background:#3b404b;
+  border-color:var(--fence-lime, #b7ff2a);
+}
+.calculator-tuner-dpad button:active,
+.calculator-tuner-btn:active {
+  transform:scale(0.96);
+}
+.calculator-tuner-btn.active {
+  background:var(--fence-lime, #b7ff2a);
+  color:#000;
+  border-color:var(--fence-lime, #b7ff2a);
+}
+.calculator-tuner-actions {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:10px;
+  padding-top:8px;
+  border-top:1px solid rgba(255,255,255,.15);
+}
+.calculator-tuner-css-code {
+  margin-top:8px;
+  padding:6px 8px;
+  background:#111214;
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,.1);
+  font-family:monospace;
+  font-size:10px;
+  color:#93c5fd;
+  white-space:pre-wrap;
+  word-break:break-all;
+  user-select:all;
+}
+.calculator-tuner-toggle-btn {
+  position:fixed;
+  z-index:99999;
+  left:16px;
+  bottom:16px;
+  padding:8px 14px;
+  background:#111214;
+  color:var(--fence-lime, #b7ff2a);
+  border:2px solid var(--fence-lime, #b7ff2a);
+  border-radius:30px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+
+@media (max-width:600px) {
+  :root { --landing-header-height:75px; }
+  .hero-section { padding-top:calc(var(--landing-header-height) + 30px) !important; }
+  .calculator-board.ipad-device {
+    display:block !important;
+    min-height:650px !important;
+    aspect-ratio:auto;
+    border:7px solid #171819 !important;
+    border-radius:28px !important;
+    overflow:hidden !important;
+    background:#171819 !important;
+    box-shadow:16px 24px 42px rgba(0,0,0,.2) !important;
+    transform:none !important;
+  }
+  .calculator-board.ipad-device:hover { transform:none !important; }
+  .calculator-board.ipad-device::before {
+    display:block !important;
+    top:5px;
+    width:5px;
+    height:5px;
+  }
+  .calculator-board.ipad-device .calculator-device-art { display:none !important; }
+  .calculator-board.ipad-device .calculator-main {
+    inset:12px !important;
+    display:block !important;
+    width:auto;
+    min-height:0;
+    height:calc(100% - 24px);
+    margin:0 !important;
+    padding:20px 16px !important;
+    overflow:auto;
+    border-radius:15px;
+    transform:none;
+  }
+  .calculator-board.ipad-device .calculator-results {
+    grid-template-columns:1fr 1fr !important;
+    margin-top:14px;
+  }
+  .calculator-board.ipad-device .calculator-results .roi-result { grid-column:1 / -1; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .calculator-board.ipad-device,
+  .calculator-board.ipad-device:hover { transform:none !important; }
+}
+
+/* Review pass: keep the brand controls soft, purposeful, and readable on touch. */
+.header-cta {
+  border:0 !important;
+  box-shadow:0 10px 26px rgba(183,255,42,.28) !important;
+}
+.header-cta:hover,
+.header-cta:focus-visible { box-shadow:0 13px 32px rgba(183,255,42,.42) !important; }
+.header-cta:focus-visible,
+.forecast-cta:focus-visible,
+.dark-pill-button:focus-visible,
+.proof-row button:focus-visible { outline:2px solid var(--fence-lime); outline-offset:4px; }
+
+.university-card.is-active { outline:0 !important; box-shadow:0 18px 28px rgba(0,0,0,.12) !important; }
+.roadmap-card--lime {
+  background-image:radial-gradient(circle at 82% 12%,rgba(247,255,210,.55),transparent 30%),linear-gradient(145deg,rgba(255,255,255,.12),transparent 58%) !important;
+}
+.roadmap-card--lime li::before,
+.roadmap-card--lime li.done::before { color:#050505 !important; }
+
+.decision-route { padding-top:88px !important; }
+.decision-route > i { top:25px; right:25px; }
+@media (max-width:600px) {
+  .decision-route { padding:72px 24px 24px !important; }
+  .decision-route > i { top:20px; right:20px; width:42px; height:42px; }
+}
+
+.landing-page.js-ready .motion-section:not(.is-visible) .scholarships-head > .feature-description,
+.landing-page.js-ready .motion-section:not(.is-visible) .dark-pill-button,
+.landing-page.js-ready .motion-section:not(.is-visible) .final-head .feature-label,
+.landing-page.js-ready .motion-section:not(.is-visible) .final-head h2,
+.landing-page.js-ready .motion-section:not(.is-visible) .final-head > p,
+.landing-page.js-ready .motion-section:not(.is-visible) .forecast-cta,
+.landing-page.js-ready .motion-section:not(.is-visible) .rating-summary {
+  opacity:0;
+  transform:translateY(24px);
+}
+.motion-section.is-visible .scholarships-head > .feature-description,
+.motion-section.is-visible .dark-pill-button,
+.motion-section.is-visible .final-head .feature-label,
+.motion-section.is-visible .final-head h2,
+.motion-section.is-visible .final-head > p,
+.motion-section.is-visible .forecast-cta,
+.motion-section.is-visible .rating-summary {
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity .58s ease,transform .68s var(--ease-fence);
+}
+.motion-section.is-visible .scholarships-head > .feature-description { transition-delay:.12s; }
+.motion-section.is-visible .dark-pill-button { transition-delay:.2s; }
+.motion-section.is-visible .final-head h2 { transition-delay:.12s; }
+.motion-section.is-visible .final-head > p { transition-delay:.22s; }
+.motion-section.is-visible .forecast-cta { transition-delay:.3s; }
+.motion-section.is-visible .rating-summary { transition-delay:.18s; }
+.proof-row button {
+  display:grid;
+  place-items:center;
+  width:34px;
+  height:34px;
+  padding:0;
+  border:1px solid #bec2c4;
+  border-radius:50%;
+  background:transparent;
+  color:#5d6267;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  transition:transform .24s var(--ease-out),background-color .24s ease,color .24s ease,border-color .24s ease;
+}
+.proof-row button:hover { transform:translateY(-3px); border-color:var(--fence-lime); background:var(--fence-lime); color:#050505; }
+.motion-section.is-visible .proof-row button { animation:icon-reveal-soft .7s var(--ease-fence) both; }
+.motion-section.is-visible .proof-row button:nth-child(2) { animation-delay:.08s; }
+.motion-section.is-visible .proof-row button:nth-child(3) { animation-delay:.16s; }
+.motion-section.is-visible .proof-row button:nth-child(4) { animation-delay:.24s; }
+@media (max-width:600px) { .proof-row button { width:28px; height:28px; font-size:10px; } }
+.journey-thread__dots { mix-blend-mode:normal; }
+.journey-thread__dot { fill:#292b2e; opacity:1; animation:none; filter:none; }
+.journey-thread__dot--violet { fill:var(--fence-violet); opacity:1; mix-blend-mode:normal; }
+.journey-thread__dot--lime { fill:var(--fence-lime); opacity:1; mix-blend-mode:normal; }
+.journey-thread__dot--dark { fill:#292b2e; opacity:1; mix-blend-mode:normal; }
+@media (prefers-reduced-motion:reduce) { .journey-thread__dot { opacity:1; } }
+
+@media (max-width:900px) and (min-width:701px) {
+  .roadmap-journey { grid-template-columns:repeat(2,minmax(0,1fr)) !important; min-height:auto !important; gap:16px; margin-top:34px !important; padding:0 !important; overflow:visible !important; }
+  .roadmap-line { display:none !important; }
+  .roadmap-card:nth-of-type(n) { min-width:0; margin-top:0; }
+  .roadmap-card.is-current { transform:none !important; }
+}
+
+@media (max-width:700px) {
+  .calculator-section::before { top:18px; right:5vw; transform:translate3d(-14px,5px,0) scale(.82); transform-origin:right top; }
+  .calculator-section::after { height:82px !important; }
+  .comparison-section::before { height:76px; }
+  .factors-section::before { background-size:160% 178px; background-position:50% 0; }
+  .roadmap-section::before { height:84px !important; filter:blur(5px); }
+  .testimonials-section::before { height:78px; filter:blur(4px); }
+  .final-decision-section::before { background-size:155% 170px; background-position:50% 0; }
+  .calculator-section { padding-bottom:74px !important; }
+  .dashboard-device img { transform:scale(1.012); }
+  .roadmap-journey { grid-template-columns:1fr !important; min-height:auto !important; gap:16px; margin-top:32px !important; padding:0 !important; overflow:visible !important; }
+  .roadmap-line { display:none !important; }
+  .roadmap-card:nth-of-type(n) { margin-top:0; }
+  .roadmap-card { min-height:0 !important; }
+  .scholarships-section { padding-top:56px !important; }
+}
+
+@media (prefers-reduced-motion:reduce) { .landing-header,.landing-header::before { transition:none!important; }.dashboard-device img { transform:none; }.roadmap-line-progress { transition:none; }.headline-line > span,.scholarship-controls .progress-rail::after,.factor-orbit::after,.final-decision-section .decision-branches { transition-duration:.01ms!important; }.calculator-section .calculator-form input[type="range"] { filter:none!important; }.calculator-section::before,.calculator-section::after,.comparison-section::before,.factors-section::before,.roadmap-section::before,.testimonials-section::before,.final-decision-section::before { transition:none!important; transform:none!important; } }
+
+/* Stage 1: lightweight hero entrance choreography. Large media uses only
+   opacity/transform so the landing page stays responsive during first paint. */
+@keyframes hero-entrance-up {
+  from { opacity:0; transform:translate3d(0,22px,0); }
+  to { opacity:1; transform:translate3d(0,0,0); }
+}
+@keyframes hero-entrance-device {
+  from { opacity:0; transform:translate3d(28px,20px,0) scale(.965); }
+  to { opacity:1; transform:translate3d(0,0,0) scale(1); }
+}
+@keyframes hero-entrance-card {
+  from { opacity:0; transform:translate3d(0,28px,0) scale(.97); }
+  to { opacity:1; transform:translate3d(0,0,0) scale(1); }
+}
+@keyframes hero-icon-pop {
+  from { opacity:0; transform:translate3d(0,10px,0) scale(.72); }
+  to { opacity:1; transform:translate3d(0,0,0) scale(1); }
+}
+.hero-section.is-visible > .hero-content > .hero-copy > .eyebrow { animation:hero-entrance-up .42s var(--ease-fence) both; }
+.hero-section.is-visible > .hero-content > .hero-copy > h1 { animation:hero-entrance-up .56s var(--ease-fence) .06s both; }
+.hero-section.is-visible > .hero-content > .hero-copy > .info-card { animation:hero-entrance-card .52s var(--ease-fence) .18s both; }
+.hero-section.is-visible .dashboard-device { animation:hero-entrance-device .7s var(--ease-fence) .12s both; }
+.hero-section.is-visible .overlay-bento { animation:hero-entrance-card .52s var(--ease-fence) .34s both; }
+  .hero-section.is-visible .bento-card { animation:hero-entrance-card .48s var(--ease-fence) .46s both; }
+  .hero-section.is-visible .info-card .tag-row span,
+  .hero-section.is-visible .proof-row span { animation:hero-entrance-scale .4s cubic-bezier(.175,.885,.32,1.275) both; }
+  .hero-section.is-visible .info-card .tag-row span:nth-child(2),
+  .hero-section.is-visible .proof-row span:nth-child(2) { animation-delay:.08s; }
+  .hero-section.is-visible .info-card .tag-row span:nth-child(3),
+  .hero-section.is-visible .proof-row span:nth-child(3) { animation-delay:.16s; }
+  .hero-section.is-visible .proof-row span:nth-child(4) { animation-delay:.24s; }
+
+  .overlay-bento { transition:transform .46s cubic-bezier(.22,1,.36,1),box-shadow .46s ease,opacity .3s ease !important; }
+  .overlay-bento:hover { transform:translate3d(-50%,calc(var(--hero-shift, 0px) * .52 - 3px),0) !important; }
+
+/* Stage 2: calculator scene choreography. Text, controls and result cards
+   enter in sequence; no continuous heavy animation is added. */
+@keyframes calculator-icon-in {
+  from { opacity:0; transform:translate3d(-10px,0,0) scale(.82); }
+  to { opacity:1; transform:translate3d(0,0,0) scale(1); }
+}
+@keyframes calculator-result-in {
+  from { opacity:0; transform:translate3d(0,20px,0) scale(.96); }
+  to { opacity:1; transform:translate3d(0,0,0) scale(1); }
+}
+.calculator-section.is-visible .calculator-intro { transition-delay:.04s !important; }
+.calculator-section.is-visible .calculator-board { transition-delay:.12s !important; }
+.calculator-section.is-visible .calculator-rail span,
+.calculator-section.is-visible .calculator-rail b { animation:calculator-icon-in .42s var(--ease-fence) both; }
+.calculator-section.is-visible .calculator-rail span:nth-of-type(1) { animation-delay:.2s; }
+.calculator-section.is-visible .calculator-rail span:nth-of-type(2) { animation-delay:.27s; }
+.calculator-section.is-visible .calculator-rail span:nth-of-type(3) { animation-delay:.34s; }
+.calculator-section.is-visible .calculator-rail span:nth-of-type(4) { animation-delay:.41s; }
+.calculator-section.is-visible .calculator-main header { animation:hero-entrance-up .48s var(--ease-fence) .22s both; }
+.calculator-section.is-visible .calculator-form label { animation:hero-entrance-up .42s var(--ease-fence) both; }
+.calculator-section.is-visible .calculator-form label:nth-child(1) { animation-delay:.3s; }
+.calculator-section.is-visible .calculator-form label:nth-child(2) { animation-delay:.36s; }
+.calculator-section.is-visible .calculator-form label:nth-child(3) { animation-delay:.42s; }
+.calculator-section.is-visible .calculator-form label:nth-child(4) { animation-delay:.48s; }
+.calculator-section.is-visible .calculate-button { animation:hero-entrance-up .46s var(--ease-fence) .56s both; }
+.calculator-section.is-visible .calculator-results article { animation:calculator-result-in .5s var(--ease-fence) both; }
+.calculator-section.is-visible .calculator-results article:nth-child(1) { animation-delay:.34s; }
+.calculator-section.is-visible .calculator-results article:nth-child(2) { animation-delay:.44s; }
+.calculator-section.is-visible .calculator-results article:nth-child(3) { animation-delay:.54s; }
+
+/* iPad presentation: keep the live calculator UI, add a convincing device shell. */
+.hero-section { background:#ebeff3 !important; }
+.macbook-screen img { filter:brightness(.98) saturate(.97); }
+.ipad-device {
+  position:relative;
+  border:14px solid #191b1e !important;
+  border-radius:38px !important;
+  background:#191b1e !important;
+  box-shadow:24px 34px 52px rgba(0,0,0,.24), inset 0 0 0 1px rgba(255,255,255,.16) !important;
+}
+.ipad-device::before {
+  content:"";
+  position:absolute;
+  z-index:6;
+  top:7px;
+  left:50%;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#050607;
+  box-shadow:0 0 0 1px rgba(255,255,255,.14);
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+.ipad-device::after {
+  content:"";
+  position:absolute;
+  z-index:6;
+  inset:0;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:27px;
+  pointer-events:none;
+}
+.calculator-section .ipad-device {
+  display:block;
+  min-height:590px;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+}
+.calculator-section .calculator-device-art {
+  position:absolute;
+  inset:0;
+  z-index:0;
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  pointer-events:none;
+}
+.calculator-section .calculator-rail { display:none; }
+.calculator-section .calculator-main {
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-column:1 / -1;
+  width:72%;
+  min-height:470px;
+  margin:7% 5% 7% auto;
+  padding:27px !important;
+  border:1px solid rgba(183,255,42,.34);
+  border-radius:22px;
+  background:rgba(247,247,243,.96) !important;
+  box-shadow:0 24px 42px rgba(0,0,0,.18);
+  backdrop-filter:blur(5px);
+}
+@media (max-width:600px) {
+  .calculator-section .ipad-device { min-height:520px; }
+  .calculator-section .calculator-main { width:89%; min-height:0; margin:9% auto 7%; padding:19px !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .calculator-section.is-visible .calculator-rail span,
+  .calculator-section.is-visible .calculator-rail b,
+  .calculator-section.is-visible .calculator-main header,
+  .calculator-section.is-visible .calculator-form label,
+  .calculator-section.is-visible .calculate-button,
+  .calculator-section.is-visible .calculator-results article { animation:none; opacity:1; transform:none; }
+}
+
+/* Scroll text depth: copy follows the section subtly while remaining readable. */
+.motion-section .eyebrow,
+.motion-section h2,
+.motion-section .feature-description,
+.motion-section .path-description,
+.motion-section .testimonials-description,
+.motion-section .final-head > p {
+  translate:0 var(--scroll-text-shift, 0px);
+  transition:translate .12s linear;
+  will-change:translate;
+}
+@media (prefers-reduced-motion:reduce) {
+  .motion-section .eyebrow,
+  .motion-section h2,
+  .motion-section .feature-description,
+  .motion-section .path-description,
+  .motion-section .testimonials-description,
+  .motion-section .final-head > p { translate:none; transition:none; }
+}
+
+/* Native scroll-linked fallback: headings and copy continue moving while the
+   section crosses the viewport, even when JS scroll sampling is unavailable. */
+@keyframes editorial-text-scroll {
+  from { translate:0 12px; }
+  50% { translate:0 0; }
+  to { translate:0 -10px; }
+}
+@supports (animation-timeline: view()) {
+  .motion-section:not(.hero-section) .eyebrow,
+  .motion-section:not(.hero-section) h2,
+  .motion-section:not(.hero-section) .feature-description,
+  .motion-section:not(.hero-section) .path-description,
+  .motion-section:not(.hero-section) .testimonials-description,
+  .motion-section:not(.hero-section) .final-head > p {
+    animation:editorial-text-scroll linear both;
+    animation-timeline:view(block);
+    animation-range:entry 0% exit 100%;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .motion-section:not(.hero-section) .eyebrow,
+  .motion-section:not(.hero-section) h2,
+  .motion-section:not(.hero-section) .feature-description,
+  .motion-section:not(.hero-section) .path-description,
+  .motion-section:not(.hero-section) .testimonials-description,
+  .motion-section:not(.hero-section) .final-head > p { animation:none; }
+}
+
+/* Icon reveal: decorative and supporting icons reset with their section so the
+   entrance repeats every time the section returns to the viewport. */
+@keyframes icon-reveal-soft {
+  from { opacity:0; transform:translate3d(0,12px,0) scale(.72) rotate(-6deg); }
+  to { opacity:1; transform:translate3d(0,0,0) scale(1) rotate(0deg); }
+}
+.landing-page.js-ready .motion-section:not(.is-visible) .plus-button > span,
+.landing-page.js-ready .motion-section:not(.is-visible) .forecast-symbol,
+.landing-page.js-ready .motion-section:not(.is-visible) .proof-row span,
+.landing-page.js-ready .motion-section:not(.is-visible) .university-icon,
+.landing-page.js-ready .motion-section:not(.is-visible) .factor-card > i,
+.landing-page.js-ready .motion-section:not(.is-visible) .roadmap-line circle,
+.landing-page.js-ready .motion-section:not(.is-visible) .scholarship-symbol,
+.landing-page.js-ready .motion-section:not(.is-visible) .rating-stars svg,
+.landing-page.js-ready .motion-section:not(.is-visible) .testimonial-arrow svg,
+.landing-page.js-ready .motion-section:not(.is-visible) .testimonial-avatar,
+.landing-page.js-ready .motion-section:not(.is-visible) .decision-route > i,
+.landing-page.js-ready .motion-section:not(.is-visible) .decision-route > span,
+.landing-page.js-ready .motion-section:not(.is-visible) .best-fit i {
+  opacity:0;
+  transform:translate3d(0,12px,0) scale(.72) rotate(-6deg);
+}
+.motion-section.is-visible .plus-button > span,
+.motion-section.is-visible .forecast-symbol,
+.motion-section.is-visible .proof-row span,
+.motion-section.is-visible .university-icon,
+.motion-section.is-visible .factor-card > i,
+.motion-section.is-visible .roadmap-line circle,
+.motion-section.is-visible .scholarship-symbol,
+.motion-section.is-visible .rating-stars svg,
+.motion-section.is-visible .testimonial-arrow svg,
+.motion-section.is-visible .testimonial-avatar,
+.motion-section.is-visible .decision-route > i,
+.motion-section.is-visible .decision-route > span,
+.motion-section.is-visible .best-fit i {
+  animation:icon-reveal-soft .7s var(--ease-fence) both;
+  will-change:opacity,transform;
+}
+.motion-section.is-visible .proof-row span:nth-child(2),
+.motion-section.is-visible .factor-card:nth-child(2) > i,
+.motion-section.is-visible .roadmap-line circle:nth-of-type(2),
+.motion-section.is-visible .decision-route:nth-child(2) > span { animation-delay:.08s; }
+.motion-section.is-visible .proof-row span:nth-child(3),
+.motion-section.is-visible .factor-card:nth-child(3) > i,
+.motion-section.is-visible .roadmap-line circle:nth-of-type(3),
+.motion-section.is-visible .decision-route:nth-child(3) > span { animation-delay:.16s; }
+.motion-section.is-visible .best-fit i { animation-delay:.14s; }
+.motion-section.is-visible .proof-row span:nth-child(4),
+.motion-section.is-visible .factor-card:nth-child(4) > i,
+.motion-section.is-visible .roadmap-line circle:nth-of-type(4) { animation-delay:.24s; }
+.motion-section.is-visible .factor-card:nth-child(5) > i,
+.motion-section.is-visible .roadmap-line circle:nth-of-type(5) { animation-delay:.32s; }
+.motion-section.is-visible .factor-card:nth-child(6) > i,
+.motion-section.is-visible .roadmap-line circle:nth-of-type(6) { animation-delay:.4s; }
+.motion-section.is-visible .scholarship-card:nth-child(2) .scholarship-symbol,
+.motion-section.is-visible .testimonial-arrow--next svg { animation-delay:.1s; }
+@media (prefers-reduced-motion:reduce) {
+  .landing-page.js-ready .motion-section:not(.is-visible) .plus-button > span,
+  .landing-page.js-ready .motion-section:not(.is-visible) .forecast-symbol,
+  .landing-page.js-ready .motion-section:not(.is-visible) .proof-row span,
+  .landing-page.js-ready .motion-section:not(.is-visible) .university-icon,
+  .landing-page.js-ready .motion-section:not(.is-visible) .factor-card > i,
+  .landing-page.js-ready .motion-section:not(.is-visible) .roadmap-line circle,
+  .landing-page.js-ready .motion-section:not(.is-visible) .scholarship-symbol,
+  .landing-page.js-ready .motion-section:not(.is-visible) .rating-stars svg,
+  .landing-page.js-ready .motion-section:not(.is-visible) .testimonial-arrow svg,
+  .landing-page.js-ready .motion-section:not(.is-visible) .testimonial-avatar,
+  .landing-page.js-ready .motion-section:not(.is-visible) .decision-route > i,
+  .landing-page.js-ready .motion-section:not(.is-visible) .decision-route > span {
+    opacity:1;
+    transform:none;
+  }
+  .motion-section.is-visible .plus-button > span,
+  .motion-section.is-visible .forecast-symbol,
+  .motion-section.is-visible .proof-row span,
+  .motion-section.is-visible .university-icon,
+  .motion-section.is-visible .factor-card > i,
+  .motion-section.is-visible .roadmap-line circle,
+  .motion-section.is-visible .scholarship-symbol,
+  .motion-section.is-visible .rating-stars svg,
+  .motion-section.is-visible .testimonial-arrow svg,
+  .motion-section.is-visible .testimonial-avatar,
+  .motion-section.is-visible .decision-route > i,
+  .motion-section.is-visible .decision-route > span,
+  .motion-section.is-visible .best-fit i { animation:none; opacity:1; transform:none; }
+}
+
+/* Roadmap cards share the same quiet contour language across dark and lime
+   surfaces instead of leaving the lime stage visually flat. */
+.roadmap-card--dark,
+.roadmap-card--lime {
+  isolation:isolate;
+  overflow:hidden;
+}
+.roadmap-card--dark {
+  background-color:#1b1c1d!important;
+}
+.roadmap-card--dark:nth-child(even) {
+  background-image:repeating-radial-gradient(circle at 58% 118%,transparent 0 17px,rgba(247,247,243,.12) 18px 19px,transparent 20px 34px)!important;
+}
+.roadmap-card--lime {
+  background-color:var(--fence-lime)!important;
+}
+.roadmap-card--lime:nth-child(3) {
+  background-image:repeating-radial-gradient(circle at 50% 115%,transparent 0 24px,rgba(23,24,25,.14) 25px 26px,transparent 27px 51px)!important;
+}
+.roadmap-card--dark > *,
+.roadmap-card--lime > * { position:relative; z-index:1; }
+
+/* Compact best-fit marker: the icon is animated with the other card icons. */
+.best-fit {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  top:24px!important;
+  right:24px!important;
+  width:max-content;
+  max-width:calc(100% - 48px);
+  padding:5px 8px!important;
+  border-radius:999px;
+  font-size:8px!important;
+  letter-spacing:.08em;
+  line-height:1;
+  white-space:nowrap;
+}
+.best-fit i { font-size:10px; font-style:normal; line-height:1; }
+
+/* The roadmap header enters as one readable composition: label, headline,
+   description, and metrics no longer appear as disconnected static pieces. */
+.landing-page.js-ready .roadmap-section:not(.is-visible) .roadmap-top {
+  opacity:0;
+  transform:translate3d(0,26px,0);
+}
+.roadmap-section .roadmap-top {
+  transition:opacity 1.15s ease,transform 1.4s var(--ease-fence);
+}
+.roadmap-section.is-visible .roadmap-top {
+  opacity:1;
+  transform:translate3d(0,0,0);
+}
+
+/* Remove the detached lime connector from the testimonial controls. */
+.testimonials-section .testimonial-progress::before { display:none!important; }
+
+/* Crisp, consistent select controls with a deliberate native-free chevron. */
+.calculator-form select {
+  min-height:52px;
+  padding:0 44px 0 16px;
+  border:1px solid rgba(23,24,25,.16);
+  border-radius:12px;
+  background:#fff;
+  color:#171819;
+  font-family:'DM Sans',sans-serif;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:-.015em;
+  line-height:1;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 4px 12px rgba(23,24,25,.04);
+  -webkit-font-smoothing:antialiased;
+}
+.calculator-select-wrap::after {
+  content:"";
+  width:7px;
+  height:7px;
+  top:50%;
+  right:18px;
+  border-right:2px solid #171819;
+  border-bottom:2px solid #171819;
+  font-size:0;
+  transform:translateY(-70%) rotate(45deg);
+}
+.calculator-select-wrap:focus-within::after { transform:translateY(-30%) rotate(225deg); }
+.calculator-form select:hover { border-color:rgba(23,24,25,.42); background:#fff; }
+.calculator-form select:focus-visible { border-color:#171819; box-shadow:0 0 0 4px rgba(183,255,42,.38),inset 0 1px 0 rgba(255,255,255,.8); }
+
+/* Trackpad changes have a visible active-card response on wide layouts too. */
+.scholarship-card.is-active { transform:translateY(-10px) scale(1.012); }
+
+/* Hero insight card: restrained contour lines keep the card integrated with
+   the editorial surface without competing with the real product screenshot. */
+.dashboard-stage::before,
+.dashboard-stage::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(40px);
+}
+.dashboard-stage::before {
+  top: 15%;
+  right: -5%;
+  width: 50%;
+  height: 60%;
+  background: radial-gradient(ellipse at center, rgba(183, 255, 42, 0.45) 0%, rgba(183, 255, 42, 0.2) 40%, transparent 70%);
+}
+.dashboard-stage::after {
+  bottom: 0%;
+  left: 0%;
+  width: 55%;
+  height: 55%;
+  background: radial-gradient(ellipse at center, rgba(183, 255, 42, 0.35) 0%, rgba(183, 255, 42, 0.15) 50%, transparent 70%);
+}
+.dashboard-device,.overlay-bento,.bento-card { z-index:1; }
+.overlay-bento::before {
+  content:"↗   ◎   F";
+  position:absolute;
+  right:24px;
+  bottom:22px;
+  color:rgba(5,5,5,.42);
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.1em;
+  pointer-events:none;
+}
+
+/* The roadmap route should read as a fine plotted path, not a blurred tube. */
+.roadmap-line { filter:none!important; opacity:1; }
+.roadmap-line-base { stroke-width:3.5!important; opacity:.58; filter:none!important; }
+.roadmap-line-progress { stroke-width:4.5!important; filter:none!important; }
+.roadmap-line circle { stroke-width:2!important; }
+.roadmap-journey { scrollbar-width:thin!important; scrollbar-color:rgba(23,24,25,.42) transparent!important; -ms-overflow-style:auto; }
+.roadmap-journey::-webkit-scrollbar { display:block!important; width:8px; height:8px; }
+.roadmap-journey::-webkit-scrollbar-track { background:transparent; }
+.roadmap-journey::-webkit-scrollbar-thumb { border:2px solid transparent; border-radius:999px; background:rgba(23,24,25,.42); background-clip:padding-box; }
+.roadmap-journey::-webkit-scrollbar-thumb:hover { background:rgba(23,24,25,.62); background-clip:padding-box; }
+
+/* Testimonials arrive from distinct directions, then return to their normal
+   layout so active-story transforms remain available after the entrance. */
+@keyframes testimonial-arrive-left { from { opacity:0; translate:-90px 42px; rotate:-4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
+@keyframes testimonial-arrive-top { from { opacity:0; translate:70px -74px; rotate:4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
+@keyframes testimonial-arrive-right { from { opacity:0; translate:110px 48px; rotate:5deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
+.testimonials-section.is-visible .testimonial-card--lime { animation:testimonial-arrive-left 1.05s var(--ease-fence) both; }
+.testimonials-section.is-visible .testimonial-card--light { animation:testimonial-arrive-top 1.12s var(--ease-fence) .12s both; }
+.testimonials-section.is-visible .testimonial-card--dark { animation:testimonial-arrive-right 1.08s var(--ease-fence) .22s both; }
+@media (prefers-reduced-motion:reduce) {
+  .testimonials-section.is-visible .testimonial-card--lime,
+  .testimonials-section.is-visible .testimonial-card--light,
+  .testimonials-section.is-visible .testimonial-card--dark { animation:none!important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .hero-section.is-visible > .hero-content > .hero-copy > .eyebrow,
+  .hero-section.is-visible > .hero-content > .hero-copy > h1,
+  .hero-section.is-visible > .hero-content > .hero-copy > .info-card,
+  .hero-section.is-visible .dashboard-device,
+  .hero-section.is-visible .overlay-bento,
+  .hero-section.is-visible .bento-card,
+  .hero-section.is-visible .info-card .tag-row span,
+  .hero-section.is-visible .proof-row span { animation:none; opacity:1; transform:none; }
+}
+
+/* ============================================================
+   SCROLL PARALLAX — HERO DEVICE AND FLOATING CARDS
+   The hero device shifts upward and scales slightly as the user
+   scrolls past the hero, creating a depth parallax effect.
+   ============================================================ */
+
+.dashboard-stage {
+  transform: translate3d(0, var(--hero-shift, 0px), 0) scale(var(--hero-scale, 1));
+  transition: none !important; /* scrubbed by scroll, not transition */
+  will-change: transform;
+}
+
+.overlay-bento {
+  transform: translate3d(-50%, calc(var(--hero-shift, 0px) * 0.62), 0) !important;
+  transition: transform 360ms var(--ease-fence), box-shadow 280ms var(--ease-fence), opacity 280ms ease !important;
+}
+
+.bento-card {
+  transform: translate3d(0, calc(var(--hero-shift, 0px) * 0.38), 0) !important;
+  transition: transform 360ms var(--ease-fence), box-shadow 280ms var(--ease-fence), opacity 280ms ease !important;
+}
+
+/* On card hover, restore the lift from the journey translation */
+.overlay-bento:hover { transform: translate3d(-50%, calc(var(--hero-shift, 0px) * 0.62 - 5px), 0) !important; }
+.bento-card:hover { transform: translate3d(0, calc(var(--hero-shift, 0px) * 0.38 - 5px), 0) !important; }
+
+/* ============================================================
+   FACTOR CARDS — ORBITAL POSITION ENHANCEMENT
+   Factor cards are positioned absolutely around the orbit.
+   As the factors section enters, cards arrive from their
+   respective orbital angles with staggered timing.
+   ============================================================ */
+
+.landing-page.js-ready .factors-section:not(.is-visible) .factor-card {
+  opacity: 0;
+}
+
+.factors-section.is-visible .factor-card--0 { transition-delay: .06s; }
+.factors-section.is-visible .factor-card--1 { transition-delay: .12s; }
+.factors-section.is-visible .factor-card--2 { transition-delay: .18s; }
+.factors-section.is-visible .factor-card--3 { transition-delay: .24s; }
+.factors-section.is-visible .factor-card--4 { transition-delay: .30s; }
+.factors-section.is-visible .factor-card--5 { transition-delay: .36s; }
+
+/* ============================================================
+   HEADLINE HIGHLIGHT REVEAL TIMING
+   Word highlights (oval-highlight, rect-highlight) fade in
+   slightly after the line text reveals, not simultaneously.
+   ============================================================ */
+
+.motion-section.is-visible .headline-line .oval-highlight,
+.motion-section.is-visible .headline-line .rect-highlight,
+.motion-section.is-visible .headline-line .lime-marker,
+.motion-section.is-visible .headline-line .violet-marker {
+  transition-delay: calc(var(--section-stagger) * 2);
+}
+
+.motion-section.is-visible .headline-line:nth-child(2) .oval-highlight,
+.motion-section.is-visible .headline-line:nth-child(2) .rect-highlight {
+  transition-delay: calc(var(--section-stagger) * 3);
+}
+
+.motion-section.is-visible .headline-line:nth-child(3) .oval-highlight,
+.motion-section.is-visible .headline-line:nth-child(3) .rect-highlight {
+  transition-delay: calc(var(--section-stagger) * 4);
+}
+
+/* ============================================================
+   COMPARISON SECTION — STAGGERED CARD ENTRANCE
+   University cards enter from different depths per spec.
+   ============================================================ */
+
+.comparison-section.is-visible .university-card:nth-child(1) { transition-delay: .08s; }
+.comparison-section.is-visible .university-card:nth-child(2) { transition-delay: .18s; }
+.comparison-section.is-visible .university-card:nth-child(3) { transition-delay: .28s; }
+
+/* ============================================================
+   ROADMAP CARD STAGGERED ENTRANCE
+   ============================================================ */
+
+.roadmap-section.is-visible .roadmap-card:nth-child(1) { transition-delay: .06s; }
+.roadmap-section.is-visible .roadmap-card:nth-child(2) { transition-delay: .13s; }
+.roadmap-section.is-visible .roadmap-card:nth-child(3) { transition-delay: .20s; }
+.roadmap-section.is-visible .roadmap-card:nth-child(4) { transition-delay: .27s; }
+.roadmap-section.is-visible .roadmap-card:nth-child(5) { transition-delay: .34s; }
+
+/* ============================================================
+   SCHOLARSHIP CARD ENTRANCE
+   Cards slide from different directions per spec.
+   ============================================================ */
+
+.scholarships-section.is-visible .scholarship-card:nth-child(1) { transition-delay: .06s; }
+.scholarships-section.is-visible .scholarship-card:nth-child(2) { transition-delay: .14s; }
+.scholarships-section.is-visible .scholarship-card:nth-child(3) { transition-delay: .22s; }
+.scholarships-section.is-visible .scholarship-card:nth-child(4) { transition-delay: .30s; }
+
+/* ============================================================
+   FINAL DECISION CARD STAGGER
+   ============================================================ */
+
+.final-decision-section.is-visible .decision-route:nth-child(1) { transition-delay: .10s; }
+.final-decision-section.is-visible .decision-route:nth-child(2) { transition-delay: .20s; }
+.final-decision-section.is-visible .decision-route:nth-child(3) { transition-delay: .30s; }
+
+/* ============================================================
+   FOOTER REVEAL STAGGER
+   ============================================================ */
+
+.fence-footer.is-visible .footer-ready-card { transition-delay: .04s; }
+.fence-footer.is-visible .footer-brand { transition-delay: .12s; }
+
+/* ============================================================
+   POINTER UNDERLINE — ENHANCED FOR FOCUS RING SEPARATION
+   Keyboard focus uses a distinct visible outline separate from
+   the pointer-reactive gradient underline.
+   ============================================================ */
+
+.desktop-nav button:focus-visible,
+.login-link:focus-visible {
+  outline: 2px solid var(--fence-lime);
+  outline-offset: 6px;
+  border-radius: 3px;
+}
+
+/* Login belongs to the same navigation system: it uses the identical local pointer line. */
+.login-link::before {
+  content:"";
+  position:absolute;
+  right:0;
+  bottom:-8px;
+  left:0;
+  height:1px;
+  background:currentColor;
+  opacity:0;
+  transform:scaleX(.35);
+  transition:opacity .25s ease,transform .25s var(--ease-out);
+}
+.login-link::after {
+  content:"";
+  position:absolute;
+  bottom:-9px;
+  left:var(--pointer-x);
+  width:54px;
+  height:3px;
+  border-radius:50%;
+  background:radial-gradient(ellipse at center,var(--lime) 0%,rgba(183,255,42,.45) 34%,transparent 75%);
+  opacity:0;
+  transform:translateX(-50%) scaleX(.4);
+  transition:opacity .24s ease,transform .24s var(--ease-out),left .18s var(--ease-out);
+}
+.login-link:hover::before { opacity:.68; transform:scaleX(.92); }
+.login-link:hover::after { opacity:1; transform:translateX(-50%) scaleX(1); }
+
+/* Keep the login underline on the same visual weight as the other header
+   interaction lines. */
+.login-link::before {
+  bottom:-9px;
+  height:3px;
+  border-radius:50%;
+  background:radial-gradient(ellipse at center,var(--lime) 0%,rgba(183,255,42,.45) 34%,transparent 75%);
+}
+
+/* Slower editorial entrance: give the user time to read the transition while
+   scrolling instead of completing it in a single fast beat. */
+.landing-page {
+  --motion-base:1000ms;
+  --motion-slow:1600ms;
+  --section-stagger:220ms;
+}
+.feature-intro,
+.calculator-board,
+.university-card,
+.factor-card,
+.roadmap-card,
+.scholarship-card,
+.decision-route {
+  transition-duration:1.4s !important;
+}
+.motion-section:not(.hero-section) .section-navline,
+.motion-section:not(.hero-section) h2,
+.motion-section:not(.hero-section) .path-description,
+.motion-section:not(.hero-section) .eyebrow {
+  transition-duration:1.4s !important;
+}
+.motion-section.is-visible .plus-button > span,
+.motion-section.is-visible .forecast-symbol,
+.motion-section.is-visible .proof-row span,
+.motion-section.is-visible .university-icon,
+.motion-section.is-visible .factor-card > i,
+.motion-section.is-visible .roadmap-line circle,
+.motion-section.is-visible .scholarship-symbol,
+.motion-section.is-visible .rating-stars svg,
+.motion-section.is-visible .testimonial-arrow svg,
+.motion-section.is-visible .testimonial-avatar,
+.motion-section.is-visible .decision-route > i,
+.motion-section.is-visible .decision-route > span,
+.motion-section.is-visible .best-fit i {
+  animation-duration:1.65s;
+}
+
+/* The same icon motion also runs in reverse when a section leaves the guide
+   line, so scrolling up never snaps the icons away. */
+.motion-section .plus-button > span,
+.motion-section .forecast-symbol,
+.motion-section .proof-row span,
+.motion-section .university-icon,
+.motion-section .factor-card > i,
+.motion-section .roadmap-line circle,
+.motion-section .scholarship-symbol,
+.motion-section .rating-stars svg,
+.motion-section .testimonial-arrow svg,
+.motion-section .testimonial-avatar,
+.motion-section .decision-route > i,
+.motion-section .decision-route > span,
+.motion-section .best-fit i {
+  transition:opacity 1.65s ease,transform 1.65s var(--ease-fence);
+}
+
+/* Keep the existing 25%-from-bottom trigger, but let the footer reveal breathe
+   longer so the CTA can be read while it settles into place. */
+.fence-footer .footer-ready-card,
+.fence-footer .footer-brand,
+.fence-footer .footer-column,
+.fence-footer .footer-legal,
+.fence-footer .headline-line > span {
+  transition-duration:1.2s !important;
+}
+.fence-footer .footer-ready-card {
+  transition:opacity 1.2s ease,transform 1.35s var(--ease-fence),box-shadow .35s ease !important;
+}
+
+/* Supporting groups also enter with the chapter. This covers the structural
+   pieces that previously stayed static while their cards and icons moved. */
+.landing-page.js-ready .motion-section:not(.is-visible) .comparison-count,
+.landing-page.js-ready .motion-section:not(.is-visible) .factor-proof,
+.landing-page.js-ready .motion-section:not(.is-visible) .roadmap-metrics,
+.landing-page.js-ready .motion-section:not(.is-visible) .scholarship-controls,
+.landing-page.js-ready .motion-section:not(.is-visible) .testimonials-controls,
+.landing-page.js-ready .motion-section:not(.is-visible) .testimonials-cta,
+.landing-page.js-ready .motion-section:not(.is-visible) .calculator-rail,
+.landing-page.js-ready .motion-section:not(.is-visible) .calculator-main header,
+.landing-page.js-ready .motion-section:not(.is-visible) .calculator-form,
+.landing-page.js-ready .motion-section:not(.is-visible) .calculator-results,
+.landing-page.js-ready .motion-section:not(.is-visible) .university-cards,
+.landing-page.js-ready .motion-section:not(.is-visible) .scholarship-carousel,
+.landing-page.js-ready .motion-section:not(.is-visible) .decision-branches {
+  opacity:0;
+  transform:translate3d(0,28px,0);
+}
+.landing-page.js-ready .motion-section:not(.is-visible) .factor-orbit,
+.landing-page.js-ready .motion-section:not(.is-visible) .roadmap-journey {
+  opacity:0;
+}
+.motion-section.is-visible .comparison-count,
+.motion-section.is-visible .factor-proof,
+.motion-section.is-visible .roadmap-metrics,
+.motion-section.is-visible .scholarship-controls,
+.motion-section.is-visible .testimonials-controls,
+.motion-section.is-visible .testimonials-cta,
+.motion-section.is-visible .calculator-rail,
+.motion-section.is-visible .calculator-main header,
+.motion-section.is-visible .calculator-form,
+.motion-section.is-visible .calculator-results,
+.motion-section.is-visible .university-cards,
+.motion-section.is-visible .scholarship-carousel,
+.motion-section.is-visible .decision-branches {
+  opacity:1;
+  transform:translate3d(0,0,0);
+  transition:opacity 1.15s ease,transform 1.4s var(--ease-fence);
+}
+.motion-section.is-visible .factor-orbit,
+.motion-section.is-visible .roadmap-journey {
+  opacity:1;
+  transition:opacity 1.4s ease;
+}
+
+/* The CTA branches stay, but the detached vertical lime stem does not. */
+.decision-branches::before { display:none; }
+
+/* Entire comparison cards are the controls. No redundant plus buttons. */
+.university-card-select {
+  position:absolute;
+  z-index:3;
+  inset:0;
+  width:100%;
+  padding:0;
+  border:0;
+  border-radius:inherit;
+  background:transparent;
+  cursor:pointer;
+}
+.university-card-select:focus-visible { outline:2px solid var(--fence-lime); outline-offset:-5px; }
+.university-card > :not(.university-card-select) { position:relative; z-index:1; pointer-events:none; }
+
+/* A real range control provides pointer, keyboard, touch, and trackpad-friendly navigation. */
+.scholarship-controls { gap:14px; }
+.scholarship-slider { display:flex; flex:1 1 170px; min-width:120px; }
+.scholarship-slider input {
+  width:100%;
+  margin:0;
+  accent-color:var(--fence-lime);
+  cursor:ew-resize;
+}
+.scholarship-controls output { min-width:54px; font-size:11px; font-weight:800; white-space:nowrap; }
+.scholarship-controls .progress-rail { display:none; }
+
+@media (max-width:700px) {
+  .comparison-area { overflow:hidden; }
+  .university-cards { scroll-snap-type:x mandatory; scroll-padding-inline:8.5%; scrollbar-width:none; }
+  .university-card { scroll-snap-align:center; }
+  .roadmap-journey { scroll-snap-type:x mandatory; scroll-padding-inline:8vw; }
+  .roadmap-card { scroll-snap-align:center; }
+}
+
+@media (max-width:600px) {
+  .university-cards {
+    margin-right:0;
+    padding:0 8.5vw;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    scrollbar-color:transparent transparent;
+  }
+  .university-cards::-webkit-scrollbar { display:none; }
+  .university-card { flex-basis:74vw; }
+  .scholarship-controls { gap:10px; }
+  .scholarship-controls > button { width:48px; height:48px; }
+  .scholarship-slider { min-width:0; }
+}
+
+.desktop-nav button:focus-visible::after,
+.login-link:focus-visible::after {
+  /* Hide the pointer underline when keyboard-focused */
+  opacity: 0 !important;
+}
+
+/* ============================================================
+   REDUCED MOTION — COVER ALL NEW RULES
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-stage { transform: none !important; will-change: auto; }
+  .overlay-bento,
+  .bento-card,
+  .overlay-bento:hover,
+  .bento-card:hover { transform: none !important; }
+  .factor-orbit::after { transition: none !important; }
+  .calculator-section::after { transition: none !important; transform: translateY(0) !important; }
+  .comparison-section::before,
+  .roadmap-section::before,
+  .testimonials-section::before { transition: none !important; transform: none !important; }
+  .calculator-section .calculator-form input[type="range"] { filter: none !important; }
+  .final-decision-section .decision-branches { transition: none !important; opacity: 1 !important; transform: none !important; }
+  .factors-section.is-visible .factor-card--0,
+  .factors-section.is-visible .factor-card--1,
+  .factors-section.is-visible .factor-card--2,
+  .factors-section.is-visible .factor-card--3,
+  .factors-section.is-visible .factor-card--4,
+  .factors-section.is-visible .factor-card--5 { transition-delay: 0s; }
+  .landing-page.js-ready .factors-section:not(.is-visible) .factor-card { opacity: 1; transform: none; }
+  .motion-section.is-visible .headline-line .oval-highlight,
+  .motion-section.is-visible .headline-line .rect-highlight { transition-delay: 0s; }
+}
+
+/* ============================================================
+   GLOBAL EDITORIAL SCROLL DEPTH
+   One restrained depth channel keeps foreground surfaces connected to the
+   contour field without moving the reading layer or causing layout shift.
+   ============================================================ */
+.landing-page::after {
+  content:"";
+  position:fixed;
+  z-index:0;
+  inset:-18%;
+  pointer-events:none;
+  opacity:.024;
+  mix-blend-mode:soft-light;
+  background-image:repeating-radial-gradient(circle at 20% 30%,rgba(255,255,255,.75) 0 1px,transparent 1px 4px),repeating-radial-gradient(circle at 70% 65%,rgba(0,0,0,.5) 0 1px,transparent 1px 5px);
+  animation:editorial-grain 13s steps(5,end) infinite;
+}
+.landing-page > section > *,
+.landing-page > footer > * { position:relative; z-index:2; }
+.journey-thread__contours {
+  transform:translate3d(var(--contour-drift,0px),calc(var(--journey-progress) * -10px),0) scaleY(calc(1 + var(--journey-progress) * .05));
+  transform-origin:center;
+  transition:transform .12s linear,opacity .4s ease;
+  animation:contour-breathe 18s ease-in-out infinite alternate;
+}
+.dashboard-stage,
+.calculator-board,
+.roadmap-journey,
+.factor-orbit,
+.testimonials-stage,
+.decision-routes { translate:0 var(--scroll-depth,0px); }
+.dashboard-stage { will-change:transform,translate; }
+.calculator-board,
+.roadmap-journey,
+.factor-orbit,
+.testimonials-stage,
+.decision-routes { will-change:translate; }
+@keyframes editorial-grain {
+  0% { transform:translate3d(0,0,0); }
+  25% { transform:translate3d(-2%,1%,0); }
+  50% { transform:translate3d(1%,-2%,0); }
+  75% { transform:translate3d(2%,2%,0); }
+  100% { transform:translate3d(0,0,0); }
+}
+@keyframes contour-breathe {
+  from { opacity:.62; }
+  to { opacity:.82; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .landing-page::after { animation:none; }
+  .journey-thread__contours { transform:none; animation:none; }
+  .dashboard-stage,
+  .calculator-board,
+  .roadmap-journey,
+  .factor-orbit,
+  .testimonials-stage,
+  .decision-routes { translate:none; will-change:auto; }
+}
+
+/* Current motion runtime deliberately avoids scrubbed backdrop sheets: no grey terrain layer. */
+.calculator-section::after,
+.comparison-section::before,
+.roadmap-section::before,
+.testimonials-section::before { display:none!important; }
+.factors-section.is-visible .factor-orbit::after { opacity:.58!important; transform:scale(1)!important; transition:opacity var(--motion-base) var(--ease-fence),transform var(--motion-slow) var(--ease-fence)!important; }
+.scholarships-section.is-visible .scholarship-controls .progress-rail::after { opacity:.78!important; transform:translateX(0) scaleX(1)!important; }
+.testimonials-section.is-visible .testimonial-progress::before { transform:scaleX(var(--testimonials-progress))!important; }
+.final-decision-section.is-visible .decision-branches { opacity:1!important; transform:translate3d(0,0,0) scaleX(1)!important; transition:opacity var(--motion-base) var(--ease-fence),transform var(--motion-slow) var(--ease-fence)!important; }
+
+/* The signature: one continuous outer-lane trajectory joins every chapter.
+   Keeping it in the margin protects the intentional editorial reading zones. */
+.landing-page { --journey-progress:0; position:relative; isolation:isolate; }
+.landing-page > section,
+.landing-page > footer { position:relative; }
+/* This layer is above section surfaces, while each content wrapper remains safely above it. */
+.landing-page > section > *,
+.landing-page > footer > * { position:relative; z-index:2; }
+.journey-thread { position:absolute; z-index:1; inset:0; width:100%; overflow:hidden; pointer-events:none; }
+.journey-thread svg { display:block; width:100%; height:100%; overflow:visible; }
+.journey-thread__path { fill:none; stroke:var(--fence-lime); stroke-width:1.5; vector-effect:non-scaling-stroke; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:1; stroke-dashoffset:calc(1 - var(--journey-progress)); opacity:.52; filter:drop-shadow(0 0 2px rgba(183,255,42,.14)); transition:stroke-dashoffset .18s linear; }
+.journey-thread__echo { fill:none; stroke:rgba(183,255,42,.12); stroke-width:.5; vector-effect:non-scaling-stroke; stroke-linecap:round; opacity:.26; }
+
+@media (max-width:700px) {
+  .journey-thread__path { stroke-width:1.25; opacity:.54; filter:none; }
+  .journey-thread__echo { opacity:.22; }
+}
+
+/* Native scroll timelines keep the core route alive even before JS hydration. */
+@supports (animation-timeline:scroll()) {
+  .journey-thread__path {
+    animation:journey-draw linear both;
+    animation-timeline:scroll(root block);
+    animation-range:0% 100%;
+  }
+}
+@keyframes journey-draw { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
+
+.landing-header[data-theme="light"] { color:var(--fence-ink)!important; }
+.landing-header[data-theme="dark"] { color:var(--fence-warm-white)!important; }
+
+@media (prefers-reduced-motion:reduce) {
+  .journey-thread__path { stroke-dasharray:none; stroke-dashoffset:0; opacity:.34; filter:none; transition:none; }
+}
+
+/* Mobile controls retain their card-level placement, while standalone actions
+   and navigation rows receive one reliable centered alignment system. */
+@media (max-width:600px) {
+  .journey-thread svg { transform:translateX(1.7%); }
+  .roadmap-card { width:calc(100% - 20px); min-width:0; margin-inline:auto!important; }
+  .roadmap-card .you-are { right:auto; left:50%; transform:translateX(-50%) rotate(-3deg); white-space:nowrap; }
+  .carousel-controls,.testimonials-controls { justify-content:center; }
+  .scholarship-controls { width:100%; margin-inline:auto; }
+  .scholarship-controls > button,.testimonial-arrow,.testimonials-cta > span,.dark-pill-button > span,.forecast-cta > span { display:grid; place-items:center; flex:0 0 auto; }
+  .dark-pill-button,.testimonials-cta,.forecast-cta { justify-content:center; margin-inline:auto; text-align:center; }
+  .dark-pill-button { width:100%; }
+  .testimonials-cta,.forecast-cta { width:max-content; max-width:100%; }
+  .decision-route > i { display:grid; place-items:center; }
+}
+
+/* ============================================================
+   CONTINUOUS EDITORIAL LANDSCAPE
+   The reference uses shared surfaces, not isolated divider banners:
+   warm-white chapters flow into deep black chapters through broad,
+   low-contrast wave shoulders. The contour SVG above carries the same
+   line vocabulary across every shoulder.
+   ============================================================ */
+.journey-thread__contours { pointer-events:none; }
+.journey-thread__contour {
+  fill:none;
+  stroke:rgba(247,247,243,.12);
+  stroke-width:.8;
+  vector-effect:non-scaling-stroke;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  opacity:.56;
+}
+.journey-thread__ambient-waves {
+  fill:none;
+  stroke:rgba(247,247,243,.16);
+  stroke-width:.9;
+  vector-effect:non-scaling-stroke;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  opacity:.34;
+}
+
+/* The outer SVG is a shared line field. These two surface families keep the
+   fills exact while the wave edge removes the old hard horizontal cut. */
+.light-feature,
+.hero-section,
+.calculator-section,
+.roadmap-section,
+.scholarships-section {
+  background-color:var(--fence-surface)!important;
+  background-image:none!important;
+}
+.dark-feature,
+.comparison-section,
+.factors-section,
+.testimonials-section,
+.final-decision-section,
+.fence-footer {
+  background-color:var(--fence-black)!important;
+  background-image:
+    radial-gradient(circle at 18% 22%,rgba(183,255,42,.055) 0,rgba(183,255,42,.025) 4%,transparent 12%),
+    radial-gradient(circle at 78% 64%,rgba(183,255,42,.04) 0,rgba(183,255,42,.018) 4%,transparent 13%),
+    repeating-radial-gradient(ellipse 105% 52% at 50% 0%,transparent 0 34px,rgba(247,247,243,.035) 35px 36px,transparent 37px 68px)!important;
+  background-attachment:fixed!important;
+}
+
+@media (max-width:700px) {
+  .dark-feature,
+  .comparison-section,
+  .factors-section,
+  .testimonials-section,
+  .final-decision-section,
+  .fence-footer {
+    background-image:none!important;
+    background-attachment:scroll!important;
+  }
+}
+
+.comparison-section,
+.roadmap-section,
+.testimonials-section {
+  overflow:visible!important;
+  isolation:isolate;
+}
+.comparison-section::before,
+.roadmap-section::before,
+.testimonials-section::before {
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  z-index:0!important;
+  left:-8%!important;
+  top:-82px!important;
+  width:116%!important;
+  height:164px!important;
+  opacity:1!important;
+  transform:none!important;
+  filter:none!important;
+  clip-path:ellipse(72% 72% at 50% 100%)!important;
+  pointer-events:none!important;
+}
+.comparison-section::before,
+.testimonials-section::before { background:var(--fence-black)!important; }
+.roadmap-section::before { background:var(--fence-surface)!important; }
+
+/* Keep the contour field legible against both halves without adding a new
+   color or a glossy gradient. */
+.light-feature ~ .journey-thread .journey-thread__contour { stroke:rgba(23,24,25,.13); }
+.journey-thread { z-index:1; }
+.journey-thread__contours { mix-blend-mode:difference; opacity:.72; }
+.fence-footer .footer-boundary { display:none!important; }
+
+@media (max-width:700px) {
+  .journey-thread__contour { stroke-width:.68; opacity:.42; }
+  .journey-thread__ambient-waves { stroke-width:.7; opacity:.25; }
+  .comparison-section::before,
+  .roadmap-section::before,
+  .testimonials-section::before {
+    left:-22%!important;
+    width:144%!important;
+    height:118px!important;
+    top:-59px!important;
+    clip-path:ellipse(68% 74% at 50% 100%)!important;
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .journey-thread__contour { opacity:.32; }
+}
+
+/* The light chapters share one quiet atmosphere. These are deliberately
+   soft, offset color fields rather than card-like blobs, so there is no
+   visible seam when a chapter surface changes beneath them. */
+.hero-section,
+.calculator-section,
+.roadmap-section,
+.scholarships-section {
+  background-image:
+    radial-gradient(circle at 11% 18%, rgba(215,199,255,.16) 0, rgba(215,199,255,.08) 3.5%, transparent 12%),
+    radial-gradient(circle at 83% 26%, rgba(183,255,42,.11) 0, rgba(183,255,42,.05) 4%, transparent 13%),
+    radial-gradient(circle at 64% 72%, rgba(215,199,255,.09) 0, rgba(215,199,255,.04) 3%, transparent 11%),
+    radial-gradient(circle at 24% 87%, rgba(183,255,42,.06) 0, rgba(183,255,42,.025) 3%, transparent 10%)!important;
+}
+
+/* A surface overlap is the transition; the hairline at the old boundary is
+   not. */
+.comparison-section,
+.factors-section,
+.roadmap-section,
+.scholarships-section,
+.testimonials-section,
+.final-decision-section {
+  box-shadow:none!important;
+}
+.journey-thread__contours { opacity:.56; }
+
+/* The old full-height route was reading as a border through the page. The
+   contour field remains; the standalone lime stroke does not. */
+.journey-thread__path,
+.journey-thread__echo { display:none!important; }
+
+/* Navigation stays meaningful through the arrows; the old range track was a
+   second, competing divider and is intentionally removed. */
+.scholarship-controls { justify-content:center; gap:18px; }
+.scholarship-controls output { min-width:54px; text-align:center; }
+.scholarship-slider,
+.scholarship-controls .progress-rail { display:none!important; }
+
+@media (max-width:600px) {
+  .scholarship-controls { width:max-content; margin-inline:auto; }
+  .scholarship-controls > button { width:48px; height:48px; }
+}
+
+/* Scholarships are a native touchpad/touch rail on narrow screens. The
+   centered card is selected by scroll position, so a swipe is also a
+   selection and never needs a second tap. */
+@media (max-width:700px) {
+  .scholarship-carousel {
+    display:flex!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    scroll-snap-type:x mandatory;
+    scroll-padding-inline:9%;
+    overscroll-behavior-x:contain;
+    scrollbar-width:none;
+    scrollbar-color:transparent transparent;
+    touch-action:pan-x pan-y;
+  }
+  .scholarship-carousel::-webkit-scrollbar { display:none; }
+  .scholarship-card {
+    flex:0 0 82vw!important;
+    scroll-snap-align:center;
+    cursor:pointer;
+  }
+  .scholarship-card:focus-visible {
+    outline:2px solid var(--fence-black);
+    outline-offset:3px;
+  }
+  .scholarship-card[aria-pressed="false"] { opacity:.58; }
+  .scholarship-card[aria-pressed="true"] { opacity:1; }
+}
+
+.scholarship-card .feature-plus { display:none!important; }
+
+/* Mobile stories are a centered, touch-first deck. The card's center is
+   anchored to the stage instead of being measured from the page edge, so
+   every swipe lands on the same visual axis. */
+@media (max-width:600px) {
+  .testimonials-stage {
+    width:100%;
+    margin-right:0!important;
+    margin-left:0!important;
+    touch-action:pan-y;
+  }
+  .testimonial-card,
+  .testimonial-card--lime,
+  .testimonial-card--light,
+  .testimonial-card--dark {
+    left:50%!important;
+    width:84%!important;
+    translate:0 0!important;
+    scale:1!important;
+  }
+  .testimonials-stage[data-active="0"] .testimonial-card--lime { transform:translateX(-50%) rotate(0deg); }
+  .testimonials-stage[data-active="0"] .testimonial-card--light { transform:translateX(calc(-50% + 94vw)) rotate(0deg); }
+  .testimonials-stage[data-active="0"] .testimonial-card--dark { transform:translateX(calc(-50% + 188vw)) rotate(0deg); }
+  .testimonials-stage[data-active="1"] .testimonial-card--lime { transform:translateX(calc(-50% - 94vw)) rotate(0deg); }
+  .testimonials-stage[data-active="1"] .testimonial-card--light { transform:translateX(-50%) rotate(0deg); }
+  .testimonials-stage[data-active="1"] .testimonial-card--dark { transform:translateX(calc(-50% + 94vw)) rotate(0deg); }
+  .testimonials-stage[data-active="2"] .testimonial-card--lime { transform:translateX(calc(-50% - 188vw)) rotate(0deg); }
+  .testimonials-stage[data-active="2"] .testimonial-card--light { transform:translateX(calc(-50% - 94vw)) rotate(0deg); }
+  .testimonials-stage[data-active="2"] .testimonial-card--dark { transform:translateX(-50%) rotate(0deg); }
+  .testimonial-card:hover,
+  .testimonial-card--lime:hover,
+  .testimonial-card--light:hover,
+  .testimonial-card--dark:hover { transform:translateX(-50%) rotate(0deg); }
+}
+
+/* Trackpad and touch scrolling keep the focused university card in sync with
+   the card nearest the viewport center. */
+@media (max-width:700px) {
+  .comparison-area { touch-action:pan-y; }
+  .university-cards { touch-action:pan-x pan-y; scroll-behavior:smooth; }
+}
+
+/* The final roadmap cards retain the airy light chapter while gaining the
+   quiet transparent-dark contour treatment visible in the approved visual. */
+.roadmap-card--light {
+  isolation:isolate;
+  background-color:rgba(247,247,243,.84)!important;
+  border-color:rgba(23,24,25,.18)!important;
+}
+.roadmap-card--light::before {
+  z-index:-1!important;
+  background:radial-gradient(circle at 38% 42%,rgba(23,24,25,.12) 0%,rgba(23,24,25,.12) 38%,transparent 39%)!important;
+  opacity:.72!important;
+}
+.roadmap-card--light > * { position:relative; z-index:1; }
+
+/* Keep a real tablet silhouette on narrow screens: dark navigation spine,
+   framed white canvas, and the slight editorial tilt all remain visible. */
+@media (max-width:600px) {
+  .calculator-board {
+    display:grid!important;
+    grid-template-columns:54px minmax(0,1fr)!important;
+    width:100%;
+    min-height:650px!important;
+    border-width:6px!important;
+    border-radius:24px!important;
+    transform:rotate(-1.1deg)!important;
+    box-shadow:18px 24px 34px rgba(0,0,0,.18)!important;
+  }
+  .calculator-board:hover { transform:rotate(-.6deg) translateY(-3px)!important; }
+  .calculator-rail {
+    display:flex!important;
+    align-items:center;
+    gap:18px!important;
+    padding:18px 9px!important;
+    overflow:hidden;
+    font-size:0!important;
+  }
+  .calculator-rail b { width:34px!important; height:34px!important; margin:0 0 10px!important; flex:0 0 auto; }
+  .calculator-rail span {
+    display:grid;
+    place-items:center;
+    width:32px;
+    height:32px;
+    padding:0!important;
+    border-radius:8px;
+    color:rgba(255,255,255,.78);
+    background:transparent;
+    font-size:16px;
+    line-height:1;
+  }
+  .calculator-rail span:first-of-type { background:rgba(255,255,255,.14); }
+  .calculator-main { min-width:0!important; padding:20px 15px!important; }
+  .calculator-main header { margin-bottom:18px!important; }
+  .calculator-main h3 { font-size:22px!important; }
+  .calculator-form select { min-height:42px!important; }
+  .calculator-results { grid-template-columns:1fr 1fr!important; }
+}
+
+/* Final carousel interaction overrides. */
+@media (max-width:900px) {
+  .university-cards,
+  .scholarship-carousel,
+  .roadmap-journey {
+    scroll-behavior:auto !important;
+    scroll-snap-type:x proximity !important;
+    overscroll-behavior-x:contain;
+  }
+  .university-card,
+  .scholarship-card,
+  .roadmap-card { scroll-snap-align:center; }
+}
+
+.dot-lime { color: var(--fence-lime); opacity: 0.8; }
+.dot-dark { color: var(--fence-deep-black); opacity: 0.5; }
+.dot-violet { color: var(--fence-violet); opacity: 0.8; }
+
+/* ============================================================
+   SLOW, ONE-WAY PAGE REVEAL
+   Every chapter shares one relaxed ease-out cadence. The observer keeps a
+   chapter visible after its first entrance, so content never disappears while
+   the user is reading or scrolling back through the story.
+   ============================================================ */
+.landing-page {
+  --motion-enter: 1250ms;
+  --motion-enter-slow: 1700ms;
+  --motion-cascade: 140ms;
+  --ease-soft-out: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* The navigation is part of the opening composition as well. */
+@keyframes header-reveal-soft {
+  from { opacity: 0; transform: translate3d(0, -14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.landing-page.js-ready .landing-header .brand,
+.landing-page.js-ready .landing-header .desktop-nav,
+.landing-page.js-ready .landing-header .header-actions {
+  animation: header-reveal-soft var(--motion-enter) var(--ease-soft-out) both;
+}
+.landing-page.js-ready .landing-header .desktop-nav { animation-delay: 100ms; }
+.landing-page.js-ready .landing-header .header-actions { animation-delay: 200ms; }
+.landing-page.js-ready .journey-thread {
+  animation: journey-field-reveal var(--motion-enter-slow) ease both;
+}
+@keyframes journey-field-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* A quiet parent fade catches every visual inside a chapter; the more specific
+   card and icon motion below then provides the readable stagger. */
+.motion-section > .feature-shell,
+.motion-section > .testimonials-inner,
+.motion-section > .scholarship-crest {
+  transition: opacity var(--motion-enter) ease,
+              filter var(--motion-enter-slow) var(--ease-soft-out);
+}
+.landing-page.js-ready .motion-section:not(.is-visible) > .feature-shell,
+.landing-page.js-ready .motion-section:not(.is-visible) > .testimonials-inner,
+.landing-page.js-ready .motion-section:not(.is-visible) > .scholarship-crest {
+  opacity: 0;
+  filter: blur(5px);
+}
+.motion-section.is-visible > .feature-shell,
+.motion-section.is-visible > .testimonials-inner,
+.motion-section.is-visible > .scholarship-crest {
+  opacity: 1;
+  filter: blur(0);
+}
+
+/* Hero: copy leads, product imagery follows, supporting cards settle last. */
+.hero-section.is-visible > .hero-content > .hero-copy > .eyebrow {
+  animation-duration: var(--motion-enter) !important;
+}
+.hero-section.is-visible > .hero-content > .hero-copy > h1 {
+  animation-duration: var(--motion-enter-slow) !important;
+  animation-delay: var(--motion-cascade) !important;
+}
+.hero-section.is-visible > .hero-content > .hero-copy > .info-card {
+  animation-duration: 1450ms !important;
+  animation-delay: calc(var(--motion-cascade) * 2) !important;
+}
+.hero-section.is-visible .dashboard-device {
+  animation-duration: 1800ms !important;
+  animation-delay: calc(var(--motion-cascade) * 1.5) !important;
+}
+.hero-section.is-visible .overlay-bento {
+  animation-duration: 1500ms !important;
+  animation-delay: calc(var(--motion-cascade) * 3) !important;
+}
+.hero-section.is-visible .bento-card {
+  animation-duration: 1400ms !important;
+  animation-delay: calc(var(--motion-cascade) * 4) !important;
+}
+.hero-section.is-visible .info-card .tag-row span,
+.hero-section.is-visible .proof-row span {
+  animation-duration: 1100ms !important;
+}
+
+/* Calculator controls and results used to finish in under half a second. They
+   now follow the same calm rhythm as the surrounding chapter. */
+.calculator-section.is-visible .calculator-rail span,
+.calculator-section.is-visible .calculator-rail b,
+.calculator-section.is-visible .calculator-main header,
+.calculator-section.is-visible .calculator-form label,
+.calculator-section.is-visible .calculate-button,
+.calculator-section.is-visible .calculator-results article {
+  animation-duration: 1200ms !important;
+  animation-timing-function: var(--ease-soft-out) !important;
+}
+.calculator-section.is-visible .calculator-form label:nth-child(1) { animation-delay: 320ms; }
+.calculator-section.is-visible .calculator-form label:nth-child(2) { animation-delay: 440ms; }
+.calculator-section.is-visible .calculator-form label:nth-child(3) { animation-delay: 560ms; }
+.calculator-section.is-visible .calculator-form label:nth-child(4) { animation-delay: 680ms; }
+.calculator-section.is-visible .calculate-button { animation-delay: 800ms; }
+.calculator-section.is-visible .calculator-results article:nth-child(1) { animation-delay: 480ms; }
+.calculator-section.is-visible .calculator-results article:nth-child(2) { animation-delay: 620ms; }
+.calculator-section.is-visible .calculator-results article:nth-child(3) { animation-delay: 760ms; }
+
+/* Shared content, cards, icons, stories and footer use the same soft motion-out
+   curve so no chapter feels faster or sharper than the next one. */
+.feature-intro,
+.calculator-board,
+.university-card,
+.factor-card,
+.roadmap-card,
+.scholarship-card,
+.decision-route,
+.roadmap-top,
+.comparison-count,
+.factor-proof,
+.roadmap-metrics,
+.scholarship-controls,
+.testimonials-controls,
+.testimonials-cta,
+.calculator-rail,
+.calculator-main header,
+.calculator-form,
+.calculator-results,
+.university-cards,
+.scholarship-carousel,
+.decision-branches {
+  transition-duration: var(--motion-enter-slow) !important;
+  transition-timing-function: var(--ease-soft-out) !important;
+}
+.motion-section:not(.hero-section) .section-navline,
+.motion-section:not(.hero-section) h2,
+.motion-section:not(.hero-section) .path-description,
+.motion-section:not(.hero-section) .feature-description,
+.motion-section:not(.hero-section) .testimonials-description,
+.motion-section:not(.hero-section) .final-head > p,
+.motion-section:not(.hero-section) .eyebrow {
+  transition-duration: var(--motion-enter-slow) !important;
+  transition-timing-function: var(--ease-soft-out) !important;
+}
+.motion-section.is-visible .plus-button > span,
+.motion-section.is-visible .forecast-symbol,
+.motion-section.is-visible .proof-row span,
+.motion-section.is-visible .university-icon,
+.motion-section.is-visible .factor-card > i,
+.motion-section.is-visible .roadmap-line circle,
+.motion-section.is-visible .scholarship-symbol,
+.motion-section.is-visible .rating-stars svg,
+.motion-section.is-visible .testimonial-arrow svg,
+.motion-section.is-visible .testimonial-avatar,
+.motion-section.is-visible .decision-route > i,
+.motion-section.is-visible .decision-route > span,
+.motion-section.is-visible .best-fit i {
+  animation-duration: 1400ms !important;
+  animation-timing-function: var(--ease-soft-out) !important;
+}
+.testimonials-section.is-visible .testimonial-card--lime,
+.testimonials-section.is-visible .testimonial-card--light,
+.testimonials-section.is-visible .testimonial-card--dark {
+  animation-duration: 1600ms !important;
+  animation-timing-function: var(--ease-soft-out) !important;
+}
+.fence-footer .footer-ready-card,
+.fence-footer .footer-brand,
+.fence-footer .footer-column,
+.fence-footer .footer-legal,
+.fence-footer .headline-line > span {
+  transition-duration: var(--motion-enter-slow) !important;
+  transition-timing-function: var(--ease-soft-out) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page.js-ready .landing-header .brand,
+  .landing-page.js-ready .landing-header .desktop-nav,
+  .landing-page.js-ready .landing-header .header-actions,
+  .landing-page.js-ready .journey-thread {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+  .motion-section > .feature-shell,
+  .motion-section > .testimonials-inner,
+  .motion-section > .scholarship-crest {
+    opacity: 1 !important;
+    filter: none !important;
+    transition: none !important;
+  }
+}
+
+/* Keep the KPI tabs below the MacBook display. Extra top padding protects the
+   active-card lift and levitation from being clipped by the mobile scroller. */
+@media (min-width: 901px) {
+  #hero .overlay-bento {
+    bottom: -20% !important;
+  }
+}
+
+@media (max-width: 900px) {
+  #hero .dashboard-float-group,
+  #hero .dashboard-stage {
+    overflow: visible !important;
+  }
+
+  #hero .dashboard-float-group {
+    display: flow-root;
+  }
+
+  #hero .overlay-bento {
+    margin: clamp(250px, 43vw, 390px) -4vw 0 !important;
+    padding-top: 14px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  #hero .overlay-bento {
+    margin: clamp(165px, 48vw, 292px) -5vw 0 !important;
+    padding-top: 12px !important;
+  }
+}
+
+/* Round signal dots run through every landing chapter. They live outside the
+   stretched SVG so their 1:1 aspect ratio cannot turn into an oval. */
+.journey-page-dots {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.journey-page-dot {
+  position: absolute;
+  top: var(--dot-y);
+  left: var(--dot-x);
+  display: block;
+  width: clamp(7px, .62vw, 10px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(var(--dot-scale));
+  transform-origin: center;
+  box-shadow: 0 0 12px currentColor;
+}
+
+.journey-page-dot.dot-lime {
+  background: var(--fence-lime);
+  color: rgba(183, 255, 42, .28);
+}
+
+.journey-page-dot.dot-violet {
+  background: var(--fence-violet);
+  color: rgba(215, 199, 255, .25);
+}
+
+.journey-page-dot.dot-dark {
+  background: #f7f7f3;
+  color: rgba(247, 247, 243, .15);
+  mix-blend-mode: difference;
+}
+
+@media (max-width: 600px) {
+  .journey-page-dot {
+    width: 7px;
+    box-shadow: 0 0 9px currentColor;
+  }
+}
+
+/* ============================================================
+   BENTO OVERLAY — MOBILE RESPONSIVE FIX
+   On small screens the absolute overlay is converted into a
+   horizontal scroll row that sits naturally in the flow.
+   ============================================================ */
+@media (max-width: 900px) {
+  .overlay-bento {
+    position: relative !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    display: flex !important;
+    flex-direction: row;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 4px 4vw 12px;
+    margin: 0 -4vw;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scrollbar-color: transparent transparent;
+  }
+  .overlay-bento::-webkit-scrollbar { display: none; }
+  .overlay-bento:hover { transform: none !important; }
+  .bento-card {
+    flex: 0 0 140px !important;
+    min-height: 160px !important;
+    scroll-snap-align: start;
+    border-radius: 18px !important;
+  }
+  .bento-card--tall { min-height: 180px !important; }
+  .bento-col {
+    flex: 0 0 auto !important;
+    flex-direction: column;
+    gap: 10px;
+    width: 140px;
+  }
+  .bento-col .bento-card {
+    min-height: 80px !important;
+    flex: 0 0 80px !important;
+  }
+  .bento-copy strong { font-size: 26px !important; }
+  .bento-copy span { font-size: 10px !important; }
+}
+
+@media (max-width: 600px) {
+  .overlay-bento {
+    gap: 8px;
+    padding: 4px 5vw 10px;
+    margin: clamp(266px, 72vw, 326px) -5vw 0;
+  }
+  .bento-card {
+    flex: 0 0 120px !important;
+    min-height: 140px !important;
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+  .bento-card--tall { min-height: 160px !important; }
+  .bento-col { width: 120px; }
+  .bento-col .bento-card {
+    min-height: 68px !important;
+    flex: 0 0 68px !important;
+    padding: 12px !important;
+  }
+  .bento-copy strong { font-size: 22px !important; }
+  .bento-copy span { font-size: 9px !important; }
+  .face { width: 22px; height: 22px; }
+  .bento-orb { width: 60px; height: 60px; }
+  .bento-arrow-btn { width: 28px !important; height: 28px !important; font-size: 14px !important; }
+}
+
+/* On mobile the bento sits in document flow — kill all absolute transforms */
+@media (max-width: 900px) {
+  .overlay-bento,
+  .overlay-bento:hover { transform: none !important; }
+  .hero-section.is-visible .overlay-bento { animation: none !important; opacity: 1 !important; }
+  .landing-page.js-ready .motion-section:not(.is-visible) .overlay-bento { opacity: 1 !important; transform: none !important; }
+}
+
+/* Hero-content layout fix for mobile — allow bento row to flow below stage */
+@media (max-width: 900px) {
+  .hero-content { overflow: visible !important; }
+  .dashboard-stage { overflow: visible !important; }
+}
+
+/* Decorative oval shapes are intentionally removed across the landing page. */
+.journey-thread__dots {
+  display: none !important;
+}
+
+.oval-highlight,
+.footer-oval {
+  padding: 0;
+  color: inherit;
+}
+
+.oval-highlight::before,
+.footer-oval::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* The live calculator is projected directly onto the photographed iPad screen. */
+.calculator-device-viewport {
+  width: 100%;
+  overflow: visible;
+}
+
+.calculator-device-frame {
+  position: relative;
+  width: min(920px, 100%);
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  align-self: start;
+}
+
+.calculator-section .calculator-board.ipad-device {
+  position: absolute;
+  inset: 0 auto auto 0;
+  top: 0 !important;
+  left: 0 !important;
+  display: block !important;
+  width: 920px !important;
+  max-width: none !important;
+  height: 920px !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: scale(var(--calculator-scale, 1)) !important;
+  transform-origin: 0 0 !important;
+}
+
+.calculator-section .calculator-board.ipad-device:hover {
+  transform: scale(var(--calculator-scale, 1)) !important;
+}
+
+.calculator-section .calculator-board.ipad-device .calculator-device-art {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block !important;
+  width: 920px;
+  height: 920px;
+  object-fit: contain;
+}
+
+.calculator-section .calculator-rail {
+  display: none !important;
+}
+
+.calculator-section .calculator-board.ipad-device .calculator-main {
+  position: absolute !important;
+  inset: 0 auto auto 0 !important;
+  z-index: 2;
+  display: grid !important;
+  grid-template-columns: 338px 198px;
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 16px;
+  width: 600px !important;
+  height: 440px !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 24px 24px 22px !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 24px;
+  background: #f7f7f3 !important;
+  box-shadow: none !important;
+  transform: var(--calculator-screen-transform) !important;
+  transform-origin: 0 0 !important;
+  transition: none !important;
+  will-change: transform;
+}
+
+.calculator-section .calculator-board.ipad-device .calculator-main:hover {
+  transform: var(--calculator-screen-transform) !important;
+}
+
+.calculator-section .calculator-main header {
+  grid-column: 1 / -1;
+  gap: 12px;
+  margin-bottom: 13px !important;
+}
+
+.calculator-section .calculator-main h3 {
+  font-size: 25px !important;
+}
+
+.calculator-section .calculator-main header p {
+  font-size: 11px;
+}
+
+.calculator-section .calculator-breadcrumb {
+  font-size: 8px;
+}
+
+.calculator-section .calculator-form {
+  gap: 8px;
+}
+
+.calculator-section .calculator-form label {
+  gap: 3px;
+  font-size: 10px;
+}
+
+.calculator-section .calculator-form select {
+  min-height: 42px;
+  padding-inline: 12px 36px;
+  font-size: 11px;
+}
+
+.calculator-section .calculator-form output {
+  padding: 3px 8px;
+  font-size: 9px;
+}
+
+.calculator-section .calculator-form input[type="range"] {
+  min-height: 18px;
+}
+
+.calculator-section .calculate-button {
+  min-height: 42px;
+}
+
+.calculator-section .calculator-results {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 7px;
+}
+
+.calculator-section .calculator-board.ipad-device .calculator-results article {
+  min-height: 92px !important;
+  padding: 11px !important;
+}
+
+.calculator-section .calculator-board.ipad-device .calculator-results strong {
+  margin: 4px 0 2px;
+  font-size: 25px !important;
+}
+
+.calculator-section .calculator-board.ipad-device .calculator-results span,
+.calculator-section .calculator-board.ipad-device .calculator-results small {
+  font-size: 8px;
+}
+
+@media (max-width: 1180px) {
+  .calculator-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 48px;
+  }
+
+  .calculator-intro {
+    max-width: 680px;
+  }
+}
+
+@media (max-width: 720px) {
+  .calculator-device-frame {
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  .calculator-section .calculator-main h3 {
+    font-size: 27px !important;
+  }
+
+  .calculator-section .calculator-form select,
+  .calculator-section .calculate-button {
+    min-height: 48px;
+  }
+}
+
+/* Hero visual: reveal at the viewport midpoint, then keep every device and
+   metric in one continuous levitating scene. */
+@keyframes hero-group-levitate {
+  0%, 100% { translate: 0 -4px; }
+  50% { translate: 0 8px; }
+}
+
+@keyframes hero-card-levitate {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -5px; }
+}
+
+.dashboard-float-group {
+  position: relative;
+  width: 100%;
+  min-height: inherit;
+  animation: hero-group-levitate 5.8s ease-in-out infinite;
+  will-change: translate, opacity, filter;
+}
+
+.landing-page.js-ready .hero-section .dashboard-float-group {
+  visibility: hidden;
+  opacity: 0;
+  filter: blur(7px);
+  scale: .985;
+  pointer-events: none;
+  transition:
+    opacity 620ms var(--ease-soft-out),
+    filter 700ms var(--ease-soft-out),
+    scale 760ms var(--ease-soft-out),
+    visibility 0s linear 700ms;
+}
+
+.landing-page.js-ready .hero-section.is-visual-visible .dashboard-float-group {
+  visibility: visible;
+  opacity: 1;
+  filter: none;
+  scale: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* Entrance transforms used to freeze the MacBook and cards after one run.
+   The parent now owns the entrance, leaving these elements free to float. */
+#hero .dashboard-device,
+#hero .overlay-bento {
+  animation: none !important;
+}
+
+#hero .bento-card {
+  animation: hero-card-levitate 4.6s ease-in-out infinite !important;
+  cursor: pointer;
+  will-change: translate, transform;
+}
+
+#hero .overlay-bento > .bento-card:nth-child(1) { animation-delay: -1.1s !important; }
+#hero .overlay-bento > .bento-card:nth-child(2) { animation-delay: -2.7s !important; }
+#hero .bento-col .bento-card:nth-child(1) { animation-delay: -3.4s !important; }
+#hero .bento-col .bento-card:nth-child(2) { animation-delay: -.5s !important; }
+
+#hero .bento-card:hover {
+  transform: translate3d(0, calc(var(--hero-shift, 0px) * .38 - 6px), 0) !important;
+}
+
+#hero .bento-card.is-active,
+#hero .bento-card.is-active:hover {
+  transform: translate3d(0, calc(var(--hero-shift, 0px) * .38 - 16px), 0) !important;
+  box-shadow: 0 28px 46px rgba(0, 0, 0, .2);
+}
+
+#hero .bento-card:focus-visible {
+  outline: 3px solid #171819;
+  outline-offset: 4px;
+}
+
+@media (max-width: 900px) {
+  #hero .bento-card:hover {
+    transform: translate3d(0, -6px, 0) !important;
+  }
+
+  #hero .bento-card.is-active,
+  #hero .bento-card.is-active:hover {
+    transform: translate3d(0, -16px, 0) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-float-group,
+  #hero .bento-card {
+    animation: none !important;
+    translate: none !important;
+  }
+
+  .landing-page.js-ready .hero-section .dashboard-float-group {
+    filter: none;
+    scale: 1;
+    transition: none;
+  }
+}
+
+/* Keep every landing chapter comfortably inside smaller viewports. The
+   compensated width preserves the section's visual alignment after scaling. */
+@media (max-width: 900px) {
+  #hero .hero-content,
+  .motion-section > .feature-shell,
+  .motion-section > .testimonials-inner,
+  .fence-footer .footer-shell {
+    width: 104.1667%;
+    max-width: none;
+    margin-inline: auto;
+    zoom: .96;
+  }
+}
+
+@media (max-width: 600px) {
+  #hero .hero-content,
+  .motion-section > .feature-shell,
+  .motion-section > .testimonials-inner,
+  .fence-footer .footer-shell {
+    width: 108.6957%;
+    zoom: .92;
+  }
+
+  .calculator-device-frame {
+    width: 100%;
+    margin-inline: auto;
+  }
+}
+
+/* Match the roomier 90% browser-zoom footer layout while the browser stays at
+   100%: the wider layout tracks compensate for the locally reduced rendering. */
+@media (min-width: 1051px) {
+  .fence-footer .footer-shell,
+  .fence-footer .footer-legal {
+    width: min(1500px, 111.1111%);
+    zoom: .9;
+  }
+}
+
+/* The iPad and its interactive screen move as a single floating object. */
+@keyframes calculator-ipad-float {
+  0%, 100% { translate: 0 calc(var(--scroll-depth, 0px) - 5px); }
+  50% { translate: 0 calc(var(--scroll-depth, 0px) + 7px); }
+}
+
+.calculator-section .calculator-board.ipad-device {
+  visibility: hidden;
+  opacity: 0;
+  filter: blur(5px);
+  translate: 0 calc(var(--scroll-depth, 0px) + 18px);
+  pointer-events: none;
+  transition:
+    opacity 680ms var(--ease-soft-out),
+    filter 760ms var(--ease-soft-out),
+    translate 760ms var(--ease-soft-out),
+    visibility 0s linear 760ms;
+  will-change: translate, opacity, filter;
+}
+
+.calculator-section.is-visible .calculator-board.ipad-device {
+  visibility: visible;
+  opacity: 1;
+  filter: none;
+  pointer-events: auto;
+  animation: calculator-ipad-float 5.6s ease-in-out infinite;
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calculator-section .calculator-board.ipad-device,
+  .calculator-section.is-visible .calculator-board.ipad-device {
+    animation: none;
+    translate: 0 var(--scroll-depth, 0px);
+    transition: none;
+  }
+}
+
+.macbook-composite {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1536 / 1024;
+  isolation: isolate;
+}
+
+.macbook-composite-art {
+  position: absolute !important;
+  z-index: 1;
+  inset: 0;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  pointer-events: none;
+}
+
+/* ============================================================
+   HERO + DEVICE RESTORATION
+   Keep the product scene in the right column, use scroll visibility for
+   motion in/out, and avoid perpetual GPU animation while the page is idle.
+   ============================================================ */
+@media (min-width: 1101px) {
+  #hero {
+    min-height: max(860px, 100svh);
+    padding: 112px 4.2vw 58px;
+  }
+
+  #hero .hero-content {
+    display: grid !important;
+    grid-template-columns: minmax(430px, .78fr) minmax(620px, 1.22fr) !important;
+    align-items: center;
+    gap: clamp(32px, 3vw, 58px);
+    min-height: calc(100svh - 170px);
+  }
+
+  #hero .hero-copy {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  #hero .dashboard-stage {
+    grid-column: 2;
+    width: 100%;
+    min-height: clamp(570px, 47vw, 660px);
+    margin: 0;
+    overflow: visible;
+  }
+
+  #hero .dashboard-float-group {
+    min-height: inherit;
+  }
+
+  #hero .macbook-device {
+    top: clamp(18px, 4vh, 48px);
+    right: clamp(-58px, -2.4vw, -18px);
+    width: min(790px, 105%);
+  }
+
+  #hero .overlay-bento {
+    left: clamp(10px, 5%, 42px);
+    right: auto;
+    bottom: clamp(10px, 2.7vw, 36px) !important;
+    grid-template-columns: 136px 148px 148px;
+    width: auto;
+    transform: none !important;
+  }
+
+  #hero .overlay-bento:hover {
+    transform: none !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  #hero .hero-content {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 54px;
+  }
+
+  #hero .dashboard-stage {
+    width: min(860px, 100%);
+    min-height: 610px;
+    margin-inline: auto;
+  }
+
+  #hero .macbook-device {
+    right: 0;
+    width: min(790px, 96%);
+  }
+
+  #hero .overlay-bento {
+    bottom: 10px !important;
+  }
+}
+
+.dashboard-float-group {
+  animation: none !important;
+  translate: none !important;
+  transform: translate3d(48px, 18px, 0) scale(.985);
+  will-change: auto;
+}
+
+.landing-page.js-ready .hero-section .dashboard-float-group {
+  filter: none;
+  scale: 1;
+  transition:
+    opacity 520ms var(--ease-soft-out),
+    transform 680ms var(--ease-soft-out),
+    visibility 0s linear 680ms;
+}
+
+.landing-page.js-ready .hero-section.is-visual-visible .dashboard-float-group {
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+#hero .bento-card {
+  animation: none !important;
+  translate: none !important;
+  will-change: auto;
+}
+
+/* The photographic iPad stays secondary to the copy and remains fully inside
+   its section. The live UI keeps the existing screen projection. */
+@media (min-width: 1181px) {
+  .calculator-shell {
+    grid-template-columns: minmax(330px, .7fr) minmax(620px, 1.3fr) !important;
+    align-items: center;
+    gap: clamp(18px, 2.4vw, 40px);
+  }
+
+  .calculator-device-frame {
+    width: min(740px, 100%);
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1180px) {
+  .calculator-device-frame {
+    width: min(760px, 92vw);
+  }
+}
+
+.calculator-section .calculator-board.ipad-device,
+.calculator-section.is-visible .calculator-board.ipad-device {
+  animation: none !important;
+}
+
+.calculator-section .calculator-board.ipad-device {
+  filter: none;
+  translate: 36px calc(var(--scroll-depth, 0px) + 18px);
+  transition:
+    opacity 560ms var(--ease-soft-out),
+    translate 680ms var(--ease-soft-out),
+    visibility 0s linear 680ms;
+  will-change: auto;
+}
+
+.calculator-section.is-visible .calculator-board.ipad-device {
+  translate: 0 var(--scroll-depth, 0px);
+}
+
+.calculator-section .calculator-device-art {
+  filter: drop-shadow(0 22px 34px rgba(0, 0, 0, .22)) contrast(1.015) !important;
+}
+
+/* Keep the same photographed iPad and projected live screen at every size.
+   The design canvas scales as one unit, so mobile does not fall back to a
+   generic black frame that looks unrelated to the desktop composition. */
+@media (max-width: 720px) {
+  .calculator-section {
+    padding-inline: 5vw !important;
+  }
+
+  .calculator-section > .calculator-shell {
+    width: 100% !important;
+    max-width: none;
+    margin-inline: 0 !important;
+    zoom: 1 !important;
+  }
+
+  .calculator-device-viewport {
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .calculator-device-frame {
+    width: min(920px, 100%);
+    max-width: 100%;
+    height: auto !important;
+    aspect-ratio: 1;
+  }
+
+  .calculator-section .calculator-board.ipad-device,
+  .calculator-section.is-visible .calculator-board.ipad-device {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 920px !important;
+    height: 920px !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    transform: scale(var(--calculator-scale, 1)) !important;
+    transform-origin: 0 0 !important;
+  }
+
+  .calculator-section .calculator-board.ipad-device::before,
+  .calculator-section .calculator-board.ipad-device::after,
+  .calculator-section.is-visible .calculator-board.ipad-device::before,
+  .calculator-section.is-visible .calculator-board.ipad-device::after {
+    display: none !important;
+  }
+
+  .calculator-section .calculator-board.ipad-device .calculator-device-art {
+    display: block !important;
+    width: 920px;
+    height: 920px;
+  }
+
+  .calculator-section .calculator-board.ipad-device .calculator-main,
+  .calculator-section .calculator-board.ipad-device .calculator-main:hover {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    display: grid !important;
+    grid-template-columns: 338px 198px;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 16px;
+    width: 600px !important;
+    height: 440px !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 24px 24px 22px !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 24px;
+    transform: var(--calculator-screen-transform) !important;
+    transform-origin: 0 0 !important;
+  }
+
+  .calculator-section .calculator-results {
+    grid-template-columns: minmax(0, 1fr) !important;
+    margin-top: 0;
+  }
+
+  .calculator-section .calculator-results .roi-result {
+    grid-column: auto;
+  }
+}
+
+/* Mobile acceptance pass: one hero entrance, centered roadmap cards, a clean
+   dark-to-dark handoff, and genuinely scrollable university choices. */
+@media (max-width: 900px) {
+  .landing-page.js-ready .hero-section .dashboard-float-group {
+    transition:
+      opacity 1500ms var(--ease-soft-out),
+      transform 1700ms var(--ease-soft-out),
+      visibility 0s linear 1700ms;
+  }
+
+  .landing-page.js-ready .hero-section:not(.is-visible) .dashboard-float-group {
+    visibility: hidden;
+    opacity: 0;
+    transform: translate3d(0, 26px, 0) scale(.985) !important;
+    pointer-events: none;
+  }
+
+  .landing-page.js-ready .hero-section.is-visible .dashboard-float-group {
+    visibility: visible;
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) !important;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+
+  #hero .bento-card--lime .bento-faces {
+    transform: translateX(10px);
+  }
+}
+
+@media (max-width: 720px) {
+  .roadmap-section > .roadmap-shell {
+    width: 100% !important;
+    max-width: none;
+    margin-inline: 0 !important;
+    zoom: 1 !important;
+  }
+
+  .roadmap-section .roadmap-journey {
+    width: 100% !important;
+    margin-inline: 0 !important;
+    padding-inline: 0 !important;
+    justify-items: center;
+  }
+
+  .roadmap-section .roadmap-card {
+    width: min(100%, 620px) !important;
+    max-width: 100%;
+    margin-inline: auto !important;
+  }
+
+  .comparison-area {
+    overflow: visible !important;
+  }
+
+  .comparison-area .university-cards {
+    display: flex !important;
+    grid-template-columns: none !important;
+    width: calc(100% + 5vw);
+    margin-right: -5vw !important;
+    padding: 4px 5vw 16px 0 !important;
+    gap: 14px;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory !important;
+    scroll-padding-inline: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--fence-lime) rgba(247, 247, 243, .16);
+    overscroll-behavior-inline: contain;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .comparison-area .university-cards::-webkit-scrollbar {
+    display: block !important;
+    height: 6px;
+  }
+
+  .comparison-area .university-cards::-webkit-scrollbar-track {
+    background: rgba(247, 247, 243, .16);
+    border-radius: 999px;
+  }
+
+  .comparison-area .university-cards::-webkit-scrollbar-thumb {
+    background: var(--fence-lime);
+    border-radius: 999px;
+  }
+
+  .comparison-area .university-card {
+    flex: 0 0 min(78vw, 360px) !important;
+    min-width: min(78vw, 360px) !important;
+    opacity: 1 !important;
+    transform: none !important;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  #testimonials,
+  #final-decision {
+    background-color: var(--fence-black) !important;
+    background-image: none !important;
+  }
+
+  #final-decision {
+    margin-top: -2px !important;
+    border-top: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #final-decision::before {
+    inset: -2px 0 auto !important;
+    height: 180px;
+    opacity: .18 !important;
+    background: repeating-radial-gradient(ellipse 70% 56% at 50% -32%, transparent 0 24px, rgba(247, 247, 243, .1) 25px 26px, transparent 27px 48px) !important;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent, #000 22%, transparent 100%);
+    transform: none !important;
+  }
+}
+
+/* Performance floor: retain scroll-linked motion, but remove continuous
+   full-page paint work and blur transitions that made the page feel sticky. */
+.landing-page::after {
+  display: none !important;
+  animation: none !important;
+}
+
+.journey-thread__contours {
+  animation: none !important;
+}
+
+.dark-feature,
+.comparison-section,
+.factors-section,
+.testimonials-section,
+.final-decision-section,
+.fence-footer {
+  background-attachment: scroll !important;
+}
+
+.motion-section > .feature-shell,
+.motion-section > .testimonials-inner,
+.motion-section > .scholarship-crest {
+  filter: none !important;
+}
+
+.dashboard-stage,
+.calculator-board,
+.roadmap-journey,
+.factor-orbit,
+.testimonials-stage,
+.decision-routes {
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page.js-ready .hero-section .dashboard-float-group,
+  .landing-page.js-ready .hero-section.is-visual-visible .dashboard-float-group,
+  .calculator-section .calculator-board.ipad-device,
+  .calculator-section.is-visible .calculator-board.ipad-device {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    translate: none;
+    transition: none;
+  }
+}

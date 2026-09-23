@@ -1,19 +1,37 @@
 services:
+  frontend:
+    build: ./frontend
+    environment:
+      FLASK_API_URL: http://api:8122
+      PORT: 3221
+    ports:
+      - "3221:3221"
+    depends_on:
+      api:
+        condition: service_healthy
+
   api:
     build: .
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/education_roi
       DATABASE_USER: ${DATABASE_USER}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-    ports:
-      - "8000:8000"
+      APP_ENV: ${APP_ENV:-development}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3221}
+      OAUTH_REDIRECT_URI: ${OAUTH_REDIRECT_URI:-http://localhost:3221/api/auth/callback/google}
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - .:/app
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8122/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   db:
     image: postgres:17
@@ -22,7 +40,7 @@ services:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: education_roi
     ports:
-      - "5432:5432"
+      - "5442:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U education -d education_roi"]
       interval: 5s
@@ -31,11 +49,20 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data:/data
+
   rabbitmq:
     image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -49,17 +76,19 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/education_roi
       CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672//
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     command: celery -A app.core.celery_app worker --loglevel=info
-    volumes:
-      - .:/app
 
 volumes:
   postgres_data:
   rabbitmq_data:
+  redis_data:

@@ -16,7 +16,7 @@ function initSalaryBars() {
 }
 
 document.addEventListener('DOMContentLoaded', initSalaryBars);
-document.body.addEventListener('htmx:afterSwap', initSalaryBars);
+document.addEventListener('htmx:afterSwap', initSalaryBars);
 
 // ── Тема ───────────────────────────────────────────────────────────────────────
 if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -26,7 +26,7 @@ if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && w
 }
 
 // Делегування подій для перемикача теми (працює після HTMX swap)
-document.body.addEventListener('click', (e) => {
+document.addEventListener('click', (e) => {
   const themeToggleBtn = e.target.closest('#theme-toggle');
   if (themeToggleBtn) {
     const isDark = document.documentElement.classList.toggle('dark');
@@ -39,20 +39,36 @@ document.body.addEventListener('click', (e) => {
 // Тепер меню перемикається на сервері через Jinja {% if g.user %}
 
 // ── Глобальна обробка кліків (Event Delegation) ────────────────────────────────
-document.body.addEventListener('click', async (e) => {
-  const logoutBtn = e.target.closest('#logout-btn');
+document.addEventListener('click', async (e) => {
+  const logoutBtn = e.target.closest('#logout-btn') || e.target.closest('#mobile-logout-btn');
   if (logoutBtn) {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch(err) {}
     window.location.href = '/';
   }
+
+  // Toggle mobile menu
+  const mobileMenuBtn = e.target.closest('#mobile-menu-btn');
+  if (mobileMenuBtn) {
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (mobileMenu) {
+      mobileMenu.classList.toggle('hidden');
+    }
+  } else if (!e.target.closest('#mobile-menu')) {
+    // Close mobile menu if clicked outside
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+      mobileMenu.classList.add('hidden');
+    }
+  }
 });
+
 
 // Auth forms are now handled exclusively by HTMX (hx-post, hx-ext="json-enc")
 
 // ── Фільтруємо приховані _-поля з форми перед відправкою через HTMX ──────────
-document.body.addEventListener('htmx:configRequest', (e) => {
+document.addEventListener('htmx:configRequest', (e) => {
   const form = e.detail.elt?.closest('form');
   if (!form) return;
   // Видаляємо допоміжні поля, що починаються з _
@@ -62,7 +78,7 @@ document.body.addEventListener('htmx:configRequest', (e) => {
 });
 
 // ── HTMX: Обробка помилок авторизації (401) ───────────────────────────────────
-document.body.addEventListener('htmx:responseError', (e) => {
+document.addEventListener('htmx:responseError', (e) => {
   if (e.detail.xhr.status === 401) {
     alert("Час вашої сесії вичерпано. Будь ласка, увійдіть знову.");
     window.location.href = "/login";
@@ -244,7 +260,7 @@ function initUniversityAutocomplete() {
 }
 
 document.addEventListener('DOMContentLoaded', initUniversityAutocomplete);
-document.body.addEventListener('htmx:afterSwap', initUniversityAutocomplete);
+document.addEventListener('htmx:afterSwap', initUniversityAutocomplete);
 
 // ── Глобальна функція: підставити вартість у форму ─────────────────────────
 window.applyTuition = function (cost, year) {
