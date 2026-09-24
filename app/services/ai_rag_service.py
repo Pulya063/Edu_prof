@@ -120,14 +120,14 @@ class AIRAGService:
             Total Education Investment: {investment_min} to {investment_max}
             Payback Time (Months): {payback_low} to {payback_high}
             First Year ROI (%): {first_year_low} to {first_year_high}
-            AI Risk Score: {ai_risk}
             Demand Score: {demand}
             Official O*NET Required Skills: {real_skills_from_onet}
             
-            Based on this data, provide qualitative insights for their career roadmap.
+            Based on this data, provide qualitative insights for their career roadmap, and explicitly evaluate the risk of AI automation for this profession.
             
             Return ONLY a valid JSON object with the following structure:
             {{
+                "ai_risk_score": integer (0 to 100, where 100 means extreme risk of AI replacing the job, and 0 means no risk),
                 "skills_to_learn_outside_university": ["skill 1", "skill 2", "skill 3"],
                 "recommended_strategy": {{
                     "year_1": "string (what to focus on in year 1)",
@@ -151,7 +151,7 @@ class AIRAGService:
                 input_variables=[
                     "profession", "country", "start_salary", "average_salary", 
                     "investment_min", "investment_max", "payback_low", "payback_high", 
-                    "first_year_low", "first_year_high", "ai_risk", "demand", "real_skills_from_onet"
+                    "first_year_low", "first_year_high", "demand", "real_skills_from_onet"
                 ],
             )
             
@@ -163,6 +163,7 @@ class AIRAGService:
         except Exception as e:
             logger.error(f"Qualitative insights generation failed: {e}")
             return {
+                "ai_risk_score": 40,
                 "skills_to_learn_outside_university": ["Soft skills", "English B2+", "Networking"],
                 "recommended_strategy": {
                     "year_1": "Опануйте базові навички та інструменти.",

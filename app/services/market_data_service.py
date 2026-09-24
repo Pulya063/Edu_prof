@@ -2,6 +2,19 @@ import os
 import pandas as pd
 
 class MarketDataService:
+    COUNTRY_MULTIPLIERS = {
+        "united states": 1.0,
+        "united kingdom": 0.75,
+        "canada": 0.8,
+        "germany": 0.7,
+        "poland": 0.35,
+        "ukraine": 0.15,
+        "australia": 0.85,
+        "france": 0.65,
+        "spain": 0.55,
+        "italy": 0.55
+    }
+
     def __init__(self, data_path: str = None):
         if data_path is None:
             data_path = os.path.join(
@@ -12,23 +25,19 @@ class MarketDataService:
         self.df = pd.read_csv(data_path)
     
     def predict_career_prospects(self, profession: str, country: str = "United States") -> dict:
-        """
-        Повертає фінансові та кар'єрні метрики з Pandas датасету.
-        Шукає за збігом підрядка.
-        """
-        # Фільтр за країною
-        df_country = self.df[self.df["country"].str.lower() == country.lower()]
+        country_lower = country.lower()
+        df_country = self.df[self.df["country"].str.lower() == country_lower]
+        
+        multiplier = 1.0
         if df_country.empty:
-            df_country = self.df  # Fallback to all countries if country not found
+            df_country = self.df  # Fallback to default (usually US)
+            multiplier = self.COUNTRY_MULTIPLIERS.get(country_lower, 0.4)
             
-        # Пошук найближчої професії (за підрядком)
         match = df_country[df_country["profession"].str.lower().str.contains(profession.lower(), na=False)]
         
         if not match.empty:
-            # Беремо перший збіг
             record = match.iloc[0].to_dict()
         else:
-            # Якщо не знайдено, беремо "Default" або середнє по країні
             default_match = df_country[df_country["profession"] == "Default"]
             if not default_match.empty:
                 record = default_match.iloc[0].to_dict()
@@ -36,8 +45,8 @@ class MarketDataService:
                 record = df_country.mean(numeric_only=True).to_dict()
                 
         return {
-            "expected_start_salary": float(record.get("expected_start_salary", 45000.0)),
-            "average_salary": float(record.get("average_salary", 60000.0)),
+            "expected_start_salary": float(record.get("expected_start_salary", 45000.0)) * multiplier,
+            "average_salary": float(record.get("average_salary", 60000.0)) * multiplier,
             "forecast_growth_percent": float(record.get("forecast_growth_percent", 3.0)),
             "demand_score": int(record.get("demand_score", 70)),
             "ai_risk_score": int(record.get("ai_risk_score", 30))

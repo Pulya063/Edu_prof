@@ -86,10 +86,10 @@ class ROIService:
         # Override CSV data with real O*NET data if found
         if onet_data.get("found"):
             demand = onet_data["demand_score"]
-            ai_risk = onet_data["ai_risk_score"]
+            data_confidence = 90
         else:
             demand = max(0, min(100, int(prospects.get("demand_score", 70))))
-            ai_risk = max(0, min(100, int(prospects.get("ai_risk_score", 30))))
+            data_confidence = 60
 
 
         base_tuition = float(payload.monthly_payment * payload.payments_per_year * payload.study_years)
@@ -125,11 +125,13 @@ class ROIService:
         first_year_high, first_year_low = float(first_year_roi_arr[0]), float(first_year_roi_arr[1])
 
         # Зарплатні грейди через Pandas
+        monthly_start = start_salary / 12.0
+        monthly_avg = average_salary / 12.0
         df_salary = pd.DataFrame([
-            {"stage": "intern_or_trainee", "monthly_min": start_salary * 0.55, "monthly_max": start_salary * 0.85},
-            {"stage": "junior_0_2_years", "monthly_min": start_salary * 0.85, "monthly_max": start_salary * 1.15, "realistic_target_min": start_salary * 0.95, "realistic_target_max": start_salary * 1.05},
-            {"stage": "mid_2_5_years", "monthly_min": average_salary * 0.90, "monthly_max": average_salary * 1.35},
-            {"stage": "senior_5_plus_years", "monthly_min": average_salary * 1.30, "monthly_max": average_salary * 2.00}
+            {"stage": "intern_or_trainee", "monthly_min": monthly_start * 0.55, "monthly_max": monthly_start * 0.85},
+            {"stage": "junior_0_2_years", "monthly_min": monthly_start * 0.85, "monthly_max": monthly_start * 1.15, "realistic_target_min": monthly_start * 0.95, "realistic_target_max": monthly_start * 1.05},
+            {"stage": "mid_2_5_years", "monthly_min": monthly_avg * 0.90, "monthly_max": monthly_avg * 1.35},
+            {"stage": "senior_5_plus_years", "monthly_min": monthly_avg * 1.30, "monthly_max": monthly_avg * 2.00}
         ])
         
         for col in ["monthly_min", "monthly_max", "realistic_target_min", "realistic_target_max"]:
@@ -146,7 +148,6 @@ class ROIService:
                 band["realistic_target"] = {"min": int(row["realistic_target_min"]), "max": int(row["realistic_target_max"])}
             salary[stage] = band
         
-        probability = max(45, min(90, round(55 + demand * 0.3 - ai_risk * 0.15)))
         
         # Prepare statistical data for AI
         stats_for_ai = {
@@ -160,7 +161,6 @@ class ROIService:
             "payback_high": payback_high,
             "first_year_low": round(first_year_low, 2),
             "first_year_high": round(first_year_high, 2),
-            "ai_risk": ai_risk,
             "demand": demand,
             "real_skills_from_onet": onet_data.get("skills", [])
         }
@@ -172,6 +172,11 @@ class ROIService:
         recommended_strategy = ai_insights.get("recommended_strategy", {})
         biggest_risk = ai_insights.get("biggest_risk", {})
         verdict = ai_insights.get("verdict", "")
+        ai_risk = ai_insights.get("ai_risk_score", 40)
+        
+        # Calculate a realistic probability of payback (e.g. 5 years = 75%, 10 years = 50%)
+        # Cap at 95% for very fast payback, floor at 10% for very slow
+        probability = max(10, min(95, round(100 - (payback_high / 12.0) * 5)))
 
         result = {
             "education": {"university": payload.university, "degree": payload.degree, "specialization": payload.specialization_focus, "country": payload.country, "study_years": payload.study_years, "currency": "USD", "total_tuition": {"min": round(base_tuition,2), "max": round(fee_adjusted_tuition,2)}, "additional_learning_budget": {"min": payload.additional_learning_budget_min, "max": payload.additional_learning_budget_max}, "total_investment": {"min": round(total_low,2), "max": round(total_high,2)}, "living_costs_included": payload.include_living_costs},
@@ -182,7 +187,7 @@ class ROIService:
             "recommended_strategy": recommended_strategy,
             "biggest_risk": biggest_risk,
             "market_outlook": {"web_only": "moderate", "web_plus_backend": "good", "mobile": "good", "fullstack": "good", "web_plus_ai": "very_good", "backend_plus_ai": "very_good"},
-            "scores": {"university_value": None, "degree_value": None, "career_potential": round((demand + (100 - ai_risk)) / 20, 1), "data_confidence": probability},
+            "scores": {"university_value": None, "degree_value": None, "career_potential": round((demand + (100 - ai_risk)) / 20, 1), "data_confidence": data_confidence},
             "assumptions": ["Всі ціни в USD.", "Доходи є gross до податків.", "Увага на ризики ШІ та конкуренцію."],
             "verdict": verdict,
         }
