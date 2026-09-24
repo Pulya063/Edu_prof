@@ -50,44 +50,12 @@ class TokenPairResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class UniversityCreateSchema(BaseModel):
-    name: str = Field(min_length=2, max_length=255)
-    country: str = Field(min_length=2, max_length=120)
-    city: str = Field(min_length=1, max_length=120)
-    website: HttpUrl | None = None
 
 
-class UniversityResponseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    country: str
-    city: str
-    website: str | None = None
 
 
-class EducationProgramCreateSchema(BaseModel):
-    university_id: int = Field(gt=0)
-    name: str = Field(min_length=2, max_length=255)
-    description: str | None = Field(default=None, max_length=5000)
-    duration_years: int = Field(ge=1, le=12)
-    tuition_cost: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    expected_start_salary: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    annual_growth_percent: Decimal = Field(ge=Decimal("-50"), le=Decimal("100"), max_digits=5, decimal_places=2)
 
 
-class EducationProgramResponseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    university_id: int
-    name: str
-    description: str | None
-    duration_years: int
-    tuition_cost: Decimal
-    expected_start_salary: Decimal
-    annual_growth_percent: Decimal
 
 
 class ROICalculationRequest(BaseModel):
@@ -125,6 +93,51 @@ class CareerAnalysisRequest(BaseModel):
         return self
 
 
+class TrialROIRequest(ROICalculationRequest):
+    """Four-field input accepted by the anonymous trial endpoint."""
+
+
+class TrialMinimumMoney(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    min: float = Field(ge=0, allow_inf_nan=False)
+
+
+class TrialMinimumMonths(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    min: int = Field(ge=1)
+
+
+class TrialMinimumPercent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    min: float = Field(allow_inf_nan=False)
+
+
+class TrialEducationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    specialization: str = Field(min_length=2, max_length=500)
+    total_investment: TrialMinimumMoney
+
+
+class TrialROIResultResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    payback_months: TrialMinimumMonths
+    first_year_roi_percent: TrialMinimumPercent
+
+
+class TrialROIResponse(BaseModel):
+    """Validated abbreviated result returned by the anonymous trial endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    education: TrialEducationResponse
+    roi: TrialROIResultResponse
+
+
 class ROICalculationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -145,31 +158,10 @@ class APIResponse(BaseModel, Generic[T]):
     data: T | None = None
 
 
-class PaginationSchema(BaseModel):
-    page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=20, ge=1, le=100)
-    total: int = Field(default=0, ge=0)
 
 
-class SalaryStatisticSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int | None = None
-    profession: str = Field(min_length=2, max_length=255)
-    country: str = Field(min_length=2, max_length=120)
-    average_salary: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    growth_rate: Decimal = Field(ge=Decimal("-50"), le=Decimal("100"), max_digits=5, decimal_places=2)
 
 
-class CareerForecastSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int | None = None
-    profession: str = Field(min_length=2, max_length=255)
-    demand_score: int = Field(ge=0, le=100)
-    ai_risk_score: int = Field(ge=0, le=100)
-    forecast_growth_percent: Decimal = Field(ge=Decimal("-50"), le=Decimal("100"), max_digits=5, decimal_places=2)
-    forecast_year: int = Field(ge=2024, le=2100)
 
 
 class PasswordResetRequestSchema(BaseModel):
