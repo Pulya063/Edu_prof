@@ -1,4 +1,6 @@
-import { HeadlineLine } from "./motion";
+import { HeadlineLine } from "../hooks/useScrollMotion";
+import { useLanguage, type Lang } from "../context/LanguageContext";
+import { translations } from "../utils/translations";
 
 type Navigate = (target: string) => void;
 
@@ -57,6 +59,7 @@ function ConfiguredExternalLink({ label, href, kind }: { label: string; href?: s
 }
 
 export default function LandingFooter({ onNavigate }: { onNavigate: Navigate }) {
+  const { lang, setLang } = useLanguage();
   const backToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
@@ -81,7 +84,7 @@ export default function LandingFooter({ onNavigate }: { onNavigate: Navigate }) 
           <nav className="footer-column" aria-labelledby="footer-connect"><h3 id="footer-connect">Connect</h3><ul><li><ConfiguredExternalLink label="Instagram" href={instagramUrl} kind="social" /></li><li><ConfiguredExternalLink label="LinkedIn" href={linkedinUrl} kind="social" /></li><li><ConfiguredExternalLink label="Email" href={supportEmail ? `mailto:${supportEmail}` : undefined} kind="email" /></li></ul></nav>
         </div>
       </div>
-      <div className="footer-legal"><p>© 2026 Fence. Built for confident education decisions.</p><div className="footer-legal-actions"><a className="footer-link" href="/legal/privacy">Privacy</a><a className="footer-link" href="/legal/terms">Terms</a><a className="footer-link" href="/legal/cookies">Cookies</a><button className="footer-language" type="button" disabled aria-describedby="language-status">Language: English <span aria-hidden="true">▾</span></button><span className="sr-only" id="language-status">Language selection is not configured yet.</span><button className="footer-back-to-top" type="button" aria-label="Back to top" onClick={backToTop}><Arrow up /></button></div></div>
+      <div className="footer-legal"><p>© 2026 Fence. Built for confident education decisions.</p><div className="footer-legal-actions"><a className="footer-link" href="/legal/privacy">Privacy</a><a className="footer-link" href="/legal/terms">Terms</a><a className="footer-link" href="/legal/cookies">Cookies</a><label className="footer-language">Language: <select aria-label="Site language" value={lang} onChange={(event) => setLang(event.target.value as Lang)}>{(["en", "uk", "pl"] as const).map((code) => <option key={code} value={code}>{translations[lang].langLabels[code]}</option>)}</select></label><button className="footer-back-to-top" type="button" aria-label="Back to top" onClick={backToTop}><Arrow up /></button></div></div>
     </footer>
   );
 }

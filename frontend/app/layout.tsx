@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "./footer.css";
-import "./final-pass.css";
+import "./styles/footer.css";
+import "./styles/final-pass.css";
+import "./styles/responsive.css";
+import { LanguageProvider } from "./context/LanguageContext";
 
 export const metadata: Metadata = {
   title: "Fence — demo",
@@ -15,7 +17,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        {/* Preconnect to Google Fonts to eliminate DNS + TLS latency */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

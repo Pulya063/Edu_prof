@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
-import "./plans.css";
+import "../styles/plans.css";
 
 type BillingCycle = "monthly" | "yearly";
 type Plan = {

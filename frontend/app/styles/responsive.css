@@ -1,0 +1,461 @@
+/* Shared responsive contract for the current Fence surfaces. This layer owns
+   layout safety, accessible target sizes and narrow-screen composition while
+   the art-direction files continue to own colour, contours and motion. */
+:root {
+  --layout-max: 1420px;
+  --layout-gutter: clamp(16px, 4.2vw, 80px);
+  --touch-target: 44px;
+  --header-height: clamp(74px, 7vw, 90px);
+}
+
+html {
+  scroll-padding-top: calc(var(--header-height) + 12px);
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 0;
+}
+
+:where(main, section, article, aside, header, footer, nav, div) {
+  min-width: 0;
+}
+
+:where(h1, h2, h3, p, strong, small, button, a, label, dt, dd, code) {
+  overflow-wrap: anywhere;
+}
+
+:where(button, a, input, select, [role="button"]) {
+  touch-action: manipulation;
+}
+
+:where(button, a, input, select, [role="button"]):focus-visible {
+  outline: 3px solid var(--fence-violet, #d7c7ff);
+  outline-offset: 4px;
+}
+
+.feature-shell,
+.hero-content,
+.testimonials-inner {
+  width: min(var(--layout-max), 100%);
+  margin-inline: auto;
+}
+
+.motion-section {
+  scroll-margin-top: calc(var(--header-height) + 12px);
+}
+
+.brand,
+.login-link,
+.header-cta,
+.menu-toggle,
+.lang-switcher-trigger,
+.desktop-nav button,
+.mobile-nav :is(button, a) {
+  min-height: var(--touch-target);
+}
+
+.brand,
+.login-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+.desktop-nav button {
+  padding-inline: 8px;
+  cursor: pointer !important;
+}
+
+.desktop-nav button[aria-current="location"] {
+  opacity: 1;
+}
+
+.desktop-nav button[aria-current="location"]::before {
+  display: block !important;
+  opacity: .68;
+  transform: scaleX(.92);
+}
+
+.lang-switcher {
+  margin-right: 0;
+}
+
+.lang-switcher-trigger {
+  height: var(--touch-target);
+}
+
+.lang-switcher-menu button {
+  min-height: var(--touch-target);
+}
+
+.mobile-nav {
+  max-height: calc(100svh - var(--header-height) - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mobile-nav :is(button, a) {
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.mobile-nav [aria-current="location"] {
+  background: rgba(183, 255, 42, .14);
+  color: var(--fence-lime);
+}
+
+.testimonial-progress button,
+.testimonial-plus,
+.footer-link,
+.plans-back,
+.payment-back {
+  min-height: var(--touch-target);
+}
+
+.login-link,
+.footer-link,
+.plans-back,
+.payment-back {
+  min-width: var(--touch-target);
+}
+
+.testimonial-progress button {
+  min-width: var(--touch-target);
+}
+
+.testimonial-plus {
+  min-width: var(--touch-target);
+}
+
+.footer-language select {
+  min-height: var(--touch-target);
+  max-width: 100%;
+}
+
+.footer-wordmark,
+.footer-legal-actions .footer-link {
+  min-height: var(--touch-target);
+}
+
+@media (max-width: 900px) {
+  :root { --layout-gutter: 5vw; }
+
+  /* Replace the former width-plus-zoom compensation with a real fluid
+     container. Zoom scaled controls below 44px and clipped text beside the
+     classic scrollbar at 320px. */
+  #hero .hero-content,
+  .motion-section > .feature-shell,
+  .motion-section > .testimonials-inner,
+  .fence-footer .footer-shell {
+    width: 100%;
+    max-width: var(--layout-max);
+    margin-inline: auto;
+    zoom: 1;
+  }
+
+  .landing-header {
+    gap: 12px;
+    padding-inline: var(--layout-gutter);
+  }
+
+  .header-actions {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .landing-header > .header-actions > .login-link {
+    display: none;
+  }
+
+  .menu-toggle {
+    flex: 0 0 var(--touch-target);
+    width: var(--touch-target) !important;
+    padding: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  /* Mobile composition follows one visual axis. Intro copy and controls are
+     centered, while dense cards retain left-aligned content for readability. */
+  #hero .hero-copy > .eyebrow,
+  #hero .hero-copy > h1,
+  .feature-intro,
+  .scholarships-head,
+  .testimonials-copy,
+  .final-head,
+  .footer-brand {
+    width: 100%;
+    max-width: none;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .feature-label,
+  .testimonials-section .eyebrow,
+  .comparison-count,
+  .factor-proof,
+  .scholarship-crest,
+  .footer-wordmark {
+    justify-content: center;
+  }
+
+  .feature-description,
+  .testimonials-description,
+  .final-head > p,
+  .footer-brand > p {
+    margin-inline: auto;
+  }
+
+  .dark-pill-button,
+  .testimonials-cta,
+  .forecast-cta {
+    justify-content: center;
+    margin-inline: auto;
+  }
+
+  .info-card,
+  .calculator-main,
+  .university-card,
+  .factor-card,
+  .roadmap-card,
+  .scholarship-card,
+  .testimonial-card,
+  .decision-route,
+  .footer-ready-card {
+    text-align: left;
+  }
+
+  .footer-navigation {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .footer-column ul {
+    justify-items: center;
+  }
+
+  .footer-legal,
+  .footer-legal-actions {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Every horizontal rail is full-bleed in both directions. Matching side
+     padding places the first and last cards on the viewport centre line. */
+  #hero .overlay-bento,
+  #comparison .university-cards,
+  #scholarships .scholarship-carousel {
+    box-sizing: border-box;
+    width: calc(100% + (2 * var(--layout-gutter))) !important;
+    margin-inline: calc(-1 * var(--layout-gutter)) !important;
+    scroll-behavior: smooth !important;
+    scroll-snap-type: x proximity !important;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #hero .overlay-bento::-webkit-scrollbar,
+  #comparison .university-cards::-webkit-scrollbar,
+  #scholarships .scholarship-carousel::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #hero .dashboard-stage,
+  #hero .dashboard-float-group {
+    width: 100%;
+    margin-inline: 0 !important;
+  }
+
+  #hero .overlay-bento {
+    --mobile-rail-card: 140px;
+    padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
+    scroll-padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2);
+  }
+
+  #hero .overlay-bento .bento-card {
+    scroll-snap-align: center;
+    scroll-snap-stop: normal;
+  }
+
+  #comparison .university-cards {
+    --mobile-rail-card: min(78vw, 360px);
+    padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
+    scroll-padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
+  }
+
+  #comparison .university-card,
+  #scholarships .scholarship-card {
+    scroll-snap-align: center;
+    scroll-snap-stop: normal;
+  }
+
+  #scholarships .scholarship-carousel {
+    --mobile-rail-card: 82vw;
+    gap: 14px;
+    padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
+    scroll-padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
+  }
+
+  .roadmap-section .roadmap-journey {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .landing-page.js-ready #roadmap:not(.is-visible) .roadmap-card,
+  .landing-page.js-ready #scholarships:not(.is-visible) .scholarship-card {
+    transform: translateY(24px) !important;
+  }
+
+  #roadmap.is-visible .roadmap-card,
+  #scholarships.is-visible .scholarship-card {
+    transform: none !important;
+  }
+
+  .factor-orbit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    transform: none;
+  }
+
+  .orbit-circle {
+    display: none;
+  }
+
+  .salary-core {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    padding: 24px 18px;
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 18px;
+    background: rgba(255,255,255,.05);
+    transform: none;
+  }
+
+  .salary-core strong {
+    margin: 12px 0;
+    font-size: clamp(44px, 14vw, 68px);
+    white-space: normal;
+  }
+
+  .factor-card,
+  .factor-card--0,
+  .factor-card--1,
+  .factor-card--2,
+  .factor-card--3,
+  .factor-card--4,
+  .factor-card--5,
+  .factor-card:hover,
+  .factor-card--0:hover,
+  .factor-card--5:hover {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    min-height: 96px;
+    transform: none;
+  }
+
+  .factor-card {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+  }
+
+  .factor-card > i {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-header {
+    min-height: var(--header-height);
+  }
+
+  .brand {
+    gap: 7px;
+  }
+
+  .brand small,
+  .header-cta {
+    display: none;
+  }
+
+  .header-actions {
+    margin-left: auto;
+    gap: 7px;
+  }
+
+  .lang-switcher-trigger {
+    padding-inline: 11px;
+  }
+
+  .hero-copy h1,
+  .feature-intro h2,
+  .testimonials-copy h2,
+  .final-head h2,
+  .footer-brand h2 {
+    hyphens: auto;
+    text-wrap: balance;
+  }
+
+  .calculator-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calculator-results .roi-result {
+    grid-column: auto;
+  }
+
+  .university-card dl div,
+  .university-score > span:last-of-type,
+  .scholarship-meta {
+    gap: 8px;
+  }
+
+  .factor-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .factor-card > i {
+    width: 40px;
+    height: 40px;
+  }
+
+  .factor-card > strong {
+    grid-column: 2;
+  }
+
+  .footer-ready-card {
+    grid-template-columns: minmax(0, 1fr) 48px;
+    padding-inline: 20px;
+  }
+
+  .footer-ready-card > b {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 600px) {
+  #hero .overlay-bento {
+    --mobile-rail-card: 120px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .nav-glow-spot {
+    display: none;
+  }
+}

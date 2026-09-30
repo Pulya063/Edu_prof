@@ -1,4 +1,4 @@
-/* Final editorial pass: shared light chapters and crisp chapter boundaries. */
+﻿/* Final editorial pass: shared light chapters and crisp chapter boundaries. */
 :root { --fence-surface: #e7e9ed; --fence-ink: #171819; --ease-fence: ease-in-out; --ease-out: ease-in-out; }
 
 /* At the top of the page, the header is fully transparent with no border/boundary.
@@ -42,7 +42,7 @@
 .university-card--dark { background:#1b1c1d !important; }
 
 /* Motion uses a relaxed cadence: sections smoothly reveal and fade over one second. */
-.feature-intro,.calculator-board,.university-card,.factor-card,.roadmap-card,.scholarship-card,.decision-route { transition:opacity .8s ease-in-out,transform 1s var(--ease-out),box-shadow .4s ease-in-out !important; }
+.feature-intro,.university-card,.factor-card,.roadmap-card,.scholarship-card,.decision-route { transition:opacity .8s ease-in-out,transform 1s var(--ease-out),box-shadow .4s ease-in-out !important; }
 .motion-section:not(.hero-section) .section-navline,.motion-section:not(.hero-section) h2,.motion-section:not(.hero-section) .path-description,.motion-section:not(.hero-section) .eyebrow { transition:opacity .8s ease-in-out,transform 1s var(--ease-out),clip-path 1s var(--ease-out) !important; }
 .header-cta:hover { animation:none !important; transform:translateY(-2px); }
 
@@ -62,7 +62,7 @@
 .roadmap-card:nth-of-type(1) { margin-top:116px; }.roadmap-card:nth-of-type(2) { margin-top:72px; }.roadmap-card:nth-of-type(3) { margin-top:36px; }.roadmap-card:nth-of-type(4) { margin-top:0; }.roadmap-card:nth-of-type(5) { margin-top:23px; }
 .roadmap-card.is-current { box-shadow:0 0 0 2px #171819 !important; }
 
-/* Scholarship begins as one open light chapter — no inherited black crest. */
+/* Scholarship begins as one open light chapter тАФ no inherited black crest. */
 .scholarship-crest { display:none !important; }
 .scholarships-section { padding-top:clamp(56px,6vw,96px) !important; }
 .scholarships-section .lime-marker { background:rgba(183,255,42,.62) !important; }
@@ -206,12 +206,10 @@
   background:transparent !important;
   box-shadow:none !important;
   transform:none !important;
-  transition:none !important;
   perspective:none !important;
 }
 .calculator-board.ipad-device:hover {
   transform:none !important;
-  transition:none !important;
 }
 .calculator-board.ipad-device::before,
 .calculator-board.ipad-device::after { display:none !important; }
@@ -663,27 +661,32 @@ transition:none !important;
 /* Stage 1: lightweight hero entrance choreography. Large media uses only
    opacity/transform so the landing page stays responsive during first paint. */
 @keyframes hero-entrance-up {
-  from { opacity:0; transform:translate3d(0,22px,0); }
+  from { opacity:0.01; transform:translate3d(0,22px,0); }
   to { opacity:1; transform:translate3d(0,0,0); }
 }
 @keyframes hero-entrance-device {
-  from { opacity:0; transform:translate3d(28px,20px,0) scale(.965); }
+  from { opacity:0.01; transform:translate3d(28px,20px,0) scale(.965); }
   to { opacity:1; transform:translate3d(0,0,0) scale(1); }
 }
 @keyframes hero-entrance-card {
-  from { opacity:0; transform:translate3d(0,28px,0) scale(.97); }
+  from { opacity:0.01; transform:translate3d(0,28px,0) scale(.97); }
   to { opacity:1; transform:translate3d(0,0,0) scale(1); }
 }
 @keyframes hero-icon-pop {
-  from { opacity:0; transform:translate3d(0,10px,0) scale(.72); }
+  from { opacity:0.01; transform:translate3d(0,10px,0) scale(.72); }
   to { opacity:1; transform:translate3d(0,0,0) scale(1); }
 }
+@keyframes hero-entrance-scale {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
 .hero-section.is-visible > .hero-content > .hero-copy > .eyebrow { animation:hero-entrance-up .42s var(--ease-fence) both; }
-.hero-section.is-visible > .hero-content > .hero-copy > h1 { animation:hero-entrance-up .56s var(--ease-fence) .06s both; }
-.hero-section.is-visible > .hero-content > .hero-copy > .info-card { animation:hero-entrance-card .52s var(--ease-fence) .18s both; }
-.hero-section.is-visible .dashboard-device { animation:hero-entrance-device .7s var(--ease-fence) .12s both; }
-.hero-section.is-visible .overlay-bento { animation:hero-entrance-card .52s var(--ease-fence) .34s both; }
-  .hero-section.is-visible .bento-card { animation:hero-entrance-card .48s var(--ease-fence) .46s both; }
+.hero-section.is-visible > .hero-content > .hero-copy > h1 { animation:hero-entrance-up .56s var(--ease-fence) 0s both; }
+.hero-section.is-visible > .hero-content > .hero-copy > .info-card { animation:hero-entrance-card .52s var(--ease-fence) 0s both; }
+/* FIX: faster MacBook entrance — was .7s with .12s delay */
+.hero-section.is-visible .dashboard-device { animation:hero-entrance-device 2.0s var(--ease-fence) 0s both; }
+.hero-section.is-visible .overlay-bento { animation:hero-entrance-card .52s var(--ease-fence) 0s both; }
+  .hero-section.is-visible .bento-card { animation:hero-entrance-card .48s var(--ease-fence) 0s both; }
   .hero-section.is-visible .info-card .tag-row span,
   .hero-section.is-visible .proof-row span { animation:hero-entrance-scale .4s cubic-bezier(.175,.885,.32,1.275) both; }
   .hero-section.is-visible .info-card .tag-row span:nth-child(2),
@@ -698,11 +701,11 @@ transition:none !important;
 /* Stage 2: calculator scene choreography. Text, controls and result cards
    enter in sequence; no continuous heavy animation is added. */
 @keyframes calculator-icon-in {
-  from { opacity:0; transform:translate3d(-10px,0,0) scale(.82); }
+  from { opacity:0.01; transform:translate3d(-10px,0,0) scale(.82); }
   to { opacity:1; transform:translate3d(0,0,0) scale(1); }
 }
 @keyframes calculator-result-in {
-  from { opacity:0; transform:translate3d(0,20px,0) scale(.96); }
+  from { opacity:0.01; transform:translate3d(0,20px,0) scale(.96); }
   to { opacity:1; transform:translate3d(0,0,0) scale(1); }
 }
 .calculator-section.is-visible .calculator-intro { transition-delay:.04s !important; }
@@ -858,7 +861,7 @@ transition:none !important;
 /* Icon reveal: decorative and supporting icons reset with their section so the
    entrance repeats every time the section returns to the viewport. */
 @keyframes icon-reveal-soft {
-  from { opacity:0; transform:translate3d(0,12px,0) scale(.72) rotate(-6deg); }
+  from { opacity:0.01; transform:translate3d(0,12px,0) scale(.72) rotate(-6deg); }
   to { opacity:1; transform:translate3d(0,0,0) scale(1) rotate(0deg); }
 }
 .landing-page.js-ready .motion-section:not(.is-visible) .plus-button > span,
@@ -1084,9 +1087,9 @@ transition:none !important;
 
 /* Testimonials arrive from distinct directions, then return to their normal
    layout so active-story transforms remain available after the entrance. */
-@keyframes testimonial-arrive-left { from { opacity:0; translate:-90px 42px; rotate:-4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
-@keyframes testimonial-arrive-top { from { opacity:0; translate:70px -74px; rotate:4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
-@keyframes testimonial-arrive-right { from { opacity:0; translate:110px 48px; rotate:5deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
+@keyframes testimonial-arrive-left { from { opacity:0.01; translate:-90px 42px; rotate:-4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
+@keyframes testimonial-arrive-top { from { opacity:0.01; translate:70px -74px; rotate:4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
+@keyframes testimonial-arrive-right { from { opacity:0.01; translate:110px 48px; rotate:5deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
 .testimonials-section.is-visible .testimonial-card--lime { animation:testimonial-arrive-left 1.05s var(--ease-fence) both; }
 .testimonials-section.is-visible .testimonial-card--light { animation:testimonial-arrive-top 1.12s var(--ease-fence) .12s both; }
 .testimonials-section.is-visible .testimonial-card--dark { animation:testimonial-arrive-right 1.08s var(--ease-fence) .22s both; }
@@ -1107,7 +1110,7 @@ transition:none !important;
 }
 
 /* ============================================================
-   SCROLL PARALLAX — HERO DEVICE AND FLOATING CARDS
+   SCROLL PARALLAX тАФ HERO DEVICE AND FLOATING CARDS
    The hero device shifts upward and scales slightly as the user
    scrolls past the hero, creating a depth parallax effect.
    ============================================================ */
@@ -1133,7 +1136,7 @@ transition:none !important;
 .bento-card:hover { transform: translate3d(0, calc(var(--hero-shift, 0px) * 0.38 - 5px), 0) !important; }
 
 /* ============================================================
-   FACTOR CARDS — ORBITAL POSITION ENHANCEMENT
+   FACTOR CARDS тАФ ORBITAL POSITION ENHANCEMENT
    Factor cards are positioned absolutely around the orbit.
    As the factors section enters, cards arrive from their
    respective orbital angles with staggered timing.
@@ -1174,7 +1177,7 @@ transition:none !important;
 }
 
 /* ============================================================
-   COMPARISON SECTION — STAGGERED CARD ENTRANCE
+   COMPARISON SECTION тАФ STAGGERED CARD ENTRANCE
    University cards enter from different depths per spec.
    ============================================================ */
 
@@ -1218,7 +1221,7 @@ transition:none !important;
 .fence-footer.is-visible .footer-brand { transition-delay: .12s; }
 
 /* ============================================================
-   POINTER UNDERLINE — ENHANCED FOR FOCUS RING SEPARATION
+   POINTER UNDERLINE тАФ ENHANCED FOR FOCUS RING SEPARATION
    Keyboard focus uses a distinct visible outline separate from
    the pointer-reactive gradient underline.
    ============================================================ */
@@ -1276,7 +1279,6 @@ transition:none !important;
   --section-stagger:220ms;
 }
 .feature-intro,
-.calculator-board,
 .university-card,
 .factor-card,
 .roadmap-card,
@@ -1443,7 +1445,7 @@ transition:none !important;
 }
 
 /* ============================================================
-   REDUCED MOTION — COVER ALL NEW RULES
+   REDUCED MOTION тАФ COVER ALL NEW RULES
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1495,13 +1497,11 @@ transition:none !important;
   animation:contour-breathe 18s ease-in-out infinite alternate;
 }
 .dashboard-stage,
-.calculator-board,
 .roadmap-journey,
 .factor-orbit,
 .testimonials-stage,
 .decision-routes { translate:0 var(--scroll-depth,0px); }
 .dashboard-stage { will-change:transform,translate; }
-.calculator-board,
 .roadmap-journey,
 .factor-orbit,
 .testimonials-stage,
@@ -1521,7 +1521,6 @@ transition:none !important;
   .landing-page::after { animation:none; }
   .journey-thread__contours { transform:none; animation:none; }
   .dashboard-stage,
-  .calculator-board,
   .roadmap-journey,
   .factor-orbit,
   .testimonials-stage,
@@ -1948,6 +1947,10 @@ transition:none !important;
 }
 
 /* Hero: copy leads, product imagery follows, supporting cards settle last. */
+@keyframes hero-entrance-scale {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
 .hero-section.is-visible > .hero-content > .hero-copy > .eyebrow {
   animation-duration: var(--motion-enter) !important;
 }
@@ -1999,7 +2002,6 @@ transition:none !important;
 /* Shared content, cards, icons, stories and footer use the same soft motion-out
    curve so no chapter feels faster or sharper than the next one. */
 .feature-intro,
-.calculator-board,
 .university-card,
 .factor-card,
 .roadmap-card,
@@ -2158,7 +2160,7 @@ transition:none !important;
 }
 
 /* ============================================================
-   BENTO OVERLAY — MOBILE RESPONSIVE FIX
+   BENTO OVERLAY тАФ MOBILE RESPONSIVE FIX
    On small screens the absolute overlay is converted into a
    horizontal scroll row that sits naturally in the flow.
    ============================================================ */
@@ -2228,7 +2230,7 @@ transition:none !important;
   .bento-arrow-btn { width: 28px !important; height: 28px !important; font-size: 14px !important; }
 }
 
-/* On mobile the bento sits in document flow — kill all absolute transforms */
+/* On mobile the bento sits in document flow тАФ kill all absolute transforms */
 @media (max-width: 900px) {
   .overlay-bento,
   .overlay-bento:hover { transform: none !important; }
@@ -2236,7 +2238,7 @@ transition:none !important;
   .landing-page.js-ready .motion-section:not(.is-visible) .overlay-bento { opacity: 1 !important; transform: none !important; }
 }
 
-/* Hero-content layout fix for mobile — allow bento row to flow below stage */
+/* Hero-content layout fix for mobile тАФ allow bento row to flow below stage */
 @media (max-width: 900px) {
   .hero-content { overflow: visible !important; }
   .dashboard-stage { overflow: visible !important; }
@@ -2469,7 +2471,7 @@ transition:none !important;
     visibility 0s linear 700ms;
 }
 
-.landing-page.js-ready .hero-section.is-visual-visible .dashboard-float-group {
+.landing-page.js-ready .hero-section.is-device-visible .dashboard-float-group {
   visibility: visible;
   opacity: 1;
   filter: none;
@@ -2585,7 +2587,7 @@ transition:none !important;
   visibility: hidden;
   opacity: 0;
   filter: blur(5px);
-  translate: 0 calc(var(--scroll-depth, 0px) + 18px);
+  translate: 0 18px;
   pointer-events: none;
   transition:
     opacity 680ms var(--ease-soft-out),
@@ -2595,7 +2597,7 @@ transition:none !important;
   will-change: translate, opacity, filter;
 }
 
-.calculator-section.is-visible .calculator-board.ipad-device {
+.calculator-section.is-device-visible .calculator-board.ipad-device {
   visibility: visible;
   opacity: 1;
   filter: none;
@@ -2606,9 +2608,9 @@ transition:none !important;
 
 @media (prefers-reduced-motion: reduce) {
   .calculator-section .calculator-board.ipad-device,
-  .calculator-section.is-visible .calculator-board.ipad-device {
+  .calculator-section.is-device-visible .calculator-board.ipad-device {
     animation: none;
-    translate: 0 var(--scroll-depth, 0px);
+    translate: none;
     transition: none;
   }
 }
@@ -2722,12 +2724,18 @@ transition:none !important;
   scale: 1;
   transition:
     opacity 520ms var(--ease-soft-out),
-    transform 680ms var(--ease-soft-out),
-    visibility 0s linear 680ms;
+    transform 800ms var(--ease-soft-out),
+    visibility 0s linear 800ms;
 }
 
-.landing-page.js-ready .hero-section.is-visual-visible .dashboard-float-group {
+.landing-page.js-ready .hero-section.is-device-visible .dashboard-float-group {
   transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 700ms var(--ease-soft-out),
+    transform 1000ms var(--ease-soft-out),
+    visibility 0s linear 0s;
 }
 
 #hero .bento-card {
@@ -2757,22 +2765,32 @@ transition:none !important;
 }
 
 .calculator-section .calculator-board.ipad-device,
-.calculator-section.is-visible .calculator-board.ipad-device {
+.calculator-section.is-device-visible .calculator-board.ipad-device {
   animation: none !important;
+}
+
+.calculator-device-frame {
+  translate: 0 var(--scroll-depth, 0px);
 }
 
 .calculator-section .calculator-board.ipad-device {
   filter: none;
-  translate: 36px calc(var(--scroll-depth, 0px) + 18px);
+  translate: 32px 18px;
   transition:
-    opacity 560ms var(--ease-soft-out),
-    translate 680ms var(--ease-soft-out),
-    visibility 0s linear 680ms;
+    opacity 520ms var(--ease-soft-out),
+    translate 800ms var(--ease-soft-out),
+    visibility 0s linear 800ms;
   will-change: auto;
 }
 
-.calculator-section.is-visible .calculator-board.ipad-device {
-  translate: 0 var(--scroll-depth, 0px);
+.calculator-section.is-device-visible .calculator-board.ipad-device {
+  translate: 0 0;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 700ms var(--ease-soft-out),
+    translate 1000ms var(--ease-soft-out),
+    visibility 0s linear 0s;
 }
 
 .calculator-section .calculator-device-art {
@@ -2807,7 +2825,7 @@ transition:none !important;
   }
 
   .calculator-section .calculator-board.ipad-device,
-  .calculator-section.is-visible .calculator-board.ipad-device {
+  .calculator-section.is-device-visible .calculator-board.ipad-device {
     position: absolute !important;
     inset: 0 auto auto 0 !important;
     width: 920px !important;
@@ -2827,8 +2845,8 @@ transition:none !important;
 
   .calculator-section .calculator-board.ipad-device::before,
   .calculator-section .calculator-board.ipad-device::after,
-  .calculator-section.is-visible .calculator-board.ipad-device::before,
-  .calculator-section.is-visible .calculator-board.ipad-device::after {
+  .calculator-section.is-device-visible .calculator-board.ipad-device::before,
+  .calculator-section.is-device-visible .calculator-board.ipad-device::after {
     display: none !important;
   }
 
@@ -2874,24 +2892,27 @@ transition:none !important;
 @media (max-width: 900px) {
   .landing-page.js-ready .hero-section .dashboard-float-group {
     transition:
-      opacity 1500ms var(--ease-soft-out),
-      transform 1700ms var(--ease-soft-out),
-      visibility 0s linear 1700ms;
+      opacity 480ms var(--ease-soft-out),
+      transform 720ms var(--ease-soft-out),
+      visibility 0s linear 720ms;
   }
 
-  .landing-page.js-ready .hero-section:not(.is-visible) .dashboard-float-group {
-    visibility: hidden;
-    opacity: 0;
-    transform: translate3d(0, 26px, 0) scale(.985) !important;
-    pointer-events: none;
-  }
+  .landing-page.js-ready .hero-section:not(.is-device-visible) .dashboard-float-group {
+  visibility: hidden;
+  opacity: 0;
+  transform: translate3d(0, 26px, 0) scale(.985) !important;
+  pointer-events: none;
+}
 
-  .landing-page.js-ready .hero-section.is-visible .dashboard-float-group {
+  .landing-page.js-ready .hero-section.is-device-visible .dashboard-float-group {
     visibility: visible;
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1) !important;
     pointer-events: auto;
-    transition-delay: 0s;
+    transition:
+      opacity 620ms var(--ease-soft-out),
+      transform 820ms var(--ease-soft-out),
+      visibility 0s linear 0s;
   }
 
   #hero .bento-card--lime .bento-faces {
@@ -3026,13 +3047,316 @@ transition:none !important;
 
 @media (prefers-reduced-motion: reduce) {
   .landing-page.js-ready .hero-section .dashboard-float-group,
-  .landing-page.js-ready .hero-section.is-visual-visible .dashboard-float-group,
+  .landing-page.js-ready .hero-section.is-device-visible .dashboard-float-group,
   .calculator-section .calculator-board.ipad-device,
-  .calculator-section.is-visible .calculator-board.ipad-device {
+  .calculator-section.is-device-visible .calculator-board.ipad-device {
     visibility: visible;
     opacity: 1;
     transform: none;
     translate: none;
     transition: none;
+  }
+
+  .calculator-device-frame {
+    translate: none;
+  }
+}
+
+
+/* HARDCODED IPAD FORM - Added by Agent */
+.calculator-board.ipad-device .calculator-main {
+  transform: matrix3d(0.639277, -0.221291, 0, 0.00022730, 0.269179, 0.655740, 0, 0.00005623, 0, 0, 1, 0, 202.83, 183.09, 0, 1.000000) !important;
+  transform-origin: 0 0 !important;
+  width: 520px !important;
+  min-height: 440px !important;
+  padding: 48px !important;
+  border-radius: 27px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  pointer-events: auto !important;
+  backface-visibility: hidden !important;
+  -webkit-font-smoothing: antialiased !important;
+  will-change: transform;
+}
+
+.calculator-board.ipad-device .calculator-main:hover {
+  transform: matrix3d(0.639277, -0.221291, 0, 0.00022730, 0.269179, 0.655740, 0, 0.00005623, 0, 0, 1, 0, 202.83, 183.09, 0, 1.000000) !important;
+}
+
+.calculator-board.ipad-device .calculator-main::-webkit-scrollbar {
+  width: 8px;
+}
+.calculator-board.ipad-device .calculator-main::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+.calculator-board.ipad-device .calculator-main::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.calculator-board.ipad-device {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+/* Responsive alignment and consistent comparison/scholarship geometry. */
+@media (min-width: 901px) and (max-width: 1250px) {
+  #comparison .comparison-shell {
+    width: min(1080px, 100%) !important;
+    margin-inline: auto !important;
+  }
+  #comparison .comparison-area {
+    width: min(100%, 1020px);
+    max-width: none;
+    margin-inline: auto;
+    padding-inline: clamp(8px, 1.5vw, 20px);
+  }
+  #comparison .university-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+  #factors .factors-intro h2 {
+    font-size: clamp(48px, 4.7vw, 64px) !important;
+    line-height: .94;
+  }
+  #scholarships .scholarship-shell {
+    width: min(1120px, 100%) !important;
+    margin-inline: auto !important;
+  }
+  #scholarships .scholarships-head {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, .8fr) auto;
+    gap: clamp(16px, 2vw, 30px);
+  }
+  #scholarships .scholarships-head h2 {
+    font-size: clamp(43px, 4.7vw, 61px) !important;
+  }
+  #scholarships .scholarship-carousel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+  }
+}
+
+.comparison-method {
+  max-width: 760px;
+  margin: 20px auto 0;
+  color: #bcc2c3;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.university-icon svg,
+.best-fit svg,
+.factor-card > i svg,
+.scholarship-symbol svg {
+  display: block;
+  width: 50%;
+  height: 50%;
+}
+.best-fit i { display: inline-flex; align-items: center; width: 12px; height: 12px; vertical-align: middle; }
+.best-fit svg { width: 12px; height: 12px; }
+.university-score small { font-size: 10px; opacity: .75; }
+
+.scholarship-card {
+  display: grid;
+  grid-template-rows: 48px 52px 56px 1px 88px minmax(66px, 1fr) auto;
+  min-width: 0;
+  min-height: 450px;
+  align-content: stretch;
+}
+.scholarship-card .scholarship-symbol { width: 46px; height: 46px; }
+.scholarship-card h3 {
+  max-width: none;
+  min-width: 0;
+  margin: 0 !important;
+  font-size: clamp(18px, 1.7vw, 22px);
+  line-height: 1.05;
+}
+.scholarship-card > p {
+  min-height: 0;
+  margin: 0 !important;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.scholarship-card .scholarship-rule { align-self: center; width: 100%; margin: 0; }
+.scholarship-card .scholarship-amount { align-self: center; min-width: 0; }
+.scholarship-card .scholarship-amount strong {
+  max-width: calc(100% - 70px);
+  overflow: visible;
+  font-size: clamp(25px, 2.45vw, 36px);
+  line-height: 1;
+  white-space: nowrap;
+}
+.scholarship-card .match-ring { top: 219px; right: 17px; width: 68px; height: 68px; }
+.scholarship-card .match-ring::before { inset: 7px; }
+.scholarship-card .scholarship-meta { align-self: end; margin-top: 0; }
+.scholarship-card .scholarship-tags { align-self: end; margin-top: 15px; }
+.scholarships-section.is-visible .scholarship-card:hover,
+.scholarships-section.is-visible .scholarship-card.is-active { transform: none !important; }
+
+/* Reveal from a hidden first paint and allow the card's expanded copy to fit. */
+.landing-page:not(.js-ready) #hero .info-card,
+.landing-page.js-ready #hero:not(.is-visible) .info-card {
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(34px);
+}
+#hero .info-card.expanded { min-height: 280px; padding-bottom: 38px; }
+
+.calculator-section .calculator-device-art {
+  image-rendering: auto !important;
+  filter: drop-shadow(0 24px 40px rgba(0,0,0,.19)) !important;
+  backface-visibility: visible;
+}
+.calculator-board.ipad-device .calculator-main { will-change: auto; }
+@media (min-width: 901px) {
+  #hero .overlay-bento { left: calc(clamp(10px, 5%, 42px) + 14px) !important; }
+}
+
+#testimonials,
+#final-decision,
+#footer {
+  background-color: var(--fence-black) !important;
+  background-image: none !important;
+  background-attachment: scroll !important;
+}
+#final-decision { margin-top: -3px !important; border-top: 0 !important; }
+#final-decision::before { display: none !important; }
+
+.login-link::before {
+  top: 50%;
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  width: 86px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(183,255,42,.68), rgba(183,255,42,.24) 48%, transparent 76%);
+  filter: blur(10px);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.login-link:hover::before { opacity: 1; transform: translate(-50%, -50%); }
+.login-link::after { display: none !important; }
+.desktop-nav { position: relative; isolation: isolate; }
+.desktop-nav .nav-glow-spot {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 0;
+  width: 104px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(183,255,42,.72), rgba(183,255,42,.25) 46%, transparent 76%);
+  filter: blur(10px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.desktop-nav button::before,
+.desktop-nav button::after { display: none !important; }
+.desktop-nav button { position: relative; z-index: 1; cursor: default; }
+.login-link { isolation: isolate; }
+
+@media (max-width: 720px) {
+  #hero .hero-content { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+  #hero .hero-copy { display: contents !important; }
+  #hero .hero-copy > .eyebrow { grid-row: 1; }
+  #hero .hero-copy > h1 { grid-row: 2; margin-bottom: 30px; }
+  #hero .dashboard-stage { grid-row: 3; margin-bottom: 30px; }
+  #hero .info-card { grid-row: 4; width: min(100%, 460px); margin: 0 auto 42px; }
+  #hero .section-index { bottom: 12px; }
+  #comparison .comparison-method { padding-inline: 10px; text-align: left; }
+  #scholarships .scholarship-card { min-height: 450px; }
+}
+
+/* The mobile KPI scroller clips card shadows at its bottom edge, leaving a
+   straight grey band between the MacBook and the info card. */
+@media (max-width: 900px) {
+  #hero .overlay-bento .bento-card,
+  #hero .overlay-bento .bento-card:hover,
+  #hero .overlay-bento .bento-card.is-active {
+    box-shadow: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page.js-ready #hero:not(.is-visible) .info-card { visibility: visible; opacity: 1; transform: none; }
+  .landing-page.js-ready #factors .feature-shell,
+  .landing-page.js-ready #hero .dashboard-float-group,
+  .calculator-section .calculator-board.ipad-device { transition: none !important; }
+}
+
+@media (min-width: 1051px) {
+  .fence-footer .footer-shell,
+  .fence-footer .footer-legal {
+    box-sizing: border-box;
+    width: min(1380px, 100%) !important;
+    max-width: 100%;
+    margin-inline: auto !important;
+    zoom: 1 !important;
+  }
+  .fence-footer .footer-shell {
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    gap: clamp(32px, 5vw, 80px);
+  }
+  .fence-footer .footer-navigation {
+    width: 100%;
+    min-width: 0;
+    padding-inline: clamp(0px, 1vw, 16px);
+    justify-content: center;
+  }
+}
+
+.footer-language { display: inline-flex; align-items: center; gap: 5px; cursor: default; }
+.footer-language select {
+  max-width: 132px;
+  padding: 6px 8px;
+  border: 1px solid rgba(247,247,243,.28);
+  border-radius: 8px;
+  background: #171819;
+  color: #f7f7f3;
+  font: inherit;
+  cursor: pointer;
+}
+.footer-language select:focus-visible { outline: 2px solid var(--fence-lime); outline-offset: 2px; }
+.fence-footer .footer-ready-card,
+.final-decision-section .decision-route > i {
+  transition-duration: 1800ms !important;
+  transition-timing-function: var(--ease-soft-out) !important;
+}
+
+/* Student stories should settle and leave at the same unhurried pace. */
+#testimonials > .testimonials-inner {
+  transition: opacity 2200ms var(--ease-soft-out) !important;
+}
+#testimonials .testimonials-copy > .eyebrow,
+#testimonials .testimonials-copy > h2,
+#testimonials .testimonials-copy > .testimonials-description {
+  transition-duration: 2200ms !important;
+  transition-timing-function: var(--ease-soft-out) !important;
+}
+#testimonials.is-visible .testimonial-card--lime,
+#testimonials.is-visible .testimonial-card--light,
+#testimonials.is-visible .testimonial-card--dark {
+  animation-duration: 2100ms !important;
+  animation-timing-function: var(--ease-soft-out) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #testimonials > .testimonials-inner,
+  #testimonials .testimonials-copy > .eyebrow,
+  #testimonials .testimonials-copy > h2,
+  #testimonials .testimonials-copy > .testimonials-description {
+    transition: none !important;
+  }
+  #testimonials.is-visible .testimonial-card--lime,
+  #testimonials.is-visible .testimonial-card--light,
+  #testimonials.is-visible .testimonial-card--dark {
+    animation: none !important;
   }
 }

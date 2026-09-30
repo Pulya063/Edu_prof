@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+/* Google Fonts: DM Sans + Manrope — loaded with display=swap so text is
+   visible immediately in fallback while the web font downloads. */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root { --light:#e7e9ed; --ink:#050505; --dark:#171819; --dark-card:#242526; --warm:#f1f3ee; --lime:#b7ff2a; --violet:#d7c7ff; --muted:#85898f; --fence-black:#171819; --fence-deep-black:#050505; --fence-white:#fff; --fence-warm-white:#f7f7f3; --fence-lime:#b7ff2a; --fence-violet:#d7c7ff; --fence-muted:#85898f; --motion-fast:180ms; --motion-base:480ms; --motion-slow:760ms; --section-stagger:100ms; --theme-progress:0; --metrics-dark-progress:0; --metrics-progress:0; --metrics-scale:1; --page-progress:0; --journey-progress:0; --hero-shift:0px; --hero-scale:1; --ease-out:cubic-bezier(.22,1,.36,1); --ease-fence:cubic-bezier(.22,1,.36,1); }
 
@@ -226,3 +228,42 @@ h1,h2,h3,p { margin-top:0; }.hero-copy h1 { max-width:620px; margin-bottom:70px;
 .roadmap-card--dark:first-of-type::before { content:""; position:absolute; z-index:-1; top:-44px; right:-35px; width:118px; height:118px; border-radius:50%; background:radial-gradient(circle at 36% 36%,#f4ffbd 0%,var(--fence-lime) 24%,transparent 25%); }
 .roadmap-card--dark:first-of-type::after { content:""; position:absolute; z-index:-1; right:-18%; bottom:-24px; left:-18%; height:92px; opacity:.26; background:repeating-radial-gradient(circle at 48% 120%,transparent 0 13px,rgba(255,255,255,.48) 14px 15px,transparent 16px 25px); transform:rotate(-7deg); }
 .roadmap-card--light::before { content:""; position:absolute; top:-45px; right:-44px; width:112px; height:112px; border-radius:50%; background:radial-gradient(circle,#efffbd 40%,var(--fence-lime) 42%,transparent 43%); opacity:.68; }
+/* ==========================================================================
+   IDE LINTING FALLBACKS
+   These variables are injected dynamically by React (e.g. scroll handlers).
+   Defining them here prevents IDEs like PyCharm/WebStorm from throwing
+   "Cannot resolve custom property" warnings.
+   ========================================================================== */
+:root {
+  --bar-height: 0px;
+  --scroll-text-shift: 0px;
+  --contour-drift: 0px;
+  --scroll-depth: 0px;
+  --dot-x: 0%;
+  --dot-y: 0%;
+  --dot-scale: 1;
+  --calculator-scale: 1;
+  --calculator-screen-transform: none;
+  --match: 0;
+  --range-progress: 0%;
+  --plan-card-width: 0px;
+}
+/* ==========================================================================
+   LANG SWITCHER
+   ========================================================================== */
+.lang-switcher { position:relative; z-index:100; margin-right: 12px; }
+.lang-switcher-trigger { display:flex; align-items:center; gap:6px; height:40px; padding:0 12px; border:1px solid rgba(255,255,255,.14); border-radius:999px; background:rgba(0,0,0,.15); color:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background .2s; }
+.lang-switcher-trigger:hover { background:rgba(255,255,255,.08); }
+.lang-switcher-trigger svg { transition:transform .2s; opacity:.7; }
+.lang-switcher[data-open] .lang-switcher-trigger svg { transform:rotate(180deg); }
+.lang-switcher-menu { position:absolute; top:calc(100% + 8px); right:0; display:flex; flex-direction:column; min-width:140px; margin:0; padding:6px; list-style:none; border:1px solid rgba(255,255,255,.14); border-radius:12px; background:#1b1c1d; box-shadow:0 12px 24px rgba(0,0,0,.2); }
+.lang-switcher-menu li { margin:0; padding:0; }
+.lang-switcher-menu button { width:100%; padding:8px 12px; border:0; border-radius:6px; background:none; color:var(--fence-warm-white); text-align:left; font-size:13px; cursor:pointer; transition:background .2s; }
+.lang-switcher-menu button:hover { background:rgba(255,255,255,.08); }
+.lang-switcher-menu button.is-active { background:rgba(255,255,255,.12); font-weight:600; }
+.landing-header.is-scrolled .lang-switcher-trigger { border-color:rgba(0,0,0,.1); background:rgba(0,0,0,.04); }
+.landing-header.is-scrolled .lang-switcher-trigger:hover { background:rgba(0,0,0,.08); }
+.landing-header[data-theme="light"].is-scrolled .lang-switcher-menu { background:#fff; border-color:rgba(0,0,0,.1); box-shadow:0 12px 24px rgba(0,0,0,.08); }
+.landing-header[data-theme="light"].is-scrolled .lang-switcher-menu button { color:#171819; }
+.landing-header[data-theme="light"].is-scrolled .lang-switcher-menu button:hover { background:rgba(0,0,0,.04); }
+.landing-header[data-theme="light"].is-scrolled .lang-switcher-menu button.is-active { background:rgba(0,0,0,.08); }

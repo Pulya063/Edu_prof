@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
-import { HeadlineLine } from "./motion";
+import { HeadlineLine } from "../hooks/useScrollMotion";
 
 type TestimonialTheme = "lime" | "light" | "dark";
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, LockKeyhole } from "lucide-react";
-import "./payment.css";
+import "../styles/payment.css";
 
 const planNames: Record<string, string> = {
   pro: "Pro",
