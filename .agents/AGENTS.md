@@ -1,54 +1,76 @@
-# Agent Rules for "Education ROI Calculator" Project
+# Fence repository engineering rules
 
-This file contains specific Customizations (rules) for the AI agent to better understand the context, constraints, and technology stack of this project. 
+This file defines the current project stack and implementation rules. It supplements the repository-level `AGENTS.md`; it does not duplicate the safe-autopilot policy.
 
-## Technology Stack & Core Tools
-1. **Backend**: Python 3.13, Flask, SQLAlchemy 2.0 (Core/ORM).
-2. **Database**: PostgreSQL, database migrations via Alembic.
-3. **Frontend**: Jinja2 templates, HTMX (for dynamic partial page updates without full reloads), TailwindCSS (for styling).
-4. **Testing**: Pytest (for unit and integration tests).
-5. **Logging**: Standard Python `logging` module.
+## Status language
 
-## Backend Development Rules
-- **Architecture**: Strictly adhere to the existing project structure:
-  - `app/api/`: Route handlers and Blueprints.
-  - `app/services/`: Business logic and database interactions.
-  - `app/models.py`: Database schemas.
-- **Dependency Injection & Separation of Concerns**: Use the service layer (`app/services`) for data processing. Route handlers (Blueprints) should only handle request parsing, calling the service layer, and returning the response or rendering templates.
-- **Security & Auth**: Always protect private routes using the `@get_current_user` decorator (or similar). Validate all incoming data (e.g., using Pydantic schemas) before processing it.
-- **Logging**: Never use `print()`. Always use the `logging` module (`logger.info`, `logger.error`, etc.) for debugging and audit trails.
+- **Current**: present in the live code now.
+- **Planned**: approved direction that is not implemented yet.
+- **Implemented but unverified**: code exists, but the relevant runtime or browser check has not passed.
+- **Verified**: the relevant automated and/or rendered check has passed in the current checkout.
+- Never infer implementation from a roadmap, mockup, screenshot, or documentation entry. Inspect the live code.
 
-## Database & SQLAlchemy 2.0 Rules
-- **Modern SQLAlchemy**: Use SQLAlchemy 2.0 syntax. Always use `db.session.execute(select(Model))` instead of the legacy `Model.query`.
-- **Eager Loading**: Prevent N+1 query problems by proactively using `joinedload` or `selectinload` when querying models with relationships (e.g., fetching a `User` and their `ROICalculation` history).
-- **Migrations**: Any changes made to `models.py` must ALWAYS be followed by creating a new Alembic migration (`alembic revision --autogenerate`). Never modify the database schema without a migration file.
-- **Indexing**: Ensure heavily queried fields (like `email`, `university_name`) have `index=True`.
+## Current technology stack
 
-## Frontend (UI/UX) Development Rules
-- **Modern Aesthetics**: The user interface must look premium and modern. Utilize smooth gradients, micro-animations, modern typography (Google Fonts, e.g., Inter), and harmonious color palettes. Avoid generic basic colors.
-- **No Heavy JS Frameworks**: Do not suggest or use React, Vue, Angular, or similar frameworks. For interactivity, rely strictly on **HTMX** (`hx-get`, `hx-post`, `hx-swap`, `hx-target`) combined with Jinja2 templates.
-- **TailwindCSS**: Write all new styles using TailwindCSS utility classes. Maintain consistent spacing (e.g., using `gap-4`, `p-6`) and standard focus rings for inputs (`focus:ring-2 focus:ring-blue-500`).
-- **Responsiveness**: All interfaces must be fully responsive (using Flexbox/Grid) and display correctly on mobile devices down to 320px width.
-- **Accessibility (a11y)**: Ensure forms have proper `<label>` tags, inputs have `aria-` attributes where necessary, and the contrast ratio is sufficient.
+- **Frontend**: Next.js 14 App Router, React 18, TypeScript, and the existing CSS/Tailwind toolchain under `frontend/`. Next.js is the primary product UI.
+- **Legacy UI**: Flask/Jinja/HTMX remains only where the live backend still renders templates. Do not build a new primary product surface there unless the user explicitly asks.
+- **Backend**: Python 3.13, Flask, Pydantic, SQLAlchemy 2, and Alembic, organized as a modular monolith.
+- **Data and jobs**: PostgreSQL, Redis, RabbitMQ, and Celery.
+- **AI/data integrations**: Ollama/LangChain/Chroma experiments, DreamWork, College Scorecard, Hipolabs, and O*NET where configured.
+- **Testing**: Pytest for backend work; the frontend's configured lint, type-check, build, and browser tooling for UI work.
 
-## HTMX Specific Rules
-- **Request Detection**: Use `request.headers.get("HX-Request") == "true"` to determine if a request came from HTMX.
-- **Responses**: If it's an HTMX request, return rendered HTML partials (`render_template("partials/...html")`). If it's a standard API request, return JSON.
-- **Redirects**: To redirect a user during an HTMX request (e.g., after successful login), use the `HX-Redirect` response header instead of a standard 302 redirect.
-- **Form Handling**: Always use `hx-indicator` on forms to show a loading spinner while waiting for the server response.
+## Backend rules
 
-## Error Handling & UI States
-- **Empty States**: Always anticipate and design for "Empty States" (when no data is present, e.g., no calculations saved). Provide clear call-to-action buttons in these states with an appealing illustration or icon.
-- **Loading States**: Always use loading states and spinners (`hx-indicator`) during HTMX requests to provide visual feedback to the user.
-- **Error Messages**: Display user-friendly, localized error messages (flash messages or inline alerts) rather than raw backend exceptions. Ensure 400 and 500 level errors are caught and rendered beautifully in the UI.
+- Keep transport in `app/api/`, business logic in `app/services/`, persistence in `app/models.py`, validation in Pydantic schemas, and infrastructure adapters under `app/core/` or dedicated services.
+- Use SQLAlchemy 2 syntax (`select`, `db.session.execute`) and avoid legacy `Model.query`.
+- Protect private routes with the established authentication dependency and validate both request data and service/API output.
+- Preserve public routes and response shapes unless the task requires a contract change; update every affected consumer and test when a contract changes.
+- Use structured, user-safe errors and Python logging. Never log credentials, session tokens, password-reset tokens, or private payloads.
+- Prevent N+1 queries with appropriate eager loading when a relationship is actually consumed.
 
-## Testing Rules
-- **Coverage**: Whenever adding a new feature or complex logic (e.g., ROI math), write accompanying Pytest tests.
-- **Mocking**: External API calls (like Hipolabs or College Scorecard) must be mocked using `unittest.mock` during testing to prevent flaky tests.
-- **Final Checks**: Do not run final build, test, lint, or type-check commands unless the user explicitly asks for them.
+## Database and migrations
 
-## Git, Environment, and Documentation Workflow
-- **Commits**: Write clear, descriptive, and atomic commits using Conventional Commits format (e.g., `feat: add history table`, `fix: correct ROI math`).
-- **Dependencies**: Whenever a new Python package is used, immediately update `requirements.txt`.
-- **Environment Variables**: If a new configuration or secret is introduced, use `os.getenv()` with a fallback or raise an error on startup. Instruct the user to update their `.env` file.
-- **Continuous Documentation**: Whenever completing a new user story or feature, automatically propose updates to the `README.md` to keep the project documentation (Problem analysis, User stories, Tech Spec) strictly aligned with the actual codebase.
+- Every database-schema change requires a new Alembic revision. Do not edit an already-applied migration to represent a new change.
+- Inspect the current revision graph and existing user changes before generating a migration.
+- Never upgrade a production database or run an irreversible migration without explicit approval.
+- Add indexes and constraints from demonstrated query/integrity needs, not speculation.
+
+## Frontend and design rules
+
+- Use Next.js/React for the current product frontend. Prefer server components for static/data-rendered shells and client components only for interaction, browser APIs, forms, charts, or local state.
+- Do not require Tailwind for every change. Follow the local styling approach of the affected component and avoid adding another global override layer without a concrete need.
+- Preserve Fence's editorial identity: black/white contrast, `#171819` dark surfaces, lime `#B7FF2A` action/progress accents, violet `#D7C7FF` AI/prediction accents, restrained corners, strong typography, subtle texture, and purposeful motion.
+- Do not turn the product into a generic equal-card SaaS dashboard. Prefer an analytical-report hierarchy.
+- Provide loading, empty, error, stale-data, keyboard, focus, and reduced-motion states where the affected flow needs them.
+- For explicit responsive work, validate 320, 375, 768, 1024, 1440, and 1920 px, 200% zoom, resize/orientation, keyboard navigation, and `prefers-reduced-motion`.
+- Confirm the active checkout, server process, URL, and port before rendered QA. Source inspection is not browser verification.
+
+## Product and simulation direction
+
+- Fence's target journey is education -> career -> financial outcome -> skills gap -> roadmap -> courses/projects/experience -> employment readiness.
+- **Planned**: a versioned Simulation Scenario will eventually connect education, career, finance, skills, roadmap, and evidence. Do not describe it as Current until implemented.
+- Roadmap progress should eventually update skill evidence and readiness. Completing a task must not directly or silently increase a salary estimate.
+- Do not implement a later roadmap phase merely because it is documented; stay within the user's current scope.
+
+## Prediction, provenance, and AI
+
+- Tuition, investment, salary ranges, projections, ROI, payback, inflation, market indexes, and financial comparisons must come from deterministic, versioned, testable code backed by structured data.
+- LLMs may classify, map careers, extract skills, draft roadmaps, explain deterministic results, summarize, and support natural-language interaction.
+- Validate AI output with structured schemas. Do not accept LLM-generated values into core financial fields.
+- Important estimates should carry source, source reference, acquisition date, geography, role/seniority, sample size when available, confidence/data strength, and methodology version.
+- Prefer simple services and bounded LLM calls. Do not create a mega-agent, add LangGraph, split microservices, or introduce a separate vector database without a concrete measured need.
+- For retrieval, evaluate PostgreSQL/pgvector before adding separate vector infrastructure.
+
+## Testing and verification
+
+- Add or update focused tests for changed business logic and contracts. Mock external APIs, SMTP, queues, Redis, and LLMs where the test is not specifically an integration test.
+- Run the narrowest relevant checks after editing unless the user explicitly asks not to. Run broader checks when the change is cross-cutting or a focused check reveals wider risk.
+- Report pre-existing failures separately. Never present an unrun check as passing.
+- Distinguish source-applied, automated-test verified, runtime verified, and browser verified work.
+
+## Documentation and environment
+
+- Keep `info_box.markdown` aligned with the live implementation and explicitly separate Current from Planned behavior.
+- A user-authorized feature is not prohibited merely because it is absent from the documentation. Inspect the code, implement within scope, and update documentation when public behavior changes.
+- Add new dependencies only for a concrete need and update every authoritative dependency manifest in the same change.
+- Add new configuration through environment variables with safe local defaults or production startup validation. Never expose secrets.

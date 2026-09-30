@@ -32,7 +32,7 @@ def mock_onet():
 
 @pytest.fixture
 def mock_ai():
-    with patch("app.services.ai_rag_service.AIRAGService.generate_qualitative_insights") as mock:
+    with patch("app.services.roi_service._generate_qualitative_insights") as mock:
         mock.return_value = {
             "ai_risk_score": 25,
             "skills_to_learn_outside_university": ["Docker", "AWS"],

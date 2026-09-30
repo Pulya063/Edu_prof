@@ -13,7 +13,6 @@ from app.schemas import CareerAnalysisRequest, ROICalculationResponse, TrialROIR
 from app.core.logging_config import log_call
 from app.services.market_data_service import MarketDataService
 from app.services.onet_service import OnetService
-from app.services.ai_rag_service import AIRAGService
 
 
 logger = logging.getLogger(__name__)
@@ -44,18 +43,23 @@ def _money(value: float) -> int:
 def _range(low: float, high: float) -> dict[str, int]:
     return {"min": _money(low), "max": _money(high)}
 
+
+def _generate_qualitative_insights(stats: dict) -> dict:
+    """Load the optional AI stack only when a full analysis requests it."""
+    from app.services.ai_rag_service import AIRAGService
+    return AIRAGService().generate_qualitative_insights(stats)
+
 class ROIService:
     def __init__(self, db_session: Session) -> None:
         self.db = db_session
         self.market_service = MarketDataService()
-        self.ai_service = AIRAGService()
         self.onet_service = OnetService()
 
     @log_call
     def analyze_trial(self, payload: TrialROIRequest) -> dict:
         """Lightweight analysis for trial without full projections and DB saving."""
         prospects = self.market_service.predict_career_prospects(payload.faculty, DEFAULT_COUNTRY)
-        start_salary = float(prospects.get("expected_start_salary", 45000))
+        start_salary = float(prospects.get("expected_start_salary"))
 
         total_investment = float(payload.annual_tuition * payload.study_years)
 
@@ -166,7 +170,7 @@ class ROIService:
         }
         
         # Call AI to get qualitative insights
-        ai_insights = self.ai_service.generate_qualitative_insights(stats_for_ai)
+        ai_insights = _generate_qualitative_insights(stats_for_ai)
         
         skills = ai_insights.get("skills_to_learn_outside_university", [])
         recommended_strategy = ai_insights.get("recommended_strategy", {})

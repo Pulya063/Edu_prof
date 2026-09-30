@@ -7,14 +7,18 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
+from redis.exceptions import RedisError
 
 from app.core.exceptions import AppError
 from app.core.security import create_jwt_access_token, decode_access_token, hash_password, verify_password
 from app.core.logging_config import log_call
 from app.core.config import get_refresh_token_ttl
 from app.core.redis_client import (
+    consume_password_reset_token,
+    delete_password_reset_token,
     delete_refresh_token,
     get_user_id_by_refresh_token,
+    store_password_reset_token,
     store_refresh_token,
 )
 from app.models import User
@@ -145,21 +149,31 @@ class AuthService:
         user = result.scalar_one_or_none()
 
         if user:
-            code = f"{secrets.randbelow(1_000_000):06d}"
-            # Створюємо короткочасний токен на 15 хвилин
-            token = create_jwt_access_token(
-                subject=code,
-                expires_delta=timedelta(minutes=15),
-                purpose="password_reset",
-            )
-            send_verification_email.delay(email, token)
+            token = secrets.token_urlsafe(32)
+            try:
+                store_password_reset_token(token, user.id, ttl_seconds=15 * 60)
+            except RedisError as error:
+                # Keep the public response indistinguishable from an unknown email.
+                logger.error("Password-reset storage unavailable: %s", error)
+                return
+            try:
+                send_verification_email.delay(email, token)
+            except Exception as error:  # Queue failures must not enable email enumeration.
+                try:
+                    delete_password_reset_token(token)
+                except RedisError:
+                    logger.warning("Could not revoke password-reset token after queue failure")
+                logger.error("Could not enqueue password-reset email: %s", error)
 
     @log_call
     def reset_password(self, token: str, new_password: str) -> None:
         try:
-            subject = decode_access_token(token, expected_purpose="password_reset")
-            user_id = int(subject)
-        except (ValueError, TypeError):
+            user_id = consume_password_reset_token(token)
+        except RedisError as error:
+            logger.error("Password-reset storage unavailable: %s", error)
+            raise AppError("Сервіс скидання пароля тимчасово недоступний", status_code=503) from error
+
+        if user_id is None:
             raise AppError("Недійсний або прострочений токен", status_code=400)
 
         result = self.db.execute(select(User).where(User.id == user_id, User.is_active.is_(True)))

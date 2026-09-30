@@ -43,10 +43,10 @@ def send_verification_email(self, email: str, code: str):
     """
     Асинхронне відправлення листа для скидання пароля/верифікації.
     """
-    sender = os.getenv("SMTP_USER")
-    password = os.getenv("SMTP_PASSWORD")
-    host = os.getenv("SMTP_HOST")
-    port = int(os.getenv("SMTP_PORT"))
+    sender = os.getenv("SMTP_USER", "noreply@fence.local")
+    password = os.getenv("SMTP_PASSWORD", "")
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    port = int(os.getenv("SMTP_PORT", "587"))
     
     msg = EmailMessage()
     msg.set_content(f"Ваш код для зміни пароля: {code}\n\nЯкщо ви не робили цей запит, проігноруйте цей лист.")
@@ -57,7 +57,7 @@ def send_verification_email(self, email: str, code: str):
     try:
         # Якщо SMTP не налаштовано (локальна розробка), просто логуємо
         if not password:
-            logger.info(f"[MOCK EMAIL] To: {email} | Token: {code}")
+            logger.info("[MOCK EMAIL] Password-reset message prepared for %s", email)
             return "Mock Sent"
 
         with smtplib.SMTP(host, port) as server:
@@ -68,5 +68,5 @@ def send_verification_email(self, email: str, code: str):
         logger.info(f"Verification email sent to {email}")
         return "Sent"
     except Exception as exc:
-        logger.error(f"Failed to send email to {email}: {exc}")
-        self.retry(exc=exc, countdown=60)
+        logger.error("Failed to send password-reset email to %s: %s", email, exc)
+        raise self.retry(exc=exc, countdown=60)

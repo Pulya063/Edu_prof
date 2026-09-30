@@ -1,6 +1,6 @@
 ﻿import logging
 import os
-from flask import Blueprint, Response, jsonify, request, make_response, redirect
+from flask import Blueprint, Response, current_app, g, jsonify, request, make_response, redirect
 
 from app.core.database import db
 from app.schemas import APIResponse, LoginSchema, RegisterSchema, PasswordResetRequestSchema, PasswordResetSchema
@@ -9,6 +9,9 @@ from app.core.dependencies import get_current_user
 from app.models import User
 from app.services.plan_service import get_plan_details
 from app.core.config import auth_cookie_options, refresh_cookie_options
+from app.core.csrf import clear_csrf_cookie, set_csrf_cookie
+from app.core.exceptions import AppError
+from app.core.rate_limit import normalized_email_rate_key, rate_limit
 
 blueprint = Blueprint("auth", __name__)
 logger = logging.getLogger(__name__)
@@ -18,6 +21,7 @@ def _set_token_cookies(resp: Response, access_token: str, refresh_token: str) ->
     """Set both auth cookies on the response."""
     resp.set_cookie("access_token", access_token, **auth_cookie_options())
     resp.set_cookie("refresh_token", refresh_token, **refresh_cookie_options())
+    set_csrf_cookie(resp)
 
 
 def _clear_token_cookies(resp: Response) -> None:
@@ -25,6 +29,7 @@ def _clear_token_cookies(resp: Response) -> None:
     _clear_opts = {k: v for k, v in auth_cookie_options().items() if k in {"path", "domain", "secure", "samesite"}}
     resp.delete_cookie("access_token", **_clear_opts)
     resp.delete_cookie("refresh_token", **_clear_opts)
+    clear_csrf_cookie(resp)
 
 
 @blueprint.get("/me")
@@ -46,6 +51,7 @@ def me(user: User) -> Response:
 
 
 @blueprint.post("/register")
+@rate_limit(5, 60 * 60, "auth-register")
 def register() -> tuple[Response, int]:
     logger.info("Attempting to register a new user")
     data = request.get_json(silent=True) or request.form.to_dict()
@@ -70,6 +76,7 @@ def register() -> tuple[Response, int]:
 
 
 @blueprint.post("/login")
+@rate_limit(10, 60, "auth-login")
 def login() -> Response:
     logger.info("Attempting to log in a user")
     data = request.get_json(silent=True) or request.form.to_dict()
@@ -91,6 +98,7 @@ def login() -> Response:
 
 
 @blueprint.post("/refresh")
+@rate_limit(30, 60, "auth-refresh")
 def refresh() -> Response:
     """Rotate the refresh token and issue a new access+refresh pair.
 
@@ -100,7 +108,6 @@ def refresh() -> Response:
     logger.info("Token refresh requested")
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
-        from app.core.exceptions import AppError
         raise AppError("Refresh token відсутній", status_code=401)
 
     token_pair = AuthService(db.session).refresh_tokens(refresh_token)
@@ -122,11 +129,14 @@ def logout() -> Response:
         AuthService(db.session).revoke_refresh_token(refresh_token)
 
     resp = make_response(jsonify({"message": "Logged out successfully"}))
+    g.clear_auth_cookies = True
     _clear_token_cookies(resp)
     return resp
 
 
 @blueprint.post("/password-reset-request")
+@rate_limit(5, 60 * 60, "auth-reset-request-ip")
+@rate_limit(3, 60 * 60, "auth-reset-request-email", key_func=normalized_email_rate_key)
 def password_reset_request() -> Response:
     logger.info("Password reset request received")
     data = request.get_json(silent=True) or {}
@@ -138,6 +148,7 @@ def password_reset_request() -> Response:
 
 
 @blueprint.post("/password-reset")
+@rate_limit(10, 60 * 60, "auth-reset")
 def password_reset() -> Response:
     logger.info("Processing password reset")
     data = request.get_json(silent=True) or {}
@@ -148,7 +159,10 @@ def password_reset() -> Response:
 
 
 @blueprint.get("/login/google")
+@rate_limit(20, 60 * 60, "auth-google")
 def login_google():
+    if not current_app.config.get("GOOGLE_OAUTH_CONFIGURED", False):
+        raise AppError("Google OAuth не налаштовано", status_code=503)
     from app.core.oauth import oauth
     from flask import url_for
     redirect_uri = os.getenv("OAUTH_REDIRECT_URI") or url_for("auth.auth_google_callback", _external=True)
@@ -157,6 +171,8 @@ def login_google():
 
 @blueprint.get("/callback/google")
 def auth_google_callback():
+    if not current_app.config.get("GOOGLE_OAUTH_CONFIGURED", False):
+        raise AppError("Google OAuth не налаштовано", status_code=503)
     from app.core.oauth import oauth
     from app.services.auth_service import AuthService
     from app.models import User
@@ -181,7 +197,8 @@ def auth_google_callback():
 
     token_pair = service.create_token_pair(user)
 
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
-    resp = make_response(redirect(f"{frontend_url}/main"))
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3221").rstrip("/")
+    success_url = os.getenv("OAUTH_SUCCESS_URL", frontend_url)
+    resp = make_response(redirect(success_url))
     _set_token_cookies(resp, token_pair.access_token, token_pair.refresh_token)
     return resp

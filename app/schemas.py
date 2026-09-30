@@ -1,6 +1,6 @@
 ﻿from datetime import datetime
 from decimal import Decimal
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator, model_validator
 
@@ -182,6 +182,137 @@ class PasswordResetSchema(BaseModel):
         if not any(char.isdigit() for char in value):
             raise ValueError("Пароль повинен містити хоча б одну цифру")
         return value
+
+
+class SimulationAssumptions(BaseModel):
+    """Decision inputs stored unchanged in each scenario revision."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    university: str = Field(min_length=2, max_length=255)
+    specialization: str = Field(min_length=2, max_length=500)
+    country: str = Field(min_length=2, max_length=120)
+    degree: str = Field(min_length=2, max_length=255)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
+    annual_tuition: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    study_duration_years: Decimal = Field(gt=Decimal("0"), le=Decimal("12"), decimal_places=1)
+    career_target: str = Field(min_length=2, max_length=255)
+    existing_skills: list[str] = Field(default_factory=list, max_length=100)
+    additional_education: list[str] = Field(default_factory=list, max_length=50)
+    courses: list[str] = Field(default_factory=list, max_length=100)
+    certifications: list[str] = Field(default_factory=list, max_length=100)
+    experience_years: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("60"), decimal_places=1)
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return value.upper()
+
+
+class SimulationCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=2, max_length=255)
+    assumptions: SimulationAssumptions
+
+
+class SimulationRevisionCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    assumptions: SimulationAssumptions
+    change_note: str | None = Field(default=None, max_length=500)
+
+
+class SimulationRevisionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    revision_number: int
+    assumptions: SimulationAssumptions
+    methodology_version: str
+    source_snapshot_refs: list[str]
+    change_note: str | None
+    created_at: datetime
+
+
+class SimulationScenarioSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    status: str
+    current_revision_number: int
+    target_role: str
+    country: str
+    currency: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SimulationScenarioResponse(SimulationScenarioSummary):
+    revisions: list[SimulationRevisionResponse]
+
+
+class ProjectionEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    metric: Literal["target_start_salary", "baseline_salary", "salary_growth", "tuition"]
+    source_name: str = Field(min_length=2, max_length=255)
+    source_reference: str = Field(min_length=2, max_length=1000)
+    acquired_at: datetime
+    country: str = Field(min_length=2, max_length=120)
+    role: str = Field(min_length=2, max_length=255)
+    seniority: str = Field(min_length=2, max_length=120)
+    currency: str = Field(min_length=3, max_length=3)
+    sample_size: int | None = Field(default=None, ge=1)
+    confidence: Literal["low", "medium", "high"]
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_evidence_currency(cls, value: str) -> str:
+        return value.upper()
+
+
+class SimulationProjectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    annual_start_salary: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
+    baseline_annual_salary: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    annual_salary_growth_percent: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
+    baseline_salary_growth_percent: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
+    foregone_income_percent: Decimal = Field(default=Decimal("100"), ge=Decimal("0"), le=Decimal("100"))
+    additional_education_cost: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
+    incremental_living_cost: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
+    horizon_years: int = Field(default=10, ge=1, le=30)
+    evidence: list[ProjectionEvidence] = Field(min_length=1, max_length=20)
+
+
+class SalaryTrajectoryPoint(BaseModel):
+    year: int
+    target_salary: Decimal
+    baseline_salary: Decimal
+    incremental_earnings: Decimal
+    cumulative_incremental_earnings: Decimal
+
+
+class SimulationProjectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    revision_id: int
+    methodology_version: str
+    input_fingerprint: str
+    currency: str
+    salary_basis: str
+    total_direct_cost: Decimal
+    opportunity_cost: Decimal
+    total_investment: Decimal
+    estimated_start_salary: Decimal
+    payback_months: int | None
+    break_even_reached: bool
+    horizon_years: int
+    cumulative_incremental_earnings: Decimal
+    roi_percent: Decimal | None
+    salary_trajectory: list[SalaryTrajectoryPoint]
+    evidence: list[ProjectionEvidence]
+    unverified_assumptions: list[str]
+    created_at: datetime
 
 
 class RoadmapGenerateRequest(BaseModel):

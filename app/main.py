@@ -10,7 +10,7 @@ from app.core.database import db
 from app.core.exceptions import AppError
 from app.core.logging_config import configure_logging, register_request_logging
 from dotenv import load_dotenv
-from app.core.config import is_production
+from app.core.config import is_production, resource_audit_enabled
 
 load_dotenv()
 
@@ -31,6 +31,9 @@ def create_app() -> Flask:
     db.init_app(flask_app)
     register_request_logging(flask_app)
 
+    from app.core.oauth import setup_oauth
+    setup_oauth(flask_app)
+
     # Initialise Redis (logs a warning, does not crash, if Redis is down)
     from app.core.redis_client import init_redis
     with flask_app.app_context():
@@ -40,16 +43,23 @@ def create_app() -> Flask:
     def health_check() -> tuple[dict[str, str], int]:
         return {"status": "ok"}, 200
 
-    from app.api import auth, mail, roi, roadmap
-    from app.api import resource_audit
+    from app.api import auth, mail, roi, roadmap, simulations
 
     flask_app.register_blueprint(auth.blueprint, url_prefix="/api/auth")
     flask_app.register_blueprint(roi.blueprint, url_prefix="/api/roi")
     flask_app.register_blueprint(mail.blueprint, url_prefix="/api/mail")
+    flask_app.register_blueprint(simulations.blueprint, url_prefix="/api/simulations")
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/roadmap")
     # JSON API namespace used by the Next.js application.
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/api/roadmap", name="roadmap_api")
-    flask_app.register_blueprint(resource_audit.blueprint)
+    if resource_audit_enabled():
+        from app.api import resource_audit
+        flask_app.register_blueprint(resource_audit.blueprint)
+
+    @flask_app.before_request
+    def protect_cookie_mutations() -> None:
+        from app.core.csrf import validate_csrf_request
+        validate_csrf_request()
 
     @flask_app.before_request
     def load_user_from_cookie():
@@ -58,6 +68,7 @@ def create_app() -> Flask:
 
         g.user = None
         g.new_tokens = None  # filled when silent refresh occurs
+        g.clear_auth_cookies = False
 
         access_token = request.cookies.get("access_token")
         if access_token:
@@ -90,8 +101,13 @@ def create_app() -> Flask:
         token_pair = getattr(g, "new_tokens", None)
         if token_pair is not None:
             from app.core.config import auth_cookie_options, refresh_cookie_options
+            from app.core.csrf import set_csrf_cookie
             response.set_cookie("access_token", token_pair.access_token, **auth_cookie_options())
             response.set_cookie("refresh_token", token_pair.refresh_token, **refresh_cookie_options())
+            set_csrf_cookie(response)
+        elif getattr(g, "user", None) is not None and not request.cookies.get("csrf_token") and not getattr(g, "clear_auth_cookies", False):
+            from app.core.csrf import set_csrf_cookie
+            set_csrf_cookie(response)
         return response
 
     @flask_app.errorhandler(AppError)

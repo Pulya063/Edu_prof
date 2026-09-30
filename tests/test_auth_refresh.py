@@ -22,10 +22,14 @@ def _fake_redis_store():
     def delete(key):
         store.pop(key, None)
 
+    def getdel(key):
+        return store.pop(key, None)
+
     m = MagicMock()
     m.setex.side_effect = setex
     m.get.side_effect = get
     m.delete.side_effect = delete
+    m.getdel.side_effect = getdel
     m.ping.return_value = True
     return m, store
 
@@ -65,6 +69,10 @@ def redis_store(app_with_redis):
 _REG_PAYLOAD = {"email": "refresh@example.com", "password": "Passw0rd!"}
 
 
+def _csrf_headers(client):
+    return {"X-CSRF-Token": client.get_cookie("csrf_token").value}
+
+
 def test_login_sets_both_cookies(client):
     """POST /login should set both access_token and refresh_token cookies."""
     client.post("/api/auth/register", json=_REG_PAYLOAD)
@@ -90,7 +98,7 @@ def test_refresh_returns_new_tokens(client):
     old_refresh = client.get_cookie("refresh_token").value
     assert old_refresh
 
-    resp = client.post("/api/auth/refresh")
+    resp = client.post("/api/auth/refresh", headers=_csrf_headers(client))
     assert resp.status_code == 200
 
     new_refresh = client.get_cookie("refresh_token").value
@@ -105,13 +113,13 @@ def test_refresh_twice_with_old_token_fails(client):
     old_refresh = client.get_cookie("refresh_token").value
 
     # First refresh succeeds, old token is now revoked in fake Redis
-    resp = client.post("/api/auth/refresh")
+    resp = client.post("/api/auth/refresh", headers=_csrf_headers(client))
     assert resp.status_code == 200
 
     # Re-inject the revoked old token to simulate theft / replay
     client.set_cookie("refresh_token", old_refresh)
 
-    resp = client.post("/api/auth/refresh")
+    resp = client.post("/api/auth/refresh", headers=_csrf_headers(client))
     assert resp.status_code == 401, "Re-using revoked refresh token must fail"
 
 
@@ -124,7 +132,7 @@ def test_logout_clears_cookies_and_revokes(client, redis_store):
     redis_key = f"refresh:{refresh_token}"
     assert redis_key in redis_store
 
-    resp = client.post("/api/auth/logout")
+    resp = client.post("/api/auth/logout", headers=_csrf_headers(client))
     assert resp.status_code == 200
     assert redis_key not in redis_store
 

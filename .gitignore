@@ -12,6 +12,7 @@ htmlcov/
 /.env
 frontend/node_modules/
 frontend/.next/
+.pnpm-store/
+*.tsbuildinfo
 app/logs/
 uv.lock
-

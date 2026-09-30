@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import ClassVar
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func, JSON
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import db
@@ -52,6 +52,11 @@ class User(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
         passive_deletes=True,
     )
     motivation_letters: Mapped[list["MotivationLetter"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    simulation_scenarios: Mapped[list["SimulationScenario"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -353,3 +358,95 @@ class UserRoadmap(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     roadmap_data: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     user: Mapped["User"] = relationship(back_populates="roadmaps")
+
+
+class SimulationScenario(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """User-owned decision scenario with immutable numbered revisions."""
+
+    __tablename__ = "simulation_scenarios"
+    __table_args__ = (Index("ix_simulation_scenarios_user_updated", "user_id", "updated_at"),)
+    repr_fields = ("id", "user_id", "name", "current_revision_number")
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="active", server_default="active")
+    current_revision_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    target_role: Mapped[str] = mapped_column(String(255), nullable=False)
+    country: Mapped[str] = mapped_column(String(120), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD", server_default="USD")
+
+    user: Mapped[User] = relationship(back_populates="simulation_scenarios")
+    revisions: Mapped[list["SimulationRevision"]] = relationship(
+        back_populates="scenario",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="SimulationRevision.revision_number",
+    )
+
+
+class SimulationRevision(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """Immutable input snapshot for a simulation scenario."""
+
+    __tablename__ = "simulation_revisions"
+    __table_args__ = (
+        UniqueConstraint("scenario_id", "revision_number", name="uq_simulation_revision_number"),
+        Index("ix_simulation_revisions_scenario_created", "scenario_id", "created_at"),
+    )
+    repr_fields = ("id", "scenario_id", "revision_number")
+
+    scenario_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_scenarios.id", ondelete="CASCADE"), nullable=False
+    )
+    revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    assumptions: Mapped[dict] = mapped_column(JSON, nullable=False)
+    methodology_version: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="scenario-foundation-v1", server_default="scenario-foundation-v1"
+    )
+    source_snapshot_refs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    change_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    scenario: Mapped[SimulationScenario] = relationship(back_populates="revisions")
+    projections: Mapped[list["SimulationProjection"]] = relationship(
+        back_populates="revision",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="SimulationProjection.created_at",
+    )
+
+
+class SimulationProjection(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """Immutable deterministic financial result for one scenario revision."""
+
+    __tablename__ = "simulation_projections"
+    __table_args__ = (
+        UniqueConstraint(
+            "revision_id",
+            "methodology_version",
+            "input_fingerprint",
+            name="uq_simulation_projection_input",
+        ),
+        Index("ix_simulation_projections_revision_created", "revision_id", "created_at"),
+    )
+    repr_fields = ("id", "revision_id", "methodology_version")
+
+    revision_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_revisions.id", ondelete="CASCADE"), nullable=False
+    )
+    methodology_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    salary_basis: Mapped[str] = mapped_column(String(30), nullable=False)
+    total_direct_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    opportunity_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    total_investment: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    estimated_start_salary: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    payback_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    break_even_reached: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    horizon_years: Mapped[int] = mapped_column(Integer, nullable=False)
+    cumulative_incremental_earnings: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    roi_percent: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    salary_trajectory: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    evidence: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    unverified_assumptions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+
+    revision: Mapped[SimulationRevision] = relationship(back_populates="projections")

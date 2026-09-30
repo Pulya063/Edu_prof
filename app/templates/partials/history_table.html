@@ -1,0 +1,60 @@
+{% if calculations %}
+<div class="overflow-x-auto w-full">
+  <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+    <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 uppercase text-xs font-semibold border-b border-slate-200 dark:border-slate-700">
+      <tr>
+        <th class="px-6 py-4">Дата</th>
+        <th class="px-6 py-4">Університет</th>
+        <th class="px-6 py-4">Спеціальність</th>
+        <th class="px-6 py-4">ROI (1-й рік)</th>
+        <th class="px-6 py-4">Окупність</th>
+        <th class="px-6 py-4">Інвестиція</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+      {% for calc in calculations %}
+      <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+        <td class="px-6 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">{{ calc.created_at[:16].replace('T', ' ') if calc.created_at else '—' }}</td>
+        <td class="px-6 py-4 whitespace-nowrap font-medium">{{ calc.university or '—' }}</td>
+        <td class="px-6 py-4 whitespace-nowrap">{{ calc.specialization or '—' }}</td>
+        <td class="px-6 py-4 whitespace-nowrap font-bold text-primary-600 dark:text-primary-400">
+          {% if calc.roi_first_year_min is not none and calc.roi_first_year_max is not none %}
+            {{ "%.1f"|format(calc.roi_first_year_min) }}% – {{ "%.1f"|format(calc.roi_first_year_max) }}%
+          {% elif calc.roi_first_year_min is not none %}
+            {{ "%.1f"|format(calc.roi_first_year_min) }}%
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          {% if calc.payback_months_min is not none and calc.payback_months_max is not none and calc.payback_months_min != calc.payback_months_max %}
+            {{ calc.payback_months_min }}–{{ calc.payback_months_max }} міс.
+          {% elif calc.payback_months_min is not none %}
+            {{ calc.payback_months_min }} міс.
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap font-medium">
+          {% if calc.total_investment_min is not none and calc.total_investment_max is not none and calc.total_investment_min != calc.total_investment_max %}
+            ${{ "{:,.0f}".format(calc.total_investment_min) }} – ${{ "{:,.0f}".format(calc.total_investment_max) }}
+          {% elif calc.total_investment_min is not none %}
+            ${{ "{:,.0f}".format(calc.total_investment_min) }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="p-12 text-center flex flex-col items-center">
+  <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+    <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+  </div>
+  <p class="text-slate-500 dark:text-slate-400 font-medium text-lg">У вас ще немає збережених розрахунків.</p>
+  <p class="text-sm text-slate-400 dark:text-slate-500 mt-1">Зробіть перший крок та розрахуйте ROI вашої освіти!</p>
+</div>
+{% endif %}

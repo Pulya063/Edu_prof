@@ -22,10 +22,9 @@ BODY_EXAMPLES = {
     "/api/auth/login": {"email": "demo@example.com", "password": "DemoPass123"},
     "/api/auth/password-reset-request": {"email": "demo@example.com"},
     "/api/auth/password-reset": {"code": "000000", "new_password": "DemoPass123"},
-    "/api/roi/calculate": {"university": "Demo University", "faculty": "Computer Science", "annual_tuition": 5000, "study_years": 4},
     "/api/roi/trial": {"university": "Demo University", "faculty": "Computer Science", "annual_tuition": 5000, "study_years": 4},
     "/api/roi/analyze": {"university": "Demo University", "degree": "Computer Science — Bachelor", "specialization_focus": "Web Development + Mobile Applications", "country": "United States", "currency": "USD", "study_years": 3.5, "monthly_payment": 930, "payments_per_year": 10, "additional_learning_budget_min": 0, "additional_learning_budget_max": 5000},
-    "/api/mail/send": {"recipient": "demo@example.com", "subject": "Demo message", "body": "Test message from API Explorer"},
+    "/api/mail/university-letter": {"university_id": 1, "program_name": "Computer Science"},
     "/roadmap/generate": {"target_job": "Python Developer", "hours_per_week": 10, "current_income": 0, "skills": ["Python", "SQL"]},
 }
 

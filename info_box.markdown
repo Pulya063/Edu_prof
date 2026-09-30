@@ -1,3 +1,114 @@
+# Fence — актуальний контекст продукту й архітектури
+
+> Phase 0 baseline: 2026-09-30. Цей розділ є канонічним описом поточної реалізації. Живий код і перевірена runtime-поведінка мають пріоритет. Старі нотатки нижче збережені лише як історичний контекст і не повинні використовуватися як доказ наявної функціональності.
+
+## Статуси
+
+- **Current** — присутнє в живому коді.
+- **Planned** — погоджений напрям, але ще не реалізований.
+- **Implemented but unverified** — код внесений, але відповідна runtime/test перевірка ще не пройдена.
+- **Verified** — відповідна автоматизована або браузерна перевірка пройдена в канонічному checkout.
+
+## Current: продукт
+
+Fence зараз складається з редакційного Next.js-лендінгу та Flask API. Backend уже має versioned scenario/projection foundation, але це ще не наскрізний Education → Career Decision Engine: landing simulation, legacy ROI analysis і roadmap не під'єднані до нього.
+
+Основний цільовий шлях продукту:
+
+```text
+Education
+→ Career
+→ Financial outcome
+→ Skills gap
+→ Roadmap
+→ Courses / projects / experience
+→ Employment readiness
+```
+
+## Current: frontend
+
+- Основний UI: `frontend/`, Next.js 14 App Router, React 18 і TypeScript.
+- Реальні routes: `/`, `/plans`, `/payment`, `/contact`, `/legal/[document]`.
+- Dashboard, `/main`, `/calculator`, `/roadmap`, `/profile`, `/trial`, `/results`, `/pricing`, `/login`, `/register` і `/reset-password` у поточному Next.js route tree відсутні.
+- Landing page містить локальну client-side симуляцію та hardcoded university/career/scholarship/roadmap data. Вона не викликає Flask ROI API.
+- `/payment` і legal content залишаються placeholders.
+- Jinja/HTMX не є основним frontend. Flask templates зберігаються лише як legacy/local diagnostic surface.
+- Візуальна основа: editorial composition, `#171819`, white, lime `#B7FF2A`, violet `#D7C7FF`, сильна типографіка та purposeful motion.
+
+## Current: backend
+
+- Python 3.13, Flask, Pydantic, SQLAlchemy 2, PostgreSQL та Alembic у modular-monolith структурі.
+- Redis зберігає refresh tokens; RabbitMQ/Celery виконує email jobs.
+- Основні API:
+  - auth: `/api/auth/me`, `/register`, `/login`, `/refresh`, `/logout`, `/password-reset-request`, `/password-reset`, `/login/google`, `/callback/google`;
+  - ROI: `/api/roi/trial`, `/analyze`, `/history`, `/trash`, delete/restore, university search і tuition history;
+  - simulations: `POST/GET /api/simulations`, `GET /api/simulations/<id>`, `POST /api/simulations/<id>/revisions`, `POST/GET /api/simulations/<id>/revisions/<number>/projections`;
+  - roadmap: `/roadmap/`, `/roadmap/generate` та дубльований `/api/roadmap/*` namespace;
+  - mail: `/api/mail/university-letter`;
+  - health: `/health`.
+- Основні models: `User`, `University`, `UniversityDocument`, `UniversityScholarship`, `TuitionPrice`, `EducationProgram`, `SalaryStatistic`, `CareerForecast`, `CareerAnalysis` та його normalized children, `ROICalculation`, `UserRoadmap`, `SimulationScenario`, `SimulationRevision`, `SimulationProjection`, `Partner`, `MotivationLetter`.
+- `CareerAnalysis` і legacy `ROICalculation` співіснують; їх lifecycle та history contracts ще не уніфіковані.
+- Roadmap зберігається як opaque JSON і не має normalized tasks, skill evidence або feedback loop.
+- Phase 0 не змінював database schema. Phase 1 додає окремі versioned simulation scenarios без зміни legacy ROI/roadmap tables.
+
+## Current: calculations, data and AI
+
+- Core ROI arithmetic виконується Python code, але поточна methodology залишається спрощеною.
+- Active salary lookup використовує локальний CSV, O*NET за наявності credentials і country multipliers; це не повноцінний market snapshot pipeline.
+- LLM використовується для qualitative insights. Він не повинен бути джерелом tuition, salary, ROI, payback, inflation або інших deterministic financial values.
+- Chroma/Ollama/LangChain присутні як експериментальна AI/RAG інфраструктура; auditable ingestion, document versioning і citation pipeline ще відсутні.
+- University data використовує College Scorecard і Hipolabs синхронно; кешування та scheduled refresh pipeline відсутні.
+- DreamWork roadmap generation є синхронною зовнішньою інтеграцією зі спільним service account.
+
+## Verified: Phase 0 security
+
+- Password reset переведено на одноразовий opaque token у Redis із TTL 15 хвилин.
+- Cookie-authenticated mutations захищені double-submit CSRF token.
+- Sensitive auth endpoints мають Redis-backed rate limits із test-memory backend і fail-open logging при storage outage.
+- Google OAuth ініціалізується під час Flask startup і повертає контрольований `503`, якщо credentials відсутні.
+- `/resources` і `/api/resources` реєструються лише через `ENABLE_RESOURCE_AUDIT=true` у non-production; `/health` залишається мінімальним.
+- `OAUTH_SUCCESS_URL` за потреби задає точний frontend redirect після Google callback; fallback — корінь `FRONTEND_URL`.
+- Targeted Phase 0 tests і офіційний backend suite з каталогу `tests/` пройшли в канонічному checkout 2026-09-30.
+
+## Verified: Phase 1 simulation foundation
+
+- `SimulationScenario` є user-owned контейнером рішення з коротким summary поточного стану.
+- `SimulationRevision` зберігає незмінний numbered snapshot assumptions, methodology version і references на майбутні source snapshots.
+- Authenticated API дозволяє створити, перелічити й прочитати власні сценарії та додати нову ревізію.
+- Поточний зріз не обчислює salary, ROI, payback, demand або readiness і не під'єднаний до landing simulation чи roadmap.
+- Targeted simulation/migration checks і повний backend suite пройшли в канонічному checkout 2026-09-30; міграцію створено, але не застосовано до користувацької бази даних.
+
+## Verified: Phase 2 deterministic projection foundation
+
+- Кожна проєкція належить конкретній immutable scenario revision і зберігає methodology version та canonical input fingerprint.
+- Financial engine є чистим deterministic code: direct education cost, opportunity cost, salary trajectory, incremental earnings, payback і horizon ROI.
+- Payback рахується від приросту доходу проти явного counterfactual; повтор однакових inputs не створює дубльованих результатів.
+- Salary evidence має source/reference, acquisition time, country, role, seniority, currency, sample size та confidence; невкриті джерелами assumptions повертаються явно.
+- Цей етап не завантажує market data автоматично та не використовує LLM для фінансових значень.
+- Targeted projection/migration checks пройшли в канонічному checkout 2026-09-30; нову міграцію не застосовано до користувацької бази даних.
+
+## Planned: цільова архітектура
+
+- Наявний versioned Simulation Scenario foundation має поступово поєднати education, career, finance, skills, roadmap і evidence.
+- Наявний deterministic projection foundation треба під'єднати до validated market snapshots і UI; methodology version, inputs та inline evidence вже зберігаються.
+- Market data має пройти через fetcher → parser → normalizer → deduplication → validation → snapshot pipeline.
+- Кожна важлива оцінка повинна мати source, URL/reference, acquisition date, geography, role/seniority, sample size за наявності, confidence/data strength і methodology version.
+- Roadmap completion має оновлювати skill evidence та readiness, але не змінювати salary без явної versioned scenario revision.
+- RAG слід вводити лише для official university/program/scholarship/curriculum/regulatory documents; PostgreSQL/pgvector оцінюється до окремої vector database.
+- Flask/SQLAlchemy modular monolith залишається цільовою backend формою, доки виміряні operational constraints не обґрунтують поділ.
+
+## Відомі розбіжності й обмеження
+
+- Старий опис нижче містить маршрути та user flows, яких немає в поточному Next.js frontend.
+- Старі згадки `/api/roi/calculate`, `/pricing`, `/main` і AI salary fallback не відповідають поточній реалізації.
+- Roadmap Flask views посилаються на templates, які можуть бути відсутні.
+- Frontend plan names не повністю узгоджені з backend entitlement model.
+- Browser/runtime стан frontend не підтверджується лише source inspection; перед QA потрібно перевірити checkout, process, URL і port.
+
+---
+
+# Архів попереднього опису — неканонічний
+
 # ROI освіти — опис проєкту
 
 ## 1. Ідея та призначення

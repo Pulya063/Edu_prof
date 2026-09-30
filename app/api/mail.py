@@ -71,20 +71,3 @@ def create_university_letter(user: User) -> Response:
             },
         }
     ), 201
-
-
-@blueprint.post("/send")
-@get_current_user
-def send_mail(user: User) -> Response:
-    payload = MailRequest.model_validate(request.get_json(silent=True) or {})
-    task_args = (str(payload.recipient), payload.subject, payload.body, str(user.email))
-    try:
-        send_user_email.delay(*task_args)
-    except OperationalError:
-        # Local development can validate the flow without a running broker.
-        # Never silently bypass a real SMTP configuration in production.
-        if os.getenv("APP_ENV", "development").lower() == "development" and not os.getenv("SMTP_PASSWORD"):
-            send_user_email.apply(args=task_args)
-            return jsonify({"success": True, "message": "Лист оброблено в dev mock режимі.", "delivery": "mock"}), 202
-        return jsonify({"detail": "Сервіс відправлення листів тимчасово недоступний."}), 503
-    return jsonify({"success": True, "message": "Лист поставлено в чергу на відправку.", "delivery": "queued"}), 202

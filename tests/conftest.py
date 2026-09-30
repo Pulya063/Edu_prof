@@ -4,6 +4,14 @@ from sqlalchemy.orm import Session
 
 from app.main import create_app
 from app.core.database import db
+from app.core.rate_limit import reset_in_memory_rate_limits
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    reset_in_memory_rate_limits()
+    yield
+    reset_in_memory_rate_limits()
 
 @pytest.fixture
 def app(monkeypatch: pytest.MonkeyPatch) -> Flask:

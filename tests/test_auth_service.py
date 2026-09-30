@@ -1,9 +1,22 @@
 import pytest
+from unittest.mock import MagicMock, patch
 from app.services.auth_service import AuthService
 from app.schemas import RegisterSchema, LoginSchema
 from app.core.exceptions import AppError
 from app.core.security import create_jwt_access_token
 from app.schemas import PasswordResetSchema
+
+
+@pytest.fixture
+def fake_redis():
+    store = {}
+    client = MagicMock()
+    client.setex.side_effect = lambda key, ttl, value: store.__setitem__(key, value)
+    client.get.side_effect = store.get
+    client.getdel.side_effect = lambda key: store.pop(key, None)
+    client.delete.side_effect = lambda key: store.pop(key, None)
+    with patch("app.core.redis_client.get_redis", return_value=client):
+        yield store
 
 def test_register_user(db_session):
     """Перевірка реєстрації нового користувача."""
@@ -38,7 +51,7 @@ def test_register_duplicate_email(db_session):
     assert exc.value.status_code == 409
     assert "вже існує" in str(exc.value.message).lower()
 
-def test_login_success(db_session):
+def test_login_success(db_session, fake_redis):
     """Перевірка успішного входу."""
     service = AuthService(db_session)
     
@@ -75,7 +88,7 @@ def test_login_invalid_password(db_session):
     assert "invalid email or password" in str(exc.value.message).lower()
 
 
-def test_access_token_cannot_be_used_as_password_reset_token(db_session):
+def test_access_token_cannot_be_used_as_password_reset_token(db_session, fake_redis):
     """Access tokens must not be accepted by the password reset flow."""
     service = AuthService(db_session)
     user = service.register(RegisterSchema(
@@ -93,4 +106,22 @@ def test_access_token_cannot_be_used_as_password_reset_token(db_session):
 
 def test_password_reset_schema_enforces_password_strength():
     with pytest.raises(ValueError):
-        PasswordResetSchema(token="token", new_password="weakpassword")
+        PasswordResetSchema(code="token", new_password="weakpassword")
+
+
+def test_password_reset_token_is_single_use(db_session, fake_redis):
+    service = AuthService(db_session)
+    service.register(RegisterSchema(
+        email="single-use@example.com",
+        password="ValidPassword1",
+        confirm_password="ValidPassword1",
+    ))
+
+    with patch("app.tasks.email_tasks.send_verification_email.delay") as send_email:
+        service.request_password_reset("single-use@example.com")
+        token = send_email.call_args.args[1]
+
+    service.reset_password(token, "NewPassword2")
+    with pytest.raises(AppError) as exc:
+        service.reset_password(token, "AnotherPassword3")
+    assert exc.value.status_code == 400

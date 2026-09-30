@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # ── Налаштування ─────────────────────────────────────────────────────────────
 
-SCORECARD_KEY  = os.getenv("COLLEGE_SCORECARD_API_KEY", "DEMO_KEY")
+SCORECARD_KEY  = os.getenv("COLLEGE_SCORECARD_API_KEY")
 SCORECARD_BASE = "https://api.data.gov/ed/collegescorecard/v1/schools"
 HIPOLABS_BASE  = "http://universities.hipolabs.com/search"
 
