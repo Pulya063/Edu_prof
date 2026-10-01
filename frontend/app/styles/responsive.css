@@ -35,6 +35,23 @@ body {
   outline-offset: 4px;
 }
 
+/* Product-preview states preserve CTA hierarchy without implying that an
+   unfinished flow is available. Pricing is the active commercial route. */
+.inactive-link,
+.inactive-cta:disabled,
+[aria-disabled="true"].decision-route {
+  cursor: not-allowed;
+}
+
+.inactive-link { opacity: .52 !important; }
+.inactive-link::before,
+.inactive-link::after { display: none !important; }
+.inactive-cta:disabled { opacity: .68 !important; filter: saturate(.72); }
+.inactive-cta:disabled:hover,
+[aria-disabled="true"].decision-route:hover { transform: none !important; box-shadow: none !important; }
+.mobile-pricing-link { background: var(--fence-lime) !important; color: var(--fence-deep-black) !important; font-weight: 800; }
+.decision-example-note .rating-stars { font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+
 .feature-shell,
 .hero-content,
 .testimonials-inner {
@@ -254,14 +271,23 @@ body {
     scroll-behavior: smooth !important;
     scroll-snap-type: x proximity !important;
     overscroll-behavior-x: contain;
-    scrollbar-width: none !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(23, 24, 25, .32) transparent !important;
     -webkit-overflow-scrolling: touch;
   }
 
   #hero .overlay-bento::-webkit-scrollbar,
   #comparison .university-cards::-webkit-scrollbar,
   #scholarships .scholarship-carousel::-webkit-scrollbar {
-    display: none !important;
+    display: block !important;
+    height: 6px;
+  }
+
+  #hero .overlay-bento::-webkit-scrollbar-thumb,
+  #comparison .university-cards::-webkit-scrollbar-thumb,
+  #scholarships .scholarship-carousel::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(23, 24, 25, .32);
   }
 
   #hero .dashboard-stage,
@@ -408,6 +434,12 @@ body {
     text-wrap: balance;
   }
 
+  .hero-copy h1 {
+    max-width: 100%;
+    font-size: clamp(42px, 13.2vw, 56px);
+    letter-spacing: -.082em;
+  }
+
   .calculator-results {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -458,4 +490,32 @@ body {
   .nav-glow-spot {
     display: none;
   }
+}
+
+@media (min-width: 901px) and (max-width: 1120px) {
+  .landing-header { gap: 18px; }
+  .desktop-nav { gap: clamp(14px, 2vw, 24px); }
+  .header-actions { gap: 12px; }
+  .header-cta { padding-inline: 14px; white-space: nowrap; }
+}
+
+@media (min-width: 1600px) {
+  :root { --layout-max: 1500px; }
+  .landing-header { padding-inline: max(4.2vw, calc((100vw - 1680px) / 2)); }
+  .feature-section,
+  .testimonials-section { padding-inline: max(4.2vw, calc((100vw - 1680px) / 2)); }
+}
+
+@media (max-width: 360px) {
+  :root { --layout-gutter: 16px; }
+  .landing-header { padding-inline: 14px; }
+  .brand-name { font-size: 14px; }
+  .lang-switcher-trigger { padding-inline: 9px; }
+  .mobile-nav { right: 12px; left: 12px; }
+  .hero-copy h1,
+  .feature-intro h2,
+  .testimonials-copy h2,
+  .final-head h2,
+  .footer-brand h2 { letter-spacing: -.075em; }
+  .factor-card { padding-inline: 12px; }
 }

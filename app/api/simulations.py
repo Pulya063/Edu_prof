@@ -5,8 +5,10 @@ from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas import (
     SimulationCreateRequest,
+    SimulationOverviewResponse,
     SimulationRevisionCreateRequest,
     SimulationProjectionRequest,
+    SimulationProjectionExplainabilityResponse,
     SimulationProjectionResponse,
     SimulationScenarioResponse,
     SimulationScenarioSummary,
@@ -32,6 +34,42 @@ def list_simulations(user: User) -> Response:
     scenarios = SimulationService(db.session).list_for_user(user.id)
     response = [SimulationScenarioSummary.model_validate(item).model_dump(mode="json") for item in scenarios]
     return jsonify(response)
+
+
+@blueprint.get("/overview")
+@get_current_user
+def get_simulation_overview(user: User) -> Response:
+    simulation_service = SimulationService(db.session)
+    scenarios = simulation_service.list_for_user(user.id)
+    if not scenarios:
+        response = SimulationOverviewResponse(status="empty")
+        return jsonify(response.model_dump(mode="json"))
+
+    scenario = simulation_service.get(user.id, scenarios[0].id)
+    projection_service = SimulationProjectionService(db.session)
+    projections = projection_service.list_for_revision(
+        user.id,
+        scenario.id,
+        scenario.current_revision_number,
+    )
+    if not projections:
+        response = SimulationOverviewResponse(status="scenario_only", scenario=scenario)
+        return jsonify(response.model_dump(mode="json"))
+
+    projection = projections[0]
+    explainability = projection_service.explainability(
+        user.id,
+        scenario.id,
+        scenario.current_revision_number,
+        projection.id,
+    )
+    response = SimulationOverviewResponse(
+        status="projected",
+        scenario=scenario,
+        projection=projection,
+        explainability=explainability,
+    )
+    return jsonify(response.model_dump(mode="json"))
 
 
 @blueprint.get("/<int:scenario_id>")
@@ -75,3 +113,23 @@ def list_simulation_projections(scenario_id: int, revision_number: int, user: Us
         for item in projections
     ]
     return jsonify(response)
+
+
+@blueprint.get(
+    "/<int:scenario_id>/revisions/<int:revision_number>/projections/<int:projection_id>/explainability"
+)
+@get_current_user
+def get_simulation_projection_explainability(
+    scenario_id: int,
+    revision_number: int,
+    projection_id: int,
+    user: User,
+) -> Response:
+    explanation = SimulationProjectionService(db.session).explainability(
+        user.id,
+        scenario_id,
+        revision_number,
+        projection_id,
+    )
+    response = SimulationProjectionExplainabilityResponse.model_validate(explanation)
+    return jsonify(response.model_dump(mode="json"))

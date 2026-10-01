@@ -65,8 +65,32 @@ def test_deterministic_projection_uses_incremental_earnings():
     assert result["opportunity_cost"] == 40000
     assert result["total_investment"] == 94000
     assert result["payback_months"] == 38
+    assert result["payback_from_enrollment_months"] == 86
     assert result["cumulative_incremental_earnings"] == 150000
     assert result["roi_percent"] == Decimal("59.57")
+
+
+def test_detailed_projection_offsets_optional_study_income_and_keeps_downside_years():
+    payload_data = _projection_payload()
+    payload_data.update(
+        {
+            "annual_start_salary": "15000.00",
+            "baseline_annual_salary": "20000.00",
+            "mandatory_fees": "3000.00",
+            "scholarships_and_grants": "10000.00",
+            "employment_income_during_study": "12000.00",
+        }
+    )
+    payload = SimulationProjectionRequest.model_validate(payload_data)
+    result = DeterministicProjectionEngine.calculate(_assumptions(), payload)
+
+    assert result["total_direct_cost"] == 47000
+    assert result["opportunity_cost"] == 28000
+    assert result["total_investment"] == 75000
+    assert result["cumulative_incremental_earnings"] == -25000
+    assert result["payback_months"] is None
+    assert result["payback_from_enrollment_months"] is None
+    assert result["salary_trajectory"][0]["incremental_earnings"] == "-5000.00"
 
 
 def test_simulation_scenario_revision_flow(client, monkeypatch):
@@ -121,10 +145,38 @@ def test_simulation_scenario_revision_flow(client, monkeypatch):
     )
     assert projection.status_code == 201
     forecast = projection.get_json()
-    assert forecast["methodology_version"] == "scenario-projection-v1"
+    assert forecast["methodology_version"] == "scenario-projection-v2"
     assert forecast["payback_months"] == 38
+    assert forecast["payback_from_enrollment_months"] == 86
     assert forecast["total_investment"] == "94000.00"
+    assert forecast["calculation_inputs"]["annual_start_salary"] == "50000.00"
+    assert forecast["cost_breakdown"]["tuition"] == "48000.00"
     assert forecast["unverified_assumptions"] == ["annual_tuition"]
+
+    explainability = client.get(
+        f"/api/simulations/{scenario['id']}/revisions/2/projections/"
+        f"{forecast['id']}/explainability"
+    )
+    assert explainability.status_code == 200
+    trust = explainability.get_json()
+    assert trust["calculation_type"] == "deterministic"
+    assert trust["ai_generated"] is False
+    assert trust["salary_source_kind"] == "manual_evidence"
+    assert trust["selected_salary_metric"] == "annual_start_salary"
+    assert trust["source_snapshots"] == []
+    assert trust["source_integrity"] == "complete"
+
+    overview = client.get("/api/simulations/overview")
+    assert overview.status_code == 200
+    overview_data = overview.get_json()
+    assert overview_data["status"] == "projected"
+    assert overview_data["scenario"]["id"] == scenario["id"]
+    assert overview_data["projection"]["id"] == forecast["id"]
+    assert overview_data["explainability"]["calculation_type"] == "deterministic"
+
+    retired = client.post("/api/roi/analyze", json={}, headers=headers)
+    assert retired.status_code == 410
+    assert retired.get_json()["replacement"]["create_scenario"] == "/api/simulations"
 
     duplicate = client.post(
         f"/api/simulations/{scenario['id']}/revisions/2/projections",

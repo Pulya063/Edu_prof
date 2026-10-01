@@ -3,6 +3,7 @@ import os
 
 from flask import Flask, Response, jsonify, request, g
 from pydantic import ValidationError
+from redis.exceptions import RedisError
 from werkzeug.exceptions import HTTPException
 
 from app.api import auth, roi
@@ -43,15 +44,17 @@ def create_app() -> Flask:
     def health_check() -> tuple[dict[str, str], int]:
         return {"status": "ok"}, 200
 
-    from app.api import auth, mail, roi, roadmap, simulations
+    from app.api import auth, mail, market, roi, roadmap, simulations, workspace
 
     flask_app.register_blueprint(auth.blueprint, url_prefix="/api/auth")
     flask_app.register_blueprint(roi.blueprint, url_prefix="/api/roi")
     flask_app.register_blueprint(mail.blueprint, url_prefix="/api/mail")
     flask_app.register_blueprint(simulations.blueprint, url_prefix="/api/simulations")
+    flask_app.register_blueprint(market.blueprint, url_prefix="/api/market")
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/roadmap")
     # JSON API namespace used by the Next.js application.
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/api/roadmap", name="roadmap_api")
+    flask_app.register_blueprint(workspace.blueprint, url_prefix="/api/workspace")
     if resource_audit_enabled():
         from app.api import resource_audit
         flask_app.register_blueprint(resource_audit.blueprint)
@@ -64,7 +67,6 @@ def create_app() -> Flask:
     @flask_app.before_request
     def load_user_from_cookie():
         from app.services.auth_service import AuthService
-        from app.core.config import auth_cookie_options, refresh_cookie_options
 
         g.user = None
         g.new_tokens = None  # filled when silent refresh occurs
@@ -94,10 +96,30 @@ def create_app() -> Flask:
             except AppError:
                 # Refresh token invalid — user stays unauthenticated
                 logger.debug("Silent refresh failed — refresh token invalid/expired")
+                g.clear_auth_cookies = True
+            except RedisError as error:
+                logger.warning("Silent refresh storage unavailable: %s", error)
+                g.clear_auth_cookies = True
+        elif access_token:
+            g.clear_auth_cookies = True
 
     @flask_app.after_request
     def apply_new_tokens(response: Response) -> Response:
         """If a silent refresh happened, write the new cookies onto the response."""
+        if getattr(g, "clear_auth_cookies", False):
+            from app.core.config import auth_cookie_options
+            from app.core.csrf import clear_csrf_cookie
+
+            clear_options = {
+                key: value
+                for key, value in auth_cookie_options().items()
+                if key in {"path", "domain", "secure", "samesite"}
+            }
+            response.delete_cookie("access_token", **clear_options)
+            response.delete_cookie("refresh_token", **clear_options)
+            clear_csrf_cookie(response)
+            return response
+
         token_pair = getattr(g, "new_tokens", None)
         if token_pair is not None:
             from app.core.config import auth_cookie_options, refresh_cookie_options
@@ -105,7 +127,7 @@ def create_app() -> Flask:
             response.set_cookie("access_token", token_pair.access_token, **auth_cookie_options())
             response.set_cookie("refresh_token", token_pair.refresh_token, **refresh_cookie_options())
             set_csrf_cookie(response)
-        elif getattr(g, "user", None) is not None and not request.cookies.get("csrf_token") and not getattr(g, "clear_auth_cookies", False):
+        elif getattr(g, "user", None) is not None and not request.cookies.get("csrf_token"):
             from app.core.csrf import set_csrf_cookie
             set_csrf_cookie(response)
         return response

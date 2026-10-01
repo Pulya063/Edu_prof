@@ -2,37 +2,31 @@ import { HeadlineLine } from "../hooks/useScrollMotion";
 import { useLanguage, type Lang } from "../context/LanguageContext";
 import { translations } from "../utils/translations";
 
-type Navigate = (target: string) => void;
-
-const supportEmail = process.env.NEXT_PUBLIC_FENCE_SUPPORT_EMAIL;
-const instagramUrl = process.env.NEXT_PUBLIC_FENCE_INSTAGRAM_URL;
-const linkedinUrl = process.env.NEXT_PUBLIC_FENCE_LINKEDIN_URL;
-
 const footerColumns = [
   {
     title: "Product",
     links: [
-      { label: "Compare universities", target: "comparison" },
-      { label: "Calculate ROI", target: "calculator" },
-      { label: "Career roadmap", target: "roadmap" },
-      { label: "Scholarships", target: "scholarships" },
+      { label: "University comparison" },
+      { label: "Education ROI" },
+      { label: "Career roadmap" },
+      { label: "Scholarship matching" },
     ],
   },
   {
     title: "Discover",
     links: [
-      { label: "How it works", target: "roadmap" },
-      { label: "Student stories", target: "testimonials" },
-      { label: "Career guides", target: "roadmap" },
-      { label: "FAQ", target: "final-decision" },
+      { label: "How it works" },
+      { label: "Decision examples" },
+      { label: "Career guides" },
+      { label: "FAQ" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "About Fence", target: "hero" },
+      { label: "About Fence" },
       { label: "Pricing", href: "/plans" },
-      { label: "Contact", href: "/contact" },
+      { label: "Contact" },
     ],
   },
 ] as const;
@@ -45,20 +39,12 @@ function Arrow({ up = false }: { up?: boolean }) {
   );
 }
 
-function FooterLink({ label, target, href, onNavigate }: { label: string; target?: string; href?: string; onNavigate: Navigate }) {
-  if (target) {
-    return <a className="footer-link" href={`#${target}`} onClick={(event) => { event.preventDefault(); onNavigate(target); }}>{label}</a>;
-  }
-  return <a className="footer-link" href={href}>{label}</a>;
+function FooterLink({ label, href }: { label: string; href?: string }) {
+  if (href === "/plans") return <a className="footer-link" href={href}>{label}</a>;
+  return <span className="footer-link footer-link--inactive" aria-disabled="true">{label}<small>soon</small></span>;
 }
 
-function ConfiguredExternalLink({ label, href, kind }: { label: string; href?: string; kind: "social" | "email" }) {
-  if (href) return <a className="footer-link" href={href} target={kind === "social" ? "_blank" : undefined} rel={kind === "social" ? "noreferrer" : undefined}>{label}</a>;
-  const configName = kind === "email" ? "NEXT_PUBLIC_FENCE_SUPPORT_EMAIL" : `NEXT_PUBLIC_FENCE_${label.toUpperCase()}_URL`;
-  return <span className="footer-link footer-link--config" aria-label={`${label} is awaiting ${configName} configuration`} title={`Set ${configName} to enable this link`}>{label}</span>;
-}
-
-export default function LandingFooter({ onNavigate }: { onNavigate: Navigate }) {
+export default function LandingFooter() {
   const { lang, setLang } = useLanguage();
   const backToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -67,24 +53,24 @@ export default function LandingFooter({ onNavigate }: { onNavigate: Navigate }) 
       <span className="footer-texture" aria-hidden="true" />
       <div className="footer-boundary" aria-hidden="true" />
       <div className="footer-ready-wrap">
-        <a className="footer-ready-card" href="#calculator" onClick={(event) => { event.preventDefault(); onNavigate("calculator"); }}>
-          <span><strong>Ready to decide?</strong><small>Turn questions into a plan.</small></span>
+        <a className="footer-ready-card" href="/plans">
+          <span><strong>See the plans.</strong><small>Preview simple pricing for clearer decisions.</small></span>
           <i className="footer-ready-orb" aria-hidden="true" />
           <b aria-hidden="true"><Arrow /></b>
         </a>
       </div>
       <div className="footer-shell">
         <section className="footer-brand" aria-labelledby="footer-title">
-          <a className="footer-wordmark" href="#hero" onClick={(event) => { event.preventDefault(); onNavigate("hero"); }} aria-label="Fence home"><i>F</i><strong>Fence</strong></a>
-          <h2 id="footer-title"><HeadlineLine>A <span className="footer-oval">clearer</span> path</HeadlineLine><HeadlineLine>to a <span className="footer-lime">brighter</span> future.</HeadlineLine></h2>
-          <p>Data today. Brighter tomorrows.</p>
+          <div className="footer-wordmark" aria-label="Fence"><i>F</i><strong>Fence</strong></div>
+          <h2 id="footer-title"><HeadlineLine>A <span className="footer-oval">clearer</span> path</HeadlineLine><HeadlineLine>from study to <span className="footer-lime">career.</span></HeadlineLine></h2>
+          <p>Compare the cost. Test the outcome. Plan the next move.</p>
         </section>
         <div className="footer-navigation" aria-label="Footer navigation">
-          {footerColumns.map((column) => <nav className="footer-column" aria-labelledby={`footer-${column.title.toLowerCase()}`} key={column.title}><h3 id={`footer-${column.title.toLowerCase()}`}>{column.title}</h3><ul>{column.links.map((link) => <li key={link.label}><FooterLink {...link} onNavigate={onNavigate} /></li>)}</ul></nav>)}
-          <nav className="footer-column" aria-labelledby="footer-connect"><h3 id="footer-connect">Connect</h3><ul><li><ConfiguredExternalLink label="Instagram" href={instagramUrl} kind="social" /></li><li><ConfiguredExternalLink label="LinkedIn" href={linkedinUrl} kind="social" /></li><li><ConfiguredExternalLink label="Email" href={supportEmail ? `mailto:${supportEmail}` : undefined} kind="email" /></li></ul></nav>
+          {footerColumns.map((column) => <nav className="footer-column" aria-labelledby={`footer-${column.title.toLowerCase()}`} key={column.title}><h3 id={`footer-${column.title.toLowerCase()}`}>{column.title}</h3><ul>{column.links.map((link) => <li key={link.label}><FooterLink {...link} /></li>)}</ul></nav>)}
+          <nav className="footer-column" aria-labelledby="footer-connect"><h3 id="footer-connect">Connect</h3><ul>{["Instagram", "LinkedIn", "Email"].map((label) => <li key={label}><FooterLink label={label} /></li>)}</ul></nav>
         </div>
       </div>
-      <div className="footer-legal"><p>© 2026 Fence. Built for confident education decisions.</p><div className="footer-legal-actions"><a className="footer-link" href="/legal/privacy">Privacy</a><a className="footer-link" href="/legal/terms">Terms</a><a className="footer-link" href="/legal/cookies">Cookies</a><label className="footer-language">Language: <select aria-label="Site language" value={lang} onChange={(event) => setLang(event.target.value as Lang)}>{(["en", "uk", "pl"] as const).map((code) => <option key={code} value={code}>{translations[lang].langLabels[code]}</option>)}</select></label><button className="footer-back-to-top" type="button" aria-label="Back to top" onClick={backToTop}><Arrow up /></button></div></div>
+      <div className="footer-legal"><p>© 2026 Fence. Education-to-career decision planning.</p><div className="footer-legal-actions">{["Privacy", "Terms", "Cookies"].map((label) => <span className="footer-link footer-link--inactive" aria-disabled="true" key={label}>{label}<small>draft</small></span>)}<label className="footer-language">Language: <select aria-label="Site language" value={lang} onChange={(event) => setLang(event.target.value as Lang)}>{(["en", "uk", "pl"] as const).map((code) => <option key={code} value={code}>{translations[lang].langLabels[code]}</option>)}</select></label><button className="footer-back-to-top" type="button" aria-label="Back to top" onClick={backToTop}><Arrow up /></button></div></div>
     </footer>
   );
 }

@@ -1,5 +1,7 @@
 # Internal Dashboard Design Plan: Fence Workspace
 
+> **Verified 2026-10-01:** `/workspace/overview` реалізовано як read-only analytical report поверх `GET /api/simulations/overview`, а `/workspace/scenario/new` — як authenticated creation flow через наявні scenario та deterministic projection contracts. Нижчий первинний plan з sidebar/card dashboard і `/api/calculate` збережений як історичний напрям та не є описом live implementation. Scenario editing/revisions і roadmap feedback UI залишаються planned.
+
 ## 1. Overview & Architecture
 
 The internal application (Workspace) will use a **Sidebar Layout (App Shell)**. The layout will provide a consistent navigation experience across all internal pages, keeping the user context clear.

@@ -2,6 +2,7 @@ import logging
 import smtplib
 from email.message import EmailMessage
 import os
+from urllib.parse import urlencode
 
 from app.core.celery_app import celery_app
 
@@ -47,10 +48,21 @@ def send_verification_email(self, email: str, code: str):
     password = os.getenv("SMTP_PASSWORD", "")
     host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     port = int(os.getenv("SMTP_PORT", "587"))
+    reset_page = os.getenv(
+        "PASSWORD_RESET_URL",
+        f"{os.getenv('FRONTEND_URL', 'http://localhost:3221').rstrip('/')}/reset-password",
+    )
+    # Keep the opaque token in the URL fragment so it is not sent in the HTTP request
+    # or captured by ordinary reverse-proxy access logs.
+    reset_link = f"{reset_page}#{urlencode({'token': code})}"
     
     msg = EmailMessage()
-    msg.set_content(f"Ваш код для зміни пароля: {code}\n\nЯкщо ви не робили цей запит, проігноруйте цей лист.")
-    msg['Subject'] = 'Скидання пароля - Калькулятор ROI'
+    msg.set_content(
+        "Ви запросили зміну пароля Fence.\n\n"
+        f"Відкрийте захищене посилання протягом 15 хвилин:\n{reset_link}\n\n"
+        "Посилання одноразове. Якщо ви не робили цей запит, проігноруйте лист."
+    )
+    msg['Subject'] = 'Скидання пароля Fence'
     msg['From'] = sender
     msg['To'] = email
 

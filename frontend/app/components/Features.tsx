@@ -4,8 +4,6 @@ import { HeadlineLine } from "../hooks/useScrollMotion";
 import { createScreenProjection, type ScreenPoint } from "../utils/screenProjection";
 import { useScaledFrame } from "../hooks/useScaledFrame";
 
-type Navigate = (target: string) => void;
-
 function Arrow({ direction = "right" }: { direction?: "left" | "right" }) {
   const right = direction === "right";
   return (
@@ -45,9 +43,9 @@ function useSwipe(move: (direction: number) => void) {
 }
 
 const universities = [
-  { name: "University of California, Berkeley", strap: "Research-led. Future-focused.", tuition: 45000, employment: 91, salary: 112000, scholarship: 15000, currency: "USD", icon: "campus", tone: "dark", best: false },
-  { name: "University of Toronto", strap: "Practical skills. Global reach.", tuition: 39000, employment: 89, salary: 96000, scholarship: 12000, currency: "USD", icon: "globe", tone: "light", best: true },
-  { name: "University of Amsterdam", strap: "Open minds. Strong outcomes.", tuition: 17000, employment: 88, salary: 74000, scholarship: 8000, currency: "EUR", icon: "spark", tone: "lime", best: false },
+  { name: "US Research University", strap: "High investment. Higher salary assumption.", tuition: 45000, employment: 91, salary: 112000, scholarship: 15000, currency: "USD", icon: "campus", tone: "dark", best: false },
+  { name: "Canadian Public University", strap: "Balanced cost and outcome scenario.", tuition: 39000, employment: 89, salary: 96000, scholarship: 12000, currency: "USD", icon: "globe", tone: "light", best: true },
+  { name: "European City University", strap: "Lower tuition. Different market context.", tuition: 17000, employment: 88, salary: 74000, scholarship: 8000, currency: "EUR", icon: "spark", tone: "lime", best: false },
 ] as const;
 
 function money(amount: number, currency: string) {
@@ -106,7 +104,7 @@ const defaultScreenCorners = [
 export function LiveRoiCalculator() {
   const [tuition, setTuition] = useState(45000);
   const [years, setYears] = useState(4);
-  const [university, setUniversity] = useState("University of California, Berkeley");
+  const [university, setUniversity] = useState("US Research University");
   const [career, setCareer] = useState("Software Engineer");
   const [hasCalculated, setHasCalculated] = useState(false);
   const { frameRef: calculatorFrameRef, scale: calculatorScale } = useScaledFrame<HTMLDivElement>(920);
@@ -223,9 +221,9 @@ export function UniversityComparison() {
     <section className="feature-section comparison-section dark-feature motion-section" id="comparison" data-motion-section="true" data-header-theme="dark" aria-labelledby="comparison-title" tabIndex={0} onKeyDown={onKeyDown}>
       <div className="feature-shell comparison-shell">
         <div className="feature-intro dark-intro">
-          <p className="feature-label">03 / UNIVERSITY COMPARISON</p>
+          <p className="feature-label">03 / EDUCATION PATH COMPARISON</p>
           <h2 id="comparison-title"><HeadlineLine>Compare <span className="oval-highlight">more</span> than</HeadlineLine><HeadlineLine><span className="rect-highlight violet-marker">rankings.</span></HeadlineLine></h2>
-          <p className="feature-description">See how tuition, scholarships, employment and salary change the estimated return, side by side.</p>
+          <p className="feature-description">Compare sample paths side by side to see how tuition, funding, employment, and salary assumptions change the result.</p>
           <div className="comparison-count"><strong>03</strong><span>Options</span><i /></div>
         </div>
         <div className="comparison-area">
@@ -261,13 +259,13 @@ const factors = [
   { name: "Internships", detail: "Real-world experience opens doors.", delta: "+$8,160", icon: "internship", salary: "$76,160" },
 ] as const;
 
-export function OutcomeFactors({ onNavigate }: { onNavigate: Navigate }) {
+export function OutcomeFactors() {
   const [selected, setSelected] = useState(5);
   const factor = factors[selected];
   return (
     <section className="feature-section factors-section dark-feature motion-section" id="factors" data-motion-section="true" data-header-theme="dark" aria-labelledby="factors-title">
       <div className="feature-shell factors-shell">
-        <div className="feature-intro dark-intro factors-intro"><p className="feature-label"><i /> 04 / WHAT AFFECTS YOUR FUTURE</p><h2 id="factors-title"><HeadlineLine>Your outcome</HeadlineLine><HeadlineLine>is shaped by</HeadlineLine><HeadlineLine><span className="oval-highlight">more</span> than</HeadlineLine><HeadlineLine>a degree.</HeadlineLine></h2><p className="feature-description">Explore the factors that influence your career outcomes and see how each choice can change your future.</p><button type="button" className="lime-button" onClick={() => onNavigate("roadmap")}>Explore your path <span><Arrow /></span></button><div className="factor-proof"><b>6<small>key factors</small></b><b>Illustrative<small>salary scenarios</small></b><b>A clearer<small>path forward</small></b></div></div>
+        <div className="feature-intro dark-intro factors-intro"><p className="feature-label"><i /> 04 / WHAT SHAPES THE OUTCOME</p><h2 id="factors-title"><HeadlineLine>Your outcome</HeadlineLine><HeadlineLine>is shaped by</HeadlineLine><HeadlineLine><span className="oval-highlight">more</span> than</HeadlineLine><HeadlineLine>a degree.</HeadlineLine></h2><p className="feature-description">Test how location, experience, internships, and market demand can change a career scenario. Every figure shown here is illustrative, not a promise.</p><button type="button" className="lime-button inactive-cta" disabled aria-disabled="true">Path builder coming soon <span><Arrow /></span></button><div className="factor-proof"><b>6<small>decision factors</small></b><b>Scenario-based<small>salary assumptions</small></b><b>One view<small>of the trade-offs</small></b></div></div>
         <div className="factor-orbit" aria-label="Interactive career outcome factors">
           <div className="orbit-circle orbit-circle--outer" aria-hidden="true" /><div className="orbit-circle orbit-circle--middle" aria-hidden="true" /><div className="orbit-circle orbit-circle--inner" aria-hidden="true" />
           <div className="salary-core" aria-live="polite"><span>Projected salary</span><strong>{factor.salary}</strong><small>Illustrative US data analyst benchmark</small></div>
@@ -301,7 +299,7 @@ export function CareerRoadmap() {
   return (
     <section className="feature-section roadmap-section motion-section" id="roadmap" data-motion-section="true" data-header-theme="light" aria-labelledby="roadmap-title">
       <div className="feature-shell roadmap-shell">
-        <div className="roadmap-top"><div className="feature-intro"><p className="feature-label"><i /> 05 / PERSONAL CAREER ROADMAP</p><h2 id="roadmap-title"><HeadlineLine>From <span className="oval-highlight">choice</span> to</HeadlineLine><HeadlineLine><span className="rect-highlight lime-marker">first offer.</span></HeadlineLine></h2><p className="feature-description">A clear, personalized roadmap from education to real career outcomes.</p></div><div className="roadmap-metrics"><b>12 <span>months<small>to career ready</small></span></b><b>24 <span>skills<small>in demand</small></span></b><b>6 <span>projects<small>for a standout portfolio</small></span></b></div></div>
+        <div className="roadmap-top"><div className="feature-intro"><p className="feature-label"><i /> 05 / CAREER ROADMAP PREVIEW</p><h2 id="roadmap-title"><HeadlineLine>From <span className="oval-highlight">choice</span> to</HeadlineLine><HeadlineLine><span className="rect-highlight lime-marker">job readiness.</span></HeadlineLine></h2><p className="feature-description">Turn a career target into a practical sequence of skills, projects, applications, and experience.</p></div><div className="roadmap-metrics"><b>5 <span>stages<small>from direction to role</small></span></b><b>24 <span>example skills<small>to validate by target role</small></span></b><b>6 <span>project ideas<small>for a credible portfolio</small></span></b></div></div>
         <div className="roadmap-journey" aria-label="Five stage career roadmap" ref={journeyRef}><div className="roadmap-line" aria-hidden="true"><svg viewBox="0 0 1000 160" preserveAspectRatio="none"><path className="roadmap-line-base" pathLength="100" d="M0 133C78 133 102 87 200 87S306 52 400 52s109-45 200-45 116 45 200 45 118-22 200-22" /><path className="roadmap-line-progress" pathLength="100" style={{ strokeDashoffset: 100 - progress }} d="M0 133C78 133 102 87 200 87S306 52 400 52s109-45 200-45 116 45 200 45 118-22 200-22" /><circle cx="0" cy="133" r="11" /><circle cx="200" cy="87" r="11" /><circle cx="400" cy="52" r="12" /><circle cx="600" cy="7" r="11" /><circle cx="800" cy="52" r="11" /><circle cx="1000" cy="30" r="11" /></svg></div>{stages.map((stage, index) => <button type="button" className={`roadmap-card roadmap-card--${stage.tone} ${active === index ? "is-current" : ""}`} onClick={() => setActive(index)} aria-current={active === index ? "step" : undefined} data-roadmap-index={index} key={stage.number}><span className="roadmap-number">{stage.number}</span>{active === index && <span className="you-are">You are here</span>}<h3>{stage.title}</h3><p>{stage.text}</p><ul>{stage.checks.map((check, checkIndex) => <li className={checkIndex < Math.max(1, 3 - index) ? "done" : ""} key={check}>{check}</li>)}</ul><footer><span>Progress</span><b>{stage.progress}%</b><i><em style={{ width: `${stage.progress}%` }} /></i></footer></button>)}</div>
       </div>
     </section>
@@ -309,13 +307,13 @@ export function CareerRoadmap() {
 }
 
 const scholarships = [
-  { title: "Future Builders Grant", copy: "Supporting the next generation of problem solvers.", amount: "$8,000", deadline: "Apr 30, 2026", country: "United States", match: 92, tags: ["Undergraduate", "STEM"], tone: "light", symbol: "grant" },
-  { title: "EU Digital Talent", copy: "Empowering digital talent across Europe.", amount: "\u20AC6,500", deadline: "May 15, 2026", country: "European Union", match: 87, tags: ["Bachelor's", "Digital Skills"], tone: "dark", symbol: "digital" },
-  { title: "Women in Data Fund", copy: "Backing women building a more inclusive tech future.", amount: "$5,000", deadline: "Mar 31, 2026", country: "Global", match: 81, tags: ["Women in Tech", "Data & AI"], tone: "lime", symbol: "women" },
-  { title: "Local Innovation Award", copy: "Fueling change in local tech communities worldwide.", amount: "\u20AC3,000", deadline: "Jun 20, 2026", country: "Selected regions", match: 76, tags: ["Any level", "Social Impact"], tone: "light", symbol: "local" },
+  { title: "Future Builders Grant", copy: "Sample funding scenario for undergraduate STEM study.", amount: "$8,000", deadline: "Preview only", country: "United States", match: 92, tags: ["Undergraduate", "STEM"], tone: "light", symbol: "grant" },
+  { title: "EU Digital Talent", copy: "Sample funding scenario for digital study in Europe.", amount: "\u20AC6,500", deadline: "Preview only", country: "European Union", match: 87, tags: ["Bachelor's", "Digital Skills"], tone: "dark", symbol: "digital" },
+  { title: "Women in Data Fund", copy: "Sample funding scenario for data and AI education.", amount: "$5,000", deadline: "Preview only", country: "Global", match: 81, tags: ["Women in Tech", "Data & AI"], tone: "lime", symbol: "women" },
+  { title: "Local Innovation Award", copy: "Sample funding scenario for community-focused projects.", amount: "\u20AC3,000", deadline: "Preview only", country: "Selected regions", match: 76, tags: ["Any level", "Social Impact"], tone: "light", symbol: "local" },
 ] as const;
 
-export function Scholarships({ onNavigate }: { onNavigate: Navigate }) {
+export function Scholarships() {
   const [active, setActive] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollFrameRef = useRef<number | null>(null);
@@ -363,8 +361,8 @@ export function Scholarships({ onNavigate }: { onNavigate: Navigate }) {
   };
   return (
     <section className="feature-section scholarships-section motion-section" id="scholarships" data-motion-section="true" data-header-theme="light" aria-labelledby="scholarships-title">
-      <div className="scholarship-crest"><span>06 / Scholarship opportunities</span><i /><span>Real funding. Brighter futures.</span></div>
-      <div className="feature-shell scholarship-shell"><div className="scholarships-head"><div className="feature-intro"><h2 id="scholarships-title"><HeadlineLine><span className="oval-highlight">Funding</span></HeadlineLine><HeadlineLine>should find the</HeadlineLine><HeadlineLine>right <span className="rect-highlight lime-marker">student.</span></HeadlineLine></h2></div><p className="feature-description">Discover scholarships that match your goals, background, and future plans. Real opportunities from global organizations, in one place.</p><button className="dark-pill-button" type="button" onClick={() => onNavigate("calculator")}>Check eligibility <Arrow /></button></div>
+      <div className="scholarship-crest"><span>06 / Funding scenarios</span><i /><span>Lower cost. Stronger options.</span></div>
+      <div className="feature-shell scholarship-shell"><div className="scholarships-head"><div className="feature-intro"><h2 id="scholarships-title"><HeadlineLine><span className="oval-highlight">Funding</span></HeadlineLine><HeadlineLine>changes the</HeadlineLine><HeadlineLine>whole <span className="rect-highlight lime-marker">decision.</span></HeadlineLine></h2></div><p className="feature-description">See how grants and scholarships could change total investment and payback. Listings below are interface examples until verified sources are connected.</p><button className="dark-pill-button inactive-cta" type="button" disabled aria-disabled="true">Matching coming soon <Arrow /></button></div>
         <div className="scholarship-carousel" data-active={active} ref={carouselRef} onScroll={syncActiveToScroll} {...swipe}>{scholarships.map((item, index) => <article className={`scholarship-card scholarship-card--${item.tone} ${active === index ? "is-active" : ""}`} key={item.title} data-scholarship-index={index} role="button" tabIndex={0} aria-label={`Select ${item.title}`} aria-pressed={active === index} onClick={() => selectCard(index)} onKeyDown={(event) => handleCardKeyDown(event, index)}><span className="scholarship-symbol" aria-hidden="true"><SymbolIcon kind={item.symbol} /></span><h3>{item.title}</h3><p>{item.copy}</p><div className="scholarship-rule" /><div className="scholarship-amount"><span>Amount</span><strong>{item.amount}</strong></div><div className="match-ring" style={{ "--match": `${item.match * 3.6}deg` } as CSSProperties}><b>{item.match}%<small>Match</small></b></div><div className="scholarship-meta" id={`scholarship-${index}`}><span><b>Deadline</b>{item.deadline}</span><span><b>Country</b>{item.country}</span></div><div className="scholarship-tags">{item.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>{item.title === "Local Innovation Award" && <i className="blur-orb scholarship-orb" aria-hidden="true" />}</article>)}</div>
         <div className="carousel-controls scholarship-controls" role="group" aria-label="Scholarship controls"><button type="button" aria-label="Show previous scholarship" onClick={() => move(-1)}><Arrow direction="left" /></button><output aria-live="polite">{String(active + 1).padStart(2, "0")} / 04</output><button type="button" aria-label="Show next scholarship" onClick={() => move(1)}><Arrow /></button></div>
       </div>
@@ -373,11 +371,11 @@ export function Scholarships({ onNavigate }: { onNavigate: Navigate }) {
   );
 }
 
-export function FinalDecision({ onNavigate }: { onNavigate: Navigate }) {
+export function FinalDecision() {
   const routes = [
-    { number: "01", title: "Compare universities", copy: "See costs, outcomes, and real earning potential side by side.", target: "comparison", tone: "dark", foot: "Data, not hype" },
-    { number: "02", title: "Calculate ROI", copy: "Turn tuition, time, and opportunity costs into a clear return.", target: "calculator", tone: "light", foot: "Real numbers" },
-    { number: "03", title: "Build career roadmap", copy: "Explore career paths, skills, and milestones with AI guidance.", target: "roadmap", tone: "lime", foot: "From education to opportunity" },
+    { number: "01", title: "Compare education paths", copy: "Review costs and outcome assumptions side by side before narrowing the shortlist.", tone: "dark", foot: "Comparison preview" },
+    { number: "02", title: "Model cost and payback", copy: "Turn tuition, scholarships, study time, and salary assumptions into a scenario.", tone: "light", foot: "Deterministic calculation" },
+    { number: "03", title: "Plan career readiness", copy: "Connect a target role to the skills, projects, and experience still needed.", tone: "lime", foot: "Roadmap preview" },
   ];
-  return <section className="feature-section final-decision-section dark-feature motion-section" id="final-decision" data-motion-section="true" data-header-theme="dark" aria-labelledby="final-decision-title"><div className="feature-shell final-shell"><div className="final-head"><p className="feature-label">08 / START WITH ONE DECISION</p><h2 id="final-decision-title"><HeadlineLine>Your future should</HeadlineLine><HeadlineLine><span className="oval-highlight">not</span> be a <span className="rect-highlight lime-marker">guess.</span></HeadlineLine></h2><p>Compare your options. Understand the returns. Build a plan that fits you.</p><button type="button" className="forecast-cta" onClick={() => onNavigate("calculator")}>Build my forecast <span><Arrow /></span></button></div><div className="decision-branches" aria-hidden="true"><i /><i /><i /></div><div className="decision-routes">{routes.map((route) => <button className={`decision-route decision-route--${route.tone}`} type="button" onClick={() => onNavigate(route.target)} key={route.number}><span>{route.number}</span><i><Arrow /></i><h3>{route.title}</h3><p>{route.copy}</p><small>{route.foot}</small></button>)}</div></div></section>;
+  return <section className="feature-section final-decision-section dark-feature motion-section" id="final-decision" data-motion-section="true" data-header-theme="dark" aria-labelledby="final-decision-title"><div className="feature-shell final-shell"><div className="final-head"><p className="feature-label">08 / ONE CONNECTED DECISION</p><h2 id="final-decision-title"><HeadlineLine>Your future should</HeadlineLine><HeadlineLine><span className="oval-highlight">not</span> be a <span className="rect-highlight lime-marker">guess.</span></HeadlineLine></h2><p>Compare the path, test the financial assumptions, then act on the gaps that matter.</p><button type="button" className="forecast-cta inactive-cta" disabled aria-disabled="true">Personal forecasts coming soon <span><Arrow /></span></button></div><div className="decision-branches" aria-hidden="true"><i /><i /><i /></div><div className="decision-routes">{routes.map((route) => <article className={`decision-route decision-route--${route.tone}`} aria-disabled="true" key={route.number}><span>{route.number}</span><i aria-hidden="true"><Arrow /></i><h3>{route.title}</h3><p>{route.copy}</p><small>{route.foot}</small></article>)}</div></div></section>;
 }

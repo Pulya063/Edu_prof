@@ -40,6 +40,7 @@ class User(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     is_active: Mapped[bool] = mapped_column(default=True)
     is_admin: Mapped[bool] = mapped_column(default=False)
     plan: Mapped[str] = mapped_column(String(20), default="Free", server_default="Free", nullable=False)
+    workspace_data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
 
     roi_calculations: Mapped[list["ROICalculation"]] = relationship(
         back_populates="user",
@@ -321,6 +322,7 @@ class MotivationLetter(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
 
     user: Mapped[User] = relationship(back_populates="motivation_letters")
     university: Mapped[University | None] = relationship(back_populates="motivation_letters")
+
 class ROICalculation(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "roi_calculations"
     __table_args__ = (
@@ -440,13 +442,64 @@ class SimulationProjection(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     opportunity_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     total_investment: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     estimated_start_salary: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    calculation_inputs: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
+    cost_breakdown: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
     payback_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payback_from_enrollment_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     break_even_reached: Mapped[bool] = mapped_column(Boolean, nullable=False)
     horizon_years: Mapped[int] = mapped_column(Integer, nullable=False)
     cumulative_incremental_earnings: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
     roi_percent: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     salary_trajectory: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
     evidence: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    source_snapshot_refs: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
     unverified_assumptions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
 
     revision: Mapped[SimulationRevision] = relationship(back_populates="projections")
+
+
+class MarketSnapshot(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """Validated, deduplicated labour-market observation used by projections."""
+
+    __tablename__ = "market_snapshots"
+    __table_args__ = (
+        UniqueConstraint("fingerprint", name="uq_market_snapshot_fingerprint"),
+        Index(
+            "ix_market_snapshots_lookup",
+            "country",
+            "role",
+            "seniority",
+            "currency",
+            "snapshot_date",
+        ),
+    )
+    repr_fields = ("id", "role", "country", "seniority", "snapshot_date")
+
+    role: Mapped[str] = mapped_column(String(255), nullable=False)
+    country: Mapped[str] = mapped_column(String(120), nullable=False)
+    seniority: Mapped[str] = mapped_column(String(120), nullable=False)
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    salary_basis: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="gross_annual", server_default="gross_annual"
+    )
+    salary_min: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    median_salary: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    salary_max: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    vacancy_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    demand_index: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    sources: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sample_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[str] = mapped_column(String(20), nullable=False)
+    methodology_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    validation_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="validated", server_default="validated"
+    )
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)

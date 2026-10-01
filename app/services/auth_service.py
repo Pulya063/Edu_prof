@@ -167,20 +167,22 @@ class AuthService:
 
     @log_call
     def reset_password(self, token: str, new_password: str) -> None:
+        """Replace a password after atomically consuming a purpose-bound reset token."""
         try:
             user_id = consume_password_reset_token(token)
         except RedisError as error:
             logger.error("Password-reset storage unavailable: %s", error)
-            raise AppError("Сервіс скидання пароля тимчасово недоступний", status_code=503) from error
+            raise AppError("Сервіс відновлення пароля тимчасово недоступний", status_code=503) from error
 
         if user_id is None:
-            raise AppError("Недійсний або прострочений токен", status_code=400)
+            raise AppError("Код відновлення недійсний або прострочений", status_code=400)
 
-        result = self.db.execute(select(User).where(User.id == user_id, User.is_active.is_(True)))
-        user = result.scalar_one_or_none()
-
-        if not user:
-            raise AppError("Користувача не знайдено", status_code=404)
+        user = self.db.execute(
+            select(User).where(User.id == user_id, User.is_active.is_(True))
+        ).scalar_one_or_none()
+        if user is None:
+            raise AppError("Код відновлення недійсний або прострочений", status_code=400)
 
         user.password_hash = hash_password(new_password)
         self.db.commit()
+        logger.info("Password reset completed for user_id=%s", user.id)

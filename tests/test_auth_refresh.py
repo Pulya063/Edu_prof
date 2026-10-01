@@ -3,6 +3,7 @@
 All Redis interactions are mocked via unittest.mock to avoid a real Redis connection.
 """
 import pytest
+from redis.exceptions import RedisError
 from unittest.mock import patch, MagicMock
 
 from app.main import create_app
@@ -159,3 +160,18 @@ def test_me_after_silent_refresh(client):
     data = resp.get_json()
     assert "email" in data
     assert data["email"] == _REG_PAYLOAD["email"]
+
+
+def test_silent_refresh_storage_outage_returns_unauthorized_and_clears_cookies(client):
+    client.post("/api/auth/register", json=_REG_PAYLOAD)
+    client.delete_cookie("access_token")
+
+    unavailable_redis = MagicMock()
+    unavailable_redis.get.side_effect = RedisError("storage unavailable")
+    with patch("app.core.redis_client.get_redis", return_value=unavailable_redis):
+        response = client.get("/api/simulations/overview")
+
+    assert response.status_code == 401
+    assert client.get_cookie("access_token") is None
+    assert client.get_cookie("refresh_token") is None
+    assert client.get_cookie("csrf_token") is None

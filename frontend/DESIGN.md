@@ -20,13 +20,24 @@ spacing:
   sectionBlock: "clamp(96px, 12vw, 180px)"
 components:
   journeyThread:
-    owner: "app/components/motion.tsx"
+    owner: "app/hooks/useScrollMotion.tsx"
     role: "single scroll-revealed editorial route"
+  previewAction:
+    owner: "app/styles/responsive.css"
+    role: "truthful non-interactive state for unfinished product flows"
+  workspaceShell:
+    owner: "app/workspace/layout.tsx + app/styles/workspace-panels.css"
+    role: "shared navigation, application canvas, focus and responsive behavior"
+  workspacePanel:
+    owner: "app/styles/workspace-panels.css"
+    role: "canonical light, dark and violet analytical surfaces"
 ---
 
 ## Overview
 
 Fence is a brand-led education-decision journey for students comparing cost, outcomes, and career direction. The public landing page is editorial rather than dashboard-like: one clear route through uncertainty, evidence, and a next step.
+
+The authenticated workspace is the product register of the same identity. It uses a fixed dark navigation rail, a cool light-grey analytical canvas, strong Manrope headings, compact DM Sans utility text, and alternating light/dark evidence panels. It should feel like a connected education planning desk, not a generic equal-card SaaS dashboard.
 
 The visual signature is the lime journey thread. It runs behind the content, changes direction at each chapter, and is only fully drawn by the end of the page. Thin, dim companion lines provide atmosphere; they never become a grid, a chart, or a competing focal point.
 
@@ -36,6 +47,8 @@ Deep black and charcoal establish the analytical chapters. Warm white gives deci
 
 Runtime tokens live in `app/globals.css`; this file documents their intended roles rather than generating a second token source.
 
+Within the workspace, blue-grey is reserved for explanatory copy and borders. Lime remains the primary action/progress color, violet marks planning, prediction, or the active learning state, and charcoal holds forecasts and evidence-heavy views.
+
 ## Typography
 
 Manrope carries high-impact editorial headings and numerical emphasis. DM Sans is used for supporting copy, labels, and controls. Headline breaks express a sequence; utility text remains compact, well-spaced, and calm.
@@ -43,6 +56,8 @@ Manrope carries high-impact editorial headings and numerical emphasis. DM Sans i
 ## Layout
 
 Use wide asymmetrical editorial compositions at desktop, a 5vw mobile gutter, and no horizontal document overflow. The route moves along outer compositional lanes so it can connect chapters without touching text, controls, or cards.
+
+Workspace pages use a 232px navigation rail and a content width capped near 1280px. Dense comparison and planning views may use split panels; on narrow screens they become a single readable document without hiding actions or values.
 
 ## Elevation & Depth
 
@@ -55,6 +70,10 @@ Cards use restrained 17–24px corners. Pill shapes are for compact labels and m
 ## Components
 
 `JourneyThread` is the canonical landing-page connective treatment. It uses a normalized SVG route in the outer composition lane and the existing `--journey-progress` motion value for scroll reveal. The route remains uninterrupted through the footer while preserving a quiet reading zone around every card and headline.
+
+Workspace dark panels use restrained topographic contour texture as their shared signature. The contour is atmospheric, never an information graphic, and must remain behind readable content. `WorkspacePageHeader`, `Icon`, and `Topography` in `app/workspace/WorkspaceUI.tsx` are shared owners for the new product screens.
+
+The public product is currently a preview. Pricing is the only active commercial route. Unfinished sign-in, checkout, matching, forecast, legal, social, and contact actions use a visible non-interactive state with plain-language status copy; they must not contain placeholder redirects or deep links.
 
 ## Do's and Don'ts
 

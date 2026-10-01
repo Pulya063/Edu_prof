@@ -6,8 +6,33 @@ import "./styles/responsive.css";
 import { LanguageProvider } from "./context/LanguageContext";
 
 export const metadata: Metadata = {
-  title: "Fence — demo",
-  description: "Understand the cost and potential return of your education.",
+  title: {
+    default: "Fence — Education ROI and Career Decision Platform",
+    template: "%s | Fence",
+  },
+  description: "Compare education costs, salary assumptions, payback periods, career paths, scholarships, and skills gaps before choosing your next move.",
+  keywords: [
+    "education ROI calculator",
+    "university comparison",
+    "career salary forecast",
+    "education cost calculator",
+    "career roadmap",
+    "scholarship matching",
+  ],
+  applicationName: "Fence",
+  category: "education",
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    siteName: "Fence",
+    title: "Fence — Compare Education Cost, Career Outcomes, and ROI",
+    description: "Model education costs and career outcomes in one connected decision view.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Fence — Education ROI and Career Decisions",
+    description: "Compare the cost, career outcome, and next steps behind an education path.",
+  },
 };
 
 export default function RootLayout({

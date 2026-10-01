@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.core.database import db
 from app.core.dependencies import get_current_user
 from app.models import User
-from app.schemas import CareerAnalysisRequest, TrialROIRequest, TrialROIResponse
+from app.schemas import TrialROIRequest, TrialROIResponse
 from app.services.external_api import get_tuition_history, search_universities
 from app.services.roi_service import ROIService
 from app.services.plan_service import get_plan_details, has_calculation_capacity
@@ -28,11 +28,23 @@ def calculate_trial_roi() -> Response:
 
 @blueprint.post("/analyze")
 @get_current_user
-def analyze_career(user) -> Response:
-    """Return and persist a concise, explainable education/career decision."""
-    payload = CareerAnalysisRequest.model_validate(request.get_json(silent=True) or {})
-    result = ROIService(db.session).analyze_career(payload, user_id=user.id)
-    return jsonify(result)
+def analyze_career(user) -> tuple[Response, int]:
+    """Retired legacy writer; existing career analyses remain readable in history."""
+    return jsonify(
+        {
+            "detail": (
+                "Legacy career analysis is read-only. Create a versioned scenario and "
+                "deterministic projection through /api/simulations."
+            ),
+            "replacement": {
+                "create_scenario": "/api/simulations",
+                "create_projection": (
+                    "/api/simulations/<scenario_id>/revisions/"
+                    "<revision_number>/projections"
+                ),
+            },
+        }
+    ), 410
 
 
 @blueprint.get("/history")
@@ -77,7 +89,8 @@ def delete_roi(calculation_id: int, user: User) -> Response:
     ).scalar_one_or_none()
     if calculation is None:
         raise AppError("ROI-розрахунок не знайдено", status_code=404)
-    calculation.deleted_at = datetime.now(timezone.utc)
+
+    db.session.delete(calculation)
     db.session.commit()
     return jsonify({"success": True})
 

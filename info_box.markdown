@@ -11,7 +11,7 @@
 
 ## Current: продукт
 
-Fence зараз складається з редакційного Next.js-лендінгу та Flask API. Backend уже має versioned scenario/projection foundation, але це ще не наскрізний Education → Career Decision Engine: landing simulation, legacy ROI analysis і roadmap не під'єднані до нього.
+Fence зараз складається з редакційного Next.js-лендінгу, authenticated scenario workspace та Flask API. Backend має versioned scenario/projection foundation, а workspace уже підтримує створення education-to-career сценарію і читання результату; landing simulation, legacy ROI analysis і roadmap досі не під'єднані до цього контуру.
 
 Основний цільовий шлях продукту:
 
@@ -28,9 +28,9 @@ Education
 ## Current: frontend
 
 - Основний UI: `frontend/`, Next.js 14 App Router, React 18 і TypeScript.
-- Реальні routes: `/`, `/plans`, `/payment`, `/contact`, `/legal/[document]`.
-- Dashboard, `/main`, `/calculator`, `/roadmap`, `/profile`, `/trial`, `/results`, `/pricing`, `/login`, `/register` і `/reset-password` у поточному Next.js route tree відсутні.
-- Landing page містить локальну client-side симуляцію та hardcoded university/career/scholarship/roadmap data. Вона не викликає Flask ROI API.
+- Реальні routes: `/`, `/plans`, `/payment`, `/contact`, `/legal/[document]`, `/login`, `/register`, `/reset-password`, `/workspace/overview`, `/workspace/scenario/new`, `/workspace/scenarios`, `/workspace/scenarios/[id]`, `/workspace/profile`, `/workspace/compare`, `/workspace/roadmap`, `/workspace/roadmap/simulation`, `/workspace/roadmap/plan`, `/workspace/courses` і `/workspace/settings`.
+- Workspace overview, scenario creation/list/detail та profile використовують поточні API або реальні локальні дані. Compare, roadmap dashboard/simulation/plan, course search і settings зараз є demo UI surfaces за наданими ескізами; їхні майбутні серверні mutations та зовнішні provider connections ще не реалізовані.
+- Landing page містить локальну client-side симуляцію та hardcoded university/career/scholarship/roadmap data. Вона не викликає Flask ROI API; authenticated workspace використовує simulation contracts для створення сценарію, deterministic projection і read-only overview.
 - `/payment` і legal content залишаються placeholders.
 - Jinja/HTMX не є основним frontend. Flask templates зберігаються лише як legacy/local diagnostic surface.
 - Візуальна основа: editorial composition, `#171819`, white, lime `#B7FF2A`, violet `#D7C7FF`, сильна типографіка та purposeful motion.
@@ -41,13 +41,14 @@ Education
 - Redis зберігає refresh tokens; RabbitMQ/Celery виконує email jobs.
 - Основні API:
   - auth: `/api/auth/me`, `/register`, `/login`, `/refresh`, `/logout`, `/password-reset-request`, `/password-reset`, `/login/google`, `/callback/google`;
-  - ROI: `/api/roi/trial`, `/analyze`, `/history`, `/trash`, delete/restore, university search і tuition history;
-  - simulations: `POST/GET /api/simulations`, `GET /api/simulations/<id>`, `POST /api/simulations/<id>/revisions`, `POST/GET /api/simulations/<id>/revisions/<number>/projections`;
+  - ROI: `/api/roi/trial`, legacy read-only `/history`, `/trash`, delete/restore, university search і tuition history; `/analyze` retired з `410 Gone`;
+  - simulations: `POST/GET /api/simulations`, `GET /api/simulations/<id>`, `POST /api/simulations/<id>/revisions`, `POST/GET /api/simulations/<id>/revisions/<number>/projections`, `GET /api/simulations/<id>/revisions/<number>/projections/<projection_id>/explainability`;
+  - market: `POST /api/market/snapshots` для admin ingestion, `GET /api/market/snapshots` і `GET /api/market/snapshots/<id>` для authenticated reads;
   - roadmap: `/roadmap/`, `/roadmap/generate` та дубльований `/api/roadmap/*` namespace;
   - mail: `/api/mail/university-letter`;
   - health: `/health`.
-- Основні models: `User`, `University`, `UniversityDocument`, `UniversityScholarship`, `TuitionPrice`, `EducationProgram`, `SalaryStatistic`, `CareerForecast`, `CareerAnalysis` та його normalized children, `ROICalculation`, `UserRoadmap`, `SimulationScenario`, `SimulationRevision`, `SimulationProjection`, `Partner`, `MotivationLetter`.
-- `CareerAnalysis` і legacy `ROICalculation` співіснують; їх lifecycle та history contracts ще не уніфіковані.
+- Основні models: `User`, `University`, `UniversityDocument`, `UniversityScholarship`, `TuitionPrice`, `EducationProgram`, `SalaryStatistic`, `CareerForecast`, `CareerAnalysis` та його normalized children, `ROICalculation`, `UserRoadmap`, `SimulationScenario`, `SimulationRevision`, `SimulationProjection`, `MarketSnapshot`, `Partner`, `MotivationLetter`.
+- `CareerAnalysis`, його `CareerROI` child і legacy `ROICalculation` збережені для історії; нові фінансові результати створюються лише через `SimulationProjection`.
 - Roadmap зберігається як opaque JSON і не має normalized tasks, skill evidence або feedback loop.
 - Phase 0 не змінював database schema. Phase 1 додає окремі versioned simulation scenarios без зміни legacy ROI/roadmap tables.
 
@@ -87,11 +88,77 @@ Education
 - Цей етап не завантажує market data автоматично та не використовує LLM для фінансових значень.
 - Targeted projection/migration checks пройшли в канонічному checkout 2026-09-30; нову міграцію не застосовано до користувацької бази даних.
 
+## Verified: Calculation Foundation v2
+
+- `simulation_projections` є канонічним сховищем нових фінансових прогнозів; legacy `career_roi` залишається read-only історією і не переписується під нову методологію.
+- `POST /api/roi/analyze` більше не створює `CareerAnalysis/CareerROI`: authenticated request повертає `410 Gone` і посилання на versioned simulation endpoints.
+- Методологія `scenario-projection-v2` зберігає resolved `calculation_inputs`, деталізований `cost_breakdown` і окремий `payback_from_enrollment_months`; існуючий `payback_months` означає окупність після завершення навчання.
+- Direct cost враховує tuition, mandatory fees, additional education, incremental living costs та scholarships/grants. Opportunity cost може опційно зменшуватися на загальний дохід під час навчання.
+- Employment during study не є обов'язковим припущенням: незаповнене поле дорівнює нулю і доступне лише в розгорнутому detailed analysis.
+- Від'ємна різниця між target і baseline salary більше не обрізається до нуля, тому слабші роки зменшують cumulative earnings та не завищують ROI.
+- Нові колонки додає additive Alembic revision `b6c7d8e9f0a1`; локальна development БД оновлена до цього єдиного head 2026-10-02.
+- Focused simulation/market tests: 4 passed; TypeScript `--noEmit` пройшов 2026-10-02. Повний backend suite і browser QA не запускалися.
+
+## Verified: Phase 3 market snapshot foundation
+
+- `MarketSnapshot` зберігає normalized annual salary range, vacancy count, demand index, snapshot/acquisition dates, source references, sample size, confidence, methodology version і canonical fingerprint.
+- Лише admin може додавати validated snapshots; повтор однакового payload є ідемпотентним.
+- Authenticated users можуть фільтрувати snapshots за role, country, seniority і currency.
+- Deterministic projection може брати median salary із validated snapshot та зберігає `source_snapshot_refs`; manual salary input залишається сумісним fallback із обов'язковим evidence.
+- Fetcher/parser/background refresh ще не реалізовані: цей етап створює стабільний storage та API contract без scraping або LLM.
+- Targeted market/simulation/migration checks пройшли в канонічному checkout 2026-09-30; міграцію створено, але не застосовано до користувацької бази даних.
+- Повний backend suite після Phase 3: 33 passed.
+
+## Verified: Phase 4 forecast source resolution
+
+- Projection request може явно задати policy для автоматичного підбору market snapshot: seniority, `as_of_date`, максимальний вік і мінімальний confidence.
+- Resolver використовує лише validated `gross_annual` snapshots із точним збігом role, country, seniority та currency; вибір детермінований за freshness, confidence, sample size і стабільним tie-breaker.
+- Явний `market_snapshot_id` додатково перевіряється на відповідність career target і salary basis сценарію.
+- Якщо сумісного snapshot немає, API повертає контрольований `422`; manual salary fallback як і раніше потребує повного evidence.
+- Етап не додає нової таблиці, міграції, fetcher, background job або frontend integration.
+- Focused market/projection tests пройшли в канонічному checkout 2026-10-01; повний backend suite на цьому етапі не запускався.
+
+## Verified: Phase 5 forecast trust contract
+
+- Для кожної projection додано authenticated explainability endpoint у межах її scenario revision.
+- Контракт явно повідомляє, що фінансовий розрахунок deterministic і не AI-generated, та повертає methodology version, salary basis і використану salary metric.
+- Для snapshot-based прогнозу повертаються повний normalized snapshot, первинні source references/URLs, acquisition/snapshot dates, confidence, sample size, age in days і фактично вибране median value.
+- Для manual fallback повертаються його evidence та явний `manual_evidence` source kind.
+- Пошкоджені або відсутні snapshot references не приховуються: відповідь має `source_integrity` і `missing_source_snapshot_refs`.
+- Етап не змінює database schema, формули, market data або frontend.
+- Focused market/projection tests: 3 passed у канонічному checkout 2026-10-01; повний backend suite не запускався.
+
+## Verified: Phase 6 analytical report integration
+
+- Додано `GET /api/simulations/overview`: один authenticated read-model повертає останній active scenario, current revision, latest projection та explainability без frontend request waterfall.
+- Next.js route `/workspace/overview` показує Education → Career → Outcome як інтерактивний аналітичний звіт, а не набір рівнозначних dashboard cards.
+- Report показує investment, start salary, payback, horizon ROI, market demand, salary trajectory, methodology, confidence, sample size, freshness, source URL та unverified assumptions.
+- Реалізовані loading, empty, scenario-only, unauthorized і controlled error states; landing CTAs не активувалися, pricing залишається єдиним робочим navigation CTA.
+- Responsive layout перевірено у browser на desktop і 390×844 mobile viewport; console errors/warnings не виявлено, reduced-motion і keyboard focus states передбачені в CSS.
+- Під час інтеграційного QA виправлено `500` при stale refresh-cookie та недоступному Redis: API тепер очищає auth/CSRF cookies і повертає контрольований unauthenticated state.
+- Focused backend checks: 4 passed; TypeScript `--noEmit` пройшов. Повний backend suite і production build не запускалися.
+
+## Verified: Phase 7 scenario creation flow
+
+- Додано authenticated route `/workspace/scenario/new` з послідовним assumption ledger: Education → Career → Investment → Baseline → Forecast.
+- Flow спочатку перевіряє session і CSRF cookie, створює immutable scenario revision через `POST /api/simulations`, а потім запитує deterministic projection через policy-based `market_snapshot_selection`.
+- Target salary не генерується LLM: поле manual estimate є необов'язковим low-confidence override; якщо воно порожнє, потрібен validated market snapshot з відповідними role, country, currency і seniority. За відсутності snapshot сценарій зберігається, а UI показує контрольований partial-success стан.
+- Annual tuition вводиться користувачем явно. Regional public/private ranges показуються лише як orientation і не підставляються в projection як evidence.
+- Detailed financial analysis містить необов'язкові baseline, foregone income, total income during study, fees, scholarships, extra education, living costs і growth assumptions; базовий flow не вимагає їх заповнення.
+- Ненульовий baseline salary вимагає provenance evidence (source, reference, acquisition date, confidence); financial outputs залишаються відповідальністю versioned deterministic service.
+- Workspace navigation активує лише реалізовані Overview і Build scenario; Forecast та Roadmap залишаються позначеними як недоступні. Landing CTA/deep links не активувалися.
+- Scenario builder візуально узгоджений з наданими Fence workspace ескізами: компактний app shell, біла панель inputs, темна sticky forecast surface, lime лише для primary action/progress і violet для prediction/evidence states.
+- Frontend TypeScript check пройшов. Responsive geometry перевірено у браузері на 320, 375, 768, 1024, 1440 і 1920px без горизонтального document overflow; зміна tuition `12000 → 15000` реактивно оновила investment `36,000 → 45,000 PLN`, keyboard focus видимий, framework overlay і console warnings/errors відсутні. Повний authenticated submit до live backend у цій перевірці не виконувався.
+
+## Implemented but unverified: Phase 7 final visual refinement
+
+- Після responsive QA cost-assumption group переведено у дві колонки на звичайному desktop, щоб прибрати затиснуті labels; три колонки залишаються лише від 1700px. Ця остання CSS-only правка ще не пройшла повторну browser-перевірку.
+
 ## Planned: цільова архітектура
 
 - Наявний versioned Simulation Scenario foundation має поступово поєднати education, career, finance, skills, roadmap і evidence.
-- Наявний deterministic projection foundation треба під'єднати до validated market snapshots і UI; methodology version, inputs та inline evidence вже зберігаються.
-- Market data має пройти через fetcher → parser → normalizer → deduplication → validation → snapshot pipeline.
+- Deterministic projection підтримує явний та policy-based вибір validated market snapshots; creation flow, read-only integration і trust presentation реалізовані, а scenario edit/revision UI залишається запланованим.
+- Market data storage, deduplication і validation contract реалізовані; fetcher → parser → normalizer та scheduled refresh залишаються запланованими.
 - Кожна важлива оцінка повинна мати source, URL/reference, acquisition date, geography, role/seniority, sample size за наявності, confidence/data strength і methodology version.
 - Roadmap completion має оновлювати skill evidence та readiness, але не змінювати salary без явної versioned scenario revision.
 - RAG слід вводити лише для official university/program/scholarship/curriculum/regulatory documents; PostgreSQL/pgvector оцінюється до окремої vector database.
@@ -277,22 +344,21 @@ Trial-сторінка викликає `POST /api/roi/trial`. Endpoint не п�
 
 - `/results` завантажує `GET /api/roi/history` і показує дату, ROI, окупність, інвестицію та дохід за 10 років. Видалення й редагування не реалізовані.
 - `/pricing` є інформаційною сторінкою. Тарифи не підключені до платіжної системи, а обмеження в API зараз фактично не застосовуються: `/api/auth/me` повертає план `Free` та безлімітні значення.
-- `/reset-password` має два кроки: запит листа через `POST /api/auth/password-reset-request` і зміна пароля через `POST /api/auth/password-reset` з JWT-токеном, дійсним 15 хвилин.
+- `/reset-password` має два кроки: generic запит листа через `POST /api/auth/password-reset-request` і зміна пароля через `POST /api/auth/password-reset` з одноразовим opaque Redis-токеном, дійсним 15 хвилин. Токен зберігається лише як SHA-256 keyed reference, атомарно споживається через Redis `GETDEL` і не є JWT.
 
 ### Профіль `/profile`
 
-Поточна Next.js-версія містить форму запиту на відновлення пароля:
+Поточна Next.js-версія містить повний двокроковий flow відновлення пароля:
 
-- поле **«Ваша електронна пошта»**;
-- **«Відправити запит»** — POST `/api/auth/password-reset-request`.
+- email form викликає `POST /api/auth/password-reset-request`;
+- лист містить одноразове посилання на `/reset-password#token=...`; fragment не передається frontend-серверу або reverse proxy;
+- сторінка одразу прибирає token з address bar після читання;
+- форма нового пароля викликає `POST /api/auth/password-reset`;
+- expired, replayed і wrong-purpose tokens повертають контрольовану помилку.
 
 Backend навмисно повертає однакове успішне повідомлення незалежно від існування email, щоб не розкривати реєстрацію користувачів.
 
-У legacy-версії після запиту також відкривається друга форма:
-
-- **«Секретний код з листа»**;
-- **«Новий пароль»**;
-- **«Зберегти пароль»** — POST `/api/auth/password-reset`.
+Якщо SMTP або Celery worker не налаштовані, API навмисно зберігає generic public response; фактична доставка листа потребує робочих SMTP credentials, Redis, broker і Celery worker.
 
 ## 6. API-маршрути Flask
 
@@ -430,6 +496,7 @@ Backend навмисно повертає однакове успішне пов
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Тривалість access token | `30` |
 | `FLASK_API_URL` | Адреса Flask для Next.js proxy | `http://localhost:8122` локально, `http://api:8122` у Docker |
 | `FRONTEND_URL` | Адреса frontend для OAuth callback redirect | `http://localhost:3221` |
+| `PASSWORD_RESET_URL` | Необов'язкова точна адреса frontend reset page у листі | `${FRONTEND_URL}/reset-password` |
 | `OAUTH_REDIRECT_URI` | Callback URI, зареєстрований у Google | `http://localhost:3221/api/auth/callback/google` |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth credentials | не задані за замовчуванням |
 | `DREAMWORK_API_URL`, `DREAMWORK_USERNAME`, `DREAMWORK_PASSWORD` | Підключення до DreamWork | див. `.env` |

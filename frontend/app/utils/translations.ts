@@ -1,4 +1,4 @@
-import type { Lang } from "../context/LanguageContext";
+﻿import type { Lang } from "../context/LanguageContext";
 
 export interface Translations {
   nav: {
@@ -8,8 +8,9 @@ export interface Translations {
     calculator: string;
   };
   header: {
-    logIn: string;
-    getStarted: string;
+    signIn: string;
+    signUp: string;
+    pricing: string;
   };
   hero: {
     eyebrow: string;
@@ -39,18 +40,19 @@ export const translations: Record<Lang, Translations> = {
       calculator: "Calculator",
     },
     header: {
-      logIn: "Log in",
-      getStarted: "Get started ↗",
+      signIn: "Log in",
+      signUp: "Sign up",
+      pricing: "View pricing в†—",
     },
     hero: {
-      eyebrow: "EDUCATION ROI, MADE CLEAR",
-      h1Line1: "Make a smarter",
+      eyebrow: "EDUCATION, CAREER, AND ROI вЂ” IN ONE VIEW",
+      h1Line1: "See where your",
       h1Line2: "education",
-      h1Line3: "decision.",
-      infoCardP: "Tuition, payback,\nfuture paths.",
-      infoCardExpand: "A single view of the costs, return, and next steps behind your education decision.",
-      tagRoi: "ROI clarity",
-      tagCareer: "Career fit",
+      h1Line3: "can take you.",
+      infoCardP: "Compare the cost,\ncareer outcome, and next move.",
+      infoCardExpand: "Model tuition, scholarships, salary assumptions, and payback before you commit to a path.",
+      tagRoi: "Cost and payback",
+      tagCareer: "Career direction",
     },
     cta: {
       explorePaths: "Explore their paths",
@@ -58,66 +60,71 @@ export const translations: Record<Lang, Translations> = {
       checkEligibility: "Check eligibility",
       exploreYourPath: "Explore your path",
     },
-    langLabels: { en: "English", uk: "Українська", pl: "Polski" },
+    langLabels: { en: "English", uk: "РЈРєСЂР°С—РЅСЃСЊРєР°", pl: "Polski" },
   },
 
   uk: {
     nav: {
-      platform: "Платформа",
-      howItWorks: "Як це працює",
-      opportunities: "Можливості",
-      calculator: "Калькулятор",
+      platform: "РџР»Р°С‚С„РѕСЂРјР°",
+      howItWorks: "РЇРє С†Рµ РїСЂР°С†СЋС”",
+      opportunities: "РњРѕР¶Р»РёРІРѕСЃС‚С–",
+      calculator: "РљР°Р»СЊРєСѓР»СЏС‚РѕСЂ",
     },
     header: {
-      logIn: "Увійти",
-      getStarted: "Почати ↗",
+      signIn: "РЈРІС–Р№С‚Рё",
+      signUp: "Р РµС”СЃС‚СЂР°С†С–СЏ",
+      pricing: "РџРµСЂРµРіР»СЏРЅСѓС‚Рё С†С–РЅРё в†—",
     },
     hero: {
-      eyebrow: "ROI ОСВІТИ — ЗРОЗУМІЛО",
-      h1Line1: "Зроби розумніший",
-      h1Line2: "освітній",
-      h1Line3: "вибір.",
-      infoCardP: "Вартість навчання,\nповернення, майбутнє.",
-      infoCardExpand: "Єдиний огляд витрат, прибутку та наступних кроків у вашому освітньому рішенні.",
-      tagRoi: "Чіткий ROI",
-      tagCareer: "Відповідність кар'єрі",
+      eyebrow: "РћРЎР’Р†РўРђ, РљРђР 'Р„Р Рђ РўРђ ROI вЂ” Р’ РћР”РќРћРњРЈ РћР“Р›РЇР”Р†",
+      h1Line1: "Р”С–Р·РЅР°Р№СЃСЏ, РєСѓРґРё",
+      h1Line2: "РѕСЃРІС–С‚Р°",
+      h1Line3: "РјРѕР¶Рµ РїСЂРёРІРµСЃС‚Рё.",
+      infoCardP: "РџРѕСЂС–РІРЅСЏР№ РІР°СЂС‚С–СЃС‚СЊ,\nРєР°СЂ'С”СЂРЅРёР№ СЂРµР·СѓР»СЊС‚Р°С‚ С– РЅР°СЃС‚СѓРїРЅРёР№ РєСЂРѕРє.",
+      infoCardExpand: "Р—РјРѕРґРµР»СЋР№ РѕРїР»Р°С‚Сѓ РЅР°РІС‡Р°РЅРЅСЏ, СЃС‚РёРїРµРЅРґС–С—, Р·Р°СЂРїР»Р°С‚РЅС– РїСЂРёРїСѓС‰РµРЅРЅСЏ С‚Р° СЃС‚СЂРѕРє РѕРєСѓРїРЅРѕСЃС‚С– РґРѕ РѕСЃС‚Р°С‚РѕС‡РЅРѕРіРѕ РІРёР±РѕСЂСѓ.",
+      tagRoi: "Р’Р°СЂС‚С–СЃС‚СЊ С– РѕРєСѓРїРЅС–СЃС‚СЊ",
+      tagCareer: "РљР°СЂ'С”СЂРЅРёР№ РЅР°РїСЂСЏРј",
     },
     cta: {
-      explorePaths: "Дослідити шляхи",
-      buildForecast: "Створити прогноз",
-      checkEligibility: "Перевірити право",
-      exploreYourPath: "Ваш шлях",
+      explorePaths: "Р”РѕСЃР»С–РґРёС‚Рё С€Р»СЏС…Рё",
+      buildForecast: "РЎС‚РІРѕСЂРёС‚Рё РїСЂРѕРіРЅРѕР·",
+      checkEligibility: "РџРµСЂРµРІС–СЂРёС‚Рё РїСЂР°РІРѕ",
+      exploreYourPath: "Р’Р°С€ С€Р»СЏС…",
     },
-    langLabels: { en: "English", uk: "Українська", pl: "Polski" },
+    langLabels: { en: "English", uk: "РЈРєСЂР°С—РЅСЃСЊРєР°", pl: "Polski" },
   },
 
   pl: {
     nav: {
       platform: "Platforma",
-      howItWorks: "Jak to działa",
-      opportunities: "Możliwości",
+      howItWorks: "Jak to dziaЕ‚a",
+      opportunities: "MoЕјliwoЕ›ci",
       calculator: "Kalkulator",
     },
     header: {
-      logIn: "Zaloguj się",
-      getStarted: "Zacznij ↗",
+      signIn: 'Zaloguj się',
+      signUp: 'Rejestracja',
+      pricing: 'Zobacz ceny ↗',
     },
     hero: {
-      eyebrow: "ROI EDUKACJI — JASNO",
-      h1Line1: "Podejmij mądrzejszą",
-      h1Line2: "decyzję",
-      h1Line3: "edukacyjną.",
-      infoCardP: "Czesne, zwrot,\nprzyszłe ścieżki.",
-      infoCardExpand: "Jeden widok kosztów, zwrotu i kolejnych kroków Twojej decyzji edukacyjnej.",
-      tagRoi: "Jasny ROI",
-      tagCareer: "Dopasowanie kariery",
+      eyebrow: "EDUKACJA, KARIERA I ROI вЂ” W JEDNYM WIDOKU",
+      h1Line1: "Zobacz, dokД…d moЕјe",
+      h1Line2: "zaprowadziД‡",
+      h1Line3: "CiД™ edukacja.",
+      infoCardP: "PorГіwnaj koszt,\nwynik kariery i kolejny krok.",
+      infoCardExpand: "Modeluj czesne, stypendia, zaЕ‚oЕјenia pЕ‚acowe i czas zwrotu, zanim wybierzesz Е›cieЕјkД™.",
+      tagRoi: "Koszt i zwrot",
+      tagCareer: "Kierunek kariery",
     },
     cta: {
-      explorePaths: "Odkryj ścieżki",
-      buildForecast: "Zbuduj prognozę",
-      checkEligibility: "Sprawdź kwalifikacje",
-      exploreYourPath: "Twoja ścieżka",
+      explorePaths: "Odkryj Е›cieЕјki",
+      buildForecast: "Zbuduj prognozД™",
+      checkEligibility: "SprawdЕє kwalifikacje",
+      exploreYourPath: "Twoja Е›cieЕјka",
     },
-    langLabels: { en: "English", uk: "Українська", pl: "Polski" },
+    langLabels: { en: "English", uk: "РЈРєСЂР°С—РЅСЃСЊРєР°", pl: "Polski" },
   },
 };
+
+
+

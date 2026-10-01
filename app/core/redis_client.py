@@ -60,12 +60,14 @@ def _password_reset_key(token: str) -> str:
     return f"{_PASSWORD_RESET_PREFIX}{digest}"
 
 
-def store_password_reset_token(token: str, user_id: int, ttl_seconds: int = 900) -> None:
+def store_password_reset_token(token: str, user_id: int, ttl_seconds: int = 15 * 60) -> None:
+    """Store a hashed, purpose-bound password-reset token with a short TTL."""
     get_redis().setex(_password_reset_key(token), ttl_seconds, str(user_id))
     logger.debug("Stored password-reset token for user_id=%s ttl=%ss", user_id, ttl_seconds)
 
 
 def consume_password_reset_token(token: str) -> int | None:
+    """Atomically consume a reset token so it cannot be replayed."""
     value = get_redis().getdel(_password_reset_key(token))
     if value is None:
         return None

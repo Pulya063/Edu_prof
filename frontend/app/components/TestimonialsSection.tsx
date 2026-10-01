@@ -6,8 +6,6 @@ type TestimonialTheme = "lime" | "light" | "dark";
 type Testimonial = {
   id: string;
   quote: string;
-  rating: number;
-  reviewCount: number;
   name: string;
   role: string;
   initials: string;
@@ -19,33 +17,27 @@ const testimonials: Testimonial[] = [
   {
     id: "anna",
     quote: "The calculator showed me that the cheaper programme paid back sooner — that changed my shortlist.",
-    rating: 4.9,
-    reviewCount: 2184,
-    name: "Anna Kowalska",
-    role: "Computer Science student",
-    initials: "AN",
+    name: "STEM applicant",
+    role: "Composite decision scenario",
+    initials: "01",
     theme: "lime",
     extendedStory: "I compared tuition, expected salary and payback for three programmes in one evening. The result made my decision feel practical instead of emotional.",
   },
   {
     id: "mark",
     quote: "I stopped collecting random courses and finally had a weekly plan I could actually follow.",
-    rating: 4.6,
-    reviewCount: 1642,
-    name: "Mark Chen",
-    role: "Future AI engineer",
-    initials: "MK",
+    name: "Career switcher",
+    role: "Composite decision scenario",
+    initials: "02",
     theme: "light",
     extendedStory: "The roadmap broke my goal into skills, projects and applications. I used it to decide what to learn next instead of starting another unfinished course.",
   },
   {
     id: "sofia",
     quote: "Seeing tuition next to salary made the trade-off clear — I chose a path that fit my budget.",
-    rating: 4.3,
-    reviewCount: 987,
-    name: "Sofia Marin",
-    role: "Business Analytics student",
-    initials: "SF",
+    name: "Budget-conscious student",
+    role: "Composite decision scenario",
+    initials: "03",
     theme: "dark",
     extendedStory: "I was choosing between a prestigious programme and a more affordable option. Seeing the payback period beside career fit helped me make a choice I could sustain.",
   },
@@ -56,14 +48,6 @@ function ArrowIcon({ direction }: { direction: "previous" | "next" }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" focusable="false">
       <path d={isNext ? "M5 12h14M13 6l6 6-6 6" : "M19 12H5m6 6-6-6 6-6"} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function StarIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" focusable="false">
-      <path d="m10 1.8 2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.42 5.06 17l.94-5.5-4-3.9 5.53-.8L10 1.8Z" />
     </svg>
   );
 }
@@ -115,7 +99,7 @@ function TestimonialCard({ testimonial, index, activeIndex, expandedId, onToggle
   );
 }
 
-export default function TestimonialsSection({ onExplore }: { onExplore: () => void }) {
+export default function TestimonialsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const swipeStart = useRef<number | null>(null);
@@ -187,13 +171,13 @@ export default function TestimonialsSection({ onExplore }: { onExplore: () => vo
       <span className="testimonials-bg-quote testimonials-bg-quote--two" aria-hidden="true">”</span>
       <div className="testimonials-inner">
         <div className="testimonials-copy">
-          <p className="eyebrow">07 / STUDENT STORIES</p>
-          <h2 id="testimonials-title"><HeadlineLine><span className="violet-highlight">Real</span></HeadlineLine><HeadlineLine>decisions.</HeadlineLine><HeadlineLine>Real direction.</HeadlineLine></h2>
-          <p className="testimonials-description">Students use Fence to compare, plan and move forward with confidence.</p>
-          <div className="rating-summary" aria-label={`Rated ${activeStory.rating.toFixed(1)} out of 5 from ${activeStory.reviewCount.toLocaleString()} student reviews`}>
-            <strong>{activeStory.rating.toFixed(1)} <span>/ 5</span></strong>
-            <div className="rating-stars" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <StarIcon key={index} />)}</div>
-            <small>from {activeStory.reviewCount.toLocaleString()} student reviews</small>
+          <p className="eyebrow">07 / DECISION EXAMPLES</p>
+          <h2 id="testimonials-title"><HeadlineLine><span className="violet-highlight">One</span></HeadlineLine><HeadlineLine>choice.</HeadlineLine><HeadlineLine>Clearer trade-offs.</HeadlineLine></h2>
+          <p className="testimonials-description">See how different priorities can change an education and career decision.</p>
+          <div className="rating-summary decision-example-note" aria-label="Three illustrative composite decision scenarios">
+            <strong>03</strong>
+            <div className="rating-stars" aria-hidden="true">COMPOSITE SCENARIOS</div>
+            <small>Illustrative patterns, not customer reviews</small>
           </div>
           <div className="testimonials-controls" role="group" aria-label="Student story controls">
             <button className="testimonial-arrow testimonial-arrow--previous" type="button" aria-label="Show previous student story" onClick={() => move(-1)}><ArrowIcon direction="previous" /></button>
@@ -211,7 +195,7 @@ export default function TestimonialsSection({ onExplore }: { onExplore: () => vo
               ))}
             </div>
           </div>
-          <button className="testimonials-cta" type="button" onClick={onExplore}>Explore their paths <span aria-hidden="true"><ArrowIcon direction="next" /></span></button>
+          <button className="testimonials-cta inactive-cta" type="button" disabled aria-disabled="true">Personal stories coming soon <span aria-hidden="true"><ArrowIcon direction="next" /></span></button>
         </div>
         <div className="testimonials-stage" data-active={activeIndex} data-expanded={expandedId ?? undefined} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onWheel={handleWheel}>
           {testimonials.map((testimonial, index) => (

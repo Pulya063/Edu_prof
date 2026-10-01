@@ -48,7 +48,8 @@ This file defines the current project stack and implementation rules. It supplem
 ## Product and simulation direction
 
 - Fence's target journey is education -> career -> financial outcome -> skills gap -> roadmap -> courses/projects/experience -> employment readiness.
-- **Planned**: a versioned Simulation Scenario will eventually connect education, career, finance, skills, roadmap, and evidence. Do not describe it as Current until implemented.
+- **Current**: versioned Simulation Scenario and `scenario-projection-v2` connect education assumptions with auditable financial outputs; `/workspace/scenario/new` creates a scenario and requests an evidence-backed projection, while `/workspace/overview` renders the latest result as a read-only analytical report. V2 stores resolved calculation inputs, cost breakdown, payback from graduation/enrollment and an optional study-income offset. Scenario editing, skills, roadmap, and employment-readiness feedback loops remain planned.
+- **Current**: `career_roi` is legacy read-only history. New financial results belong to `simulation_projections`; do not add new writers to the legacy career-analysis contour.
 - Roadmap progress should eventually update skill evidence and readiness. Completing a task must not directly or silently increase a salary estimate.
 - Do not implement a later roadmap phase merely because it is documented; stay within the user's current scope.
 
