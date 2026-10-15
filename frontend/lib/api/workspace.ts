@@ -1,3 +1,5 @@
+import { apiRequest } from "./client";
+
 export type WorkspaceProfile = {
   field_of_study: string;
   country: string;
@@ -32,26 +34,16 @@ export type WorkspaceUniversity = {
   data_quality: "database" | "illustrative";
 };
 
-function csrfToken() {
-  if (typeof document === "undefined") return "";
-  const cookie = document.cookie.split("; ").find((item) => item.startsWith("csrf_token="));
-  return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
-}
+export type WorkspaceUniversityDetails = WorkspaceUniversity & {
+  programmes: Array<{ id: string | number; name: string; description: string | null; duration_years: number; tuition_cost: number }>;
+  documents: Array<{ id: number; title: string; subject_name: string; source_url: string }>;
+  scholarships: Array<{ id: number; name: string; description: string | null; amount: number | null; currency: string | null; eligibility: string | null; application_url: string | null; deadline: string | null }>;
+};
 
-export async function workspaceFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const method = (init.method || "GET").toUpperCase();
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
-  if (init.body) headers.set("Content-Type", "application/json");
-  if (!["GET", "HEAD", "OPTIONS"].includes(method)) headers.set("X-CSRF-Token", csrfToken());
-
-  const response = await fetch(url, { ...init, headers, credentials: "include" });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = Array.isArray(payload?.detail)
-      ? payload.detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(". ")
-      : payload?.detail || payload?.message;
-    throw new Error(detail || "Fence could not complete this request.");
-  }
-  return payload as T;
+export function workspaceFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
+  return apiRequest<T>(url, {
+    ...init,
+    authenticated: true,
+    fallbackMessage: "Fence could not complete this workspace request.",
+  });
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Icon, Topography, WorkspacePageHeader } from "../WorkspaceUI";
-import { WorkspaceState, workspaceFetch } from "../workspaceApi";
+import { WorkspaceState, workspaceFetch } from "@/lib/api/workspace";
 
 export default function RoadmapDashboard() {
   const [state, setState] = useState<WorkspaceState | null>(null);

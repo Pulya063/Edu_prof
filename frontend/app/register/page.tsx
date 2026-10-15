@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { clearSessionCache } from "@/lib/auth/session";
 import "../styles/auth.css";
 
 type ApiError = {
@@ -61,6 +62,7 @@ export default function RegisterPage() {
         return;
       }
 
+      clearSessionCache();
       router.push("/workspace/overview");
       router.refresh();
     } catch {

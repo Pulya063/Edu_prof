@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { clearSessionCache } from "@/lib/auth/session";
 import "../styles/auth.css";
 
 type ApiError = {
@@ -48,7 +49,12 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/workspace/overview");
+      const requestedPath = new URLSearchParams(window.location.search).get("next");
+      const destination = requestedPath?.startsWith("/workspace/")
+        ? requestedPath
+        : "/workspace/overview";
+      clearSessionCache();
+      router.push(destination);
       router.refresh();
     } catch {
       setError("Network error. Check your connection and try again.");

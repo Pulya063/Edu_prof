@@ -2,20 +2,19 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("access_token")?.value;
-  
-  if (!token && request.nextUrl.pathname.startsWith("/workspace")) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-  
-  // If user is already logged in and tries to access login/register, redirect to workspace
-  if (token && (request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname.startsWith("/register"))) {
-    return NextResponse.redirect(new URL("/workspace/overview", request.url));
+  const hasSessionCookie = Boolean(
+    request.cookies.get("access_token")?.value || request.cookies.get("refresh_token")?.value,
+  );
+
+  if (!hasSessionCookie && request.nextUrl.pathname.startsWith("/workspace")) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/workspace/:path*", "/login", "/register"],
+  matcher: ["/workspace/:path*"],
 };

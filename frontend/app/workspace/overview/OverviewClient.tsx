@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { apiRequest } from "@/lib/api/client";
 import "../../styles/dashboard.css";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -33,38 +34,39 @@ type ScenarioSummary = {
   country: string;
 };
 
+type WorkspaceResource = {
+  id: string;
+  title: string;
+  description: string;
+  source: "Public web" | "YouTube";
+  url: string;
+  skills: string[];
+};
+
+type ResourceSource = "" | WorkspaceResource["source"];
+
 export default function OverviewClient() {
   const [data, setData] = useState<OverviewResponse | null>(null);
   const [savedScenarios, setSavedScenarios] = useState<ScenarioSummary[]>([]);
   const [roadmap, setRoadmap] = useState<any>(null);
-  const [state, setState] = useState<"loading" | "ready" | "unauthorized" | "error">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [resources, setResources] = useState<WorkspaceResource[]>([]);
+  const [resourceQuery, setResourceQuery] = useState("");
+  const [resourceSource, setResourceSource] = useState<ResourceSource>("");
+  const [resourceState, setResourceState] = useState<"loading" | "ready" | "error">("loading");
 
   const loadOverview = useCallback(async (signal?: AbortSignal) => {
     setState("loading");
     try {
-      const [overviewRes, scenariosRes, roadmapRes] = await Promise.all([
-        fetch("/api/simulations/overview", { headers: { Accept: "application/json" }, signal }),
-        fetch("/api/simulations", { headers: { Accept: "application/json" }, signal }),
-        fetch("/api/roadmap", { headers: { Accept: "application/json" }, signal })
+      const [overviewData, scenariosData, workspaceData] = await Promise.all([
+        apiRequest<OverviewResponse>("/api/simulations/overview", { signal, authenticated: true }),
+        apiRequest<ScenarioSummary[]>("/api/simulations", { signal, authenticated: true }),
+        apiRequest<{ roadmap: unknown }>("/api/workspace", { signal, authenticated: true }),
       ]);
-      
-      if (overviewRes.status === 401) {
-        setState("unauthorized");
-        return;
-      }
-      if (!overviewRes.ok) throw new Error(`Overview request failed: ${overviewRes.status}`);
-      
-      const overviewData = await overviewRes.json();
-      const scenariosData = scenariosRes.ok ? await scenariosRes.json() : [];
-      let roadmapData = null;
-      if (roadmapRes.ok) {
-        const parsed = await roadmapRes.json();
-        if (parsed.success) roadmapData = parsed.data;
-      }
 
       setData(overviewData);
       setSavedScenarios(scenariosData);
-      setRoadmap(roadmapData);
+      setRoadmap(workspaceData.roadmap);
       setState("ready");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -78,13 +80,31 @@ export default function OverviewClient() {
     return () => controller.abort();
   }, [loadOverview]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setResourceState("loading");
+      try {
+        const params = new URLSearchParams();
+        if (resourceQuery.trim()) params.set("q", resourceQuery.trim());
+        if (resourceSource) params.set("source", resourceSource);
+        const matchedResources = await apiRequest<WorkspaceResource[]>(`/api/workspace/resources?${params.toString()}`, {
+          signal: controller.signal,
+          authenticated: true,
+        });
+        setResources(matchedResources);
+        setResourceState("ready");
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setResourceState("error");
+      }
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [resourceQuery, resourceSource]);
+
   if (state === "loading") {
     return <div className="dashboard-layout" style={{ paddingTop: 100 }}>Loading dashboard...</div>;
   }
-  if (state === "unauthorized") {
-    return <div className="dashboard-layout">Please sign in to view your dashboard.</div>;
-  }
-
   // Derive real data values
   const hasActive = data && data.status !== "empty" && data.scenario;
   const activeScenarioName = hasActive ? data.scenario!.name : "Computer Science";
@@ -92,6 +112,8 @@ export default function OverviewClient() {
   const university = activeAssumptions?.university || "Your University";
   const location = activeAssumptions?.country || data?.scenario?.country || "Location";
   const targetRole = activeAssumptions?.career_target || data?.scenario?.target_role || "Role not set";
+  const roadmapTasks = roadmap?.plan?.phases?.flatMap((phase: any) => phase.tasks || []) || [];
+  const completedRoadmapTasks = roadmapTasks.filter((task: any) => task.completed);
   
   // Projection data
   const hasProjection = data?.status === "projected" && data.projection;
@@ -180,38 +202,28 @@ export default function OverviewClient() {
           </div>
           <div className="wi-controls">
             <div className="wi-tabs">
-              <button type="button" className="wi-tab is-active">All</button>
-              <button type="button" className="wi-tab">YouTube</button>
-              <button type="button" className="wi-tab">Public web</button>
+              {(["", "YouTube", "Public web"] as ResourceSource[]).map((source) => (
+                <button key={source || "all"} type="button" className={`wi-tab ${resourceSource === source ? "is-active" : ""}`} onClick={() => setResourceSource(source)}>
+                  {source || "All"}
+                </button>
+              ))}
             </div>
-            <div className="wi-search">
+            <label className="wi-search">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" placeholder="Find resources" />
-            </div>
+              <input type="search" value={resourceQuery} onChange={(event) => setResourceQuery(event.target.value)} placeholder="Find resources" aria-label="Search career resources" />
+            </label>
           </div>
           <div className="wi-list">
-            <div className="wi-item">
-              <div className="wi-item-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></div>
-              <div className="wi-item-content">
-                <strong>{targetRole.split(' ')[0]} project walkthrough</strong>
-                <p>Step-by-step project to build a real-world application.</p>
-              </div>
-              <div className="wi-item-meta">
-                <span className="wi-item-tag tag-youtube">YouTube</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-              </div>
-            </div>
-            <div className="wi-item">
-              <div className="wi-item-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-              <div className="wi-item-content">
-                <strong>{activeScenarioName} hiring trends</strong>
-                <p>Key skills in 2024 and what employers look for.</p>
-              </div>
-              <div className="wi-item-meta">
-                <span className="wi-item-tag tag-web">Public web</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-              </div>
-            </div>
+            {resourceState === "loading" && <div className="wi-resource-state">Loading matched resources…</div>}
+            {resourceState === "error" && <div className="wi-resource-state is-error">Resources are temporarily unavailable.</div>}
+            {resourceState === "ready" && resources.length === 0 && <div className="wi-resource-state">No resources match these filters.</div>}
+            {resourceState === "ready" && resources.slice(0, 3).map((resource) => (
+              <a className="wi-item" href={resource.url} target="_blank" rel="noreferrer" key={resource.id}>
+                <div className="wi-item-icon">{resource.source === "YouTube" ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>}</div>
+                <div className="wi-item-content"><strong>{resource.title}</strong><p>{resource.description}</p></div>
+                <div className="wi-item-meta"><span className={`wi-item-tag ${resource.source === "YouTube" ? "tag-youtube" : "tag-web"}`}>{resource.source}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+              </a>
+            ))}
           </div>
           <div className="wi-notice">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -245,7 +257,7 @@ export default function OverviewClient() {
                     </span>
                   </td>
                   <td className="td-arrow">
-                    <Link href="/workspace/scenarios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></Link>
+                    <Link href={`/workspace/scenarios/${scenario.id}`} aria-label={`Open ${scenario.name} calculation`}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></Link>
                   </td>
                 </tr>
               )) : (
@@ -266,22 +278,22 @@ export default function OverviewClient() {
           <div className="wrm-header">
             <h3 className="wrm-title">Your career <span className="wrm-highlight">roadmap</span></h3>
             <div className="wrm-progress">
-              <span>{roadmap ? roadmap.roadmap_data.tasks.filter((t: any) => t.status === "completed").length : 0} of {roadmap ? roadmap.roadmap_data.tasks.length : 12} tasks completed</span>
+              <span>{completedRoadmapTasks.length} of {roadmapTasks.length} tasks completed</span>
               <div className="wrm-bar">
-                <div className="wrm-bar-fill" style={{ width: roadmap ? `${(roadmap.roadmap_data.tasks.filter((t: any) => t.status === "completed").length / roadmap.roadmap_data.tasks.length) * 100}%` : '0%' }}></div>
+                <div className="wrm-bar-fill" style={{ width: roadmapTasks.length ? `${(completedRoadmapTasks.length / roadmapTasks.length) * 100}%` : '0%' }}></div>
               </div>
             </div>
           </div>
           <div className="wrm-list">
-            {roadmap ? (
-              roadmap.roadmap_data.tasks.slice(0, 3).map((task: any, idx: number) => (
+            {roadmapTasks.length ? (
+              roadmapTasks.slice(0, 3).map((task: any, idx: number) => (
                 <div className="wrm-item" key={idx}>
                   <div className="wrm-item-left">
                     <svg className="icon-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>
                     {task.title}
                   </div>
-                  <div className={`wrm-status txt-${task.status === "completed" ? "completed" : task.status === "in_progress" ? "progress" : "upcoming"}`}>
-                    {task.status === "completed" ? "Completed" : task.status === "in_progress" ? "In progress" : "Upcoming"}
+                  <div className={`wrm-status txt-${task.completed ? "completed" : "progress"}`}>
+                    {task.completed ? "Completed" : "In progress"}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
                   </div>
                 </div>
@@ -312,15 +324,12 @@ export default function OverviewClient() {
             )}
           </div>
           {roadmap ? (
-            <Link href="/workspace/roadmap" className="wrm-link">
+            <Link href="/workspace/roadmap/plan" className="wrm-link">
               Continue roadmap
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
             </Link>
           ) : (
-            <span className="wrm-link" style={{ opacity: 0.5, cursor: "not-allowed" }}>
-              Roadmap builder planned
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-            </span>
+            <Link href="/workspace/roadmap/simulation" className="wrm-link">Create roadmap<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></Link>
           )}
         </div>
 
@@ -333,9 +342,7 @@ export default function OverviewClient() {
             Compare universities, costs and career outcomes — and find the path that fits your goals.
           </div>
           <div className="wbn-right">
-            <span className="wbn-btn" style={{ opacity: 0.5, cursor: "not-allowed" }}>
-              Comparison tool planned
-            </span>
+            <Link href="/workspace/compare" className="wbn-btn">Compare your options</Link>
           </div>
         </div>
 

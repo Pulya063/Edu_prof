@@ -5,6 +5,11 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 export type Lang = "en" | "uk" | "pl";
 
 const STORAGE_KEY = "fence-lang";
+const HTML_LANG: Record<Lang, string> = {
+  en: "en",
+  uk: "uk-UA",
+  pl: "pl-PL",
+};
 
 interface LanguageContextValue {
   lang: Lang;
@@ -24,7 +29,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEY) as Lang | null;
       if (stored === "en" || stored === "uk" || stored === "pl") {
         setLangState(stored);
-        document.documentElement.lang = stored;
+        document.documentElement.lang = HTML_LANG[stored];
       }
     } catch {
       // localStorage unavailable — keep default
@@ -35,7 +40,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLangState(next);
     try { localStorage.setItem(STORAGE_KEY, next); } catch { /* ignore */ }
     // Update <html lang> attribute for accessibility
-    try { document.documentElement.lang = next; } catch { /* ignore */ }
+    try { document.documentElement.lang = HTML_LANG[next]; } catch { /* ignore */ }
   }, []);
 
   return (

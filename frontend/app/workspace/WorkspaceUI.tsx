@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 type IconName =
   | "arrow" | "book" | "briefcase" | "check" | "clock" | "code"
@@ -33,21 +34,34 @@ export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
 
 export function WorkspacePageHeader({
   section,
+  breadcrumbs,
   title,
   highlight,
   description,
   children,
 }: {
   section: string;
+  breadcrumbs?: Array<{ label: string; href?: string }>;
   title: string;
   highlight?: string;
   description: string;
   children?: ReactNode;
 }) {
   const parts = highlight ? title.split(highlight) : [title];
+  const trail = breadcrumbs || [
+    { label: "Workspace", href: "/workspace/overview" },
+    { label: section },
+  ];
   return (
     <header className="sketch-page-header">
-      <p className="sketch-breadcrumb">Workspace <i>/</i> {section}</p>
+      <nav className="sketch-breadcrumb" aria-label="Breadcrumb">
+        {trail.map((item, index) => (
+          <span key={`${item.label}-${index}`}>
+            {index > 0 && <i aria-hidden="true">/</i>}
+            {item.href ? <Link href={item.href}>{item.label}</Link> : <span aria-current="page">{item.label}</span>}
+          </span>
+        ))}
+      </nav>
       <div className="sketch-heading-row">
         <div>
           <h1>
@@ -65,4 +79,3 @@ export function WorkspacePageHeader({
 export function Topography() {
   return <span className="sketch-topography" aria-hidden="true" />;
 }
-

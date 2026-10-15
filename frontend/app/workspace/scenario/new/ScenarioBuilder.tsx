@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import { AUTH_EXPIRED_EVENT, getCsrfToken } from "@/lib/api/client";
 
 // ─── Types ───────────────────────────────────────────────────────
 type SubmitState = "idle" | "checking" | "creating" | "projecting" | "partial" | "error";
 type UniversityType = "public" | "private";
+type TuitionLookupState = "idle" | "loading" | "found" | "missing" | "error";
 
 type CreatedScenario = {
   id: number;
@@ -15,6 +17,20 @@ type CreatedScenario = {
 
 type ApiError = {
   detail?: string | Array<{ msg?: string }>;
+};
+
+type TuitionSnapshot = {
+  id: number;
+  scope: "program" | "university" | "country_average";
+  university: string | null;
+  program: string | null;
+  student_residency: string;
+  academic_year: string;
+  snapshot_date: string;
+  currency: string;
+  annual_tuition: string;
+  confidence: "low" | "medium" | "high";
+  sources: Array<{ name: string; reference: string; url?: string | null }>;
 };
 
 // ─── Orientation ranges by currency and university type ───────────
@@ -48,14 +64,11 @@ function fmt(n: number, currency: string) {
   return new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(n) + " " + currency;
 }
 
-// ─── Cookie helper ────────────────────────────────────────────────
-function readCookie(name: string) {
-  const match = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
-}
-
 // ─── API error parser ─────────────────────────────────────────────
 async function responseMessage(response: Response) {
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+  }
   try {
     const payload = (await response.json()) as ApiError;
     if (typeof payload.detail === "string") return payload.detail;
@@ -81,6 +94,7 @@ const initialForm = {
   seniority:       "junior",
   horizonYears:    "10",
   annualTuition:   "",
+  studentResidency: "unspecified",
   annualStartSalary: "",
   baselineAnnualSalary: "0",
   annualSalaryGrowthPercent: "0",
@@ -93,6 +107,15 @@ const initialForm = {
   employmentIncomeDuringStudy: "",
 };
 
+const TUITION_IDENTITY_FIELDS = new Set<keyof typeof initialForm>([
+  "university",
+  "specialization",
+  "country",
+  "degree",
+  "currency",
+  "studentResidency",
+]);
+
 // ─── Component ───────────────────────────────────────────────────
 export default function ScenarioBuilder() {
   const router = useRouter();
@@ -101,6 +124,9 @@ export default function ScenarioBuilder() {
   const [state, setState] = useState<SubmitState>("idle");
   const [message, setMessage] = useState("");
   const [savedScenarioId, setSavedScenarioId] = useState<number | null>(null);
+  const [tuitionSnapshot, setTuitionSnapshot] = useState<TuitionSnapshot | null>(null);
+  const [tuitionLookupState, setTuitionLookupState] = useState<TuitionLookupState>("idle");
+  const [tuitionMessage, setTuitionMessage] = useState("");
 
   const busy = state === "checking" || state === "creating" || state === "projecting";
 
@@ -143,8 +169,9 @@ export default function ScenarioBuilder() {
   const coreInputsReady = coreFieldsComplete === 5;
 
   function update(field: keyof typeof initialForm, value: string) {
-    setForm((prev) => field === "currency"
-      ? {
+    setForm((prev) => {
+      const next = field === "currency"
+        ? {
           ...prev,
           currency: value,
           annualTuition: "",
@@ -156,8 +183,89 @@ export default function ScenarioBuilder() {
           incrementalLivingCost: "",
           employmentIncomeDuringStudy: "",
         }
-      : { ...prev, [field]: value });
+        : { ...prev, [field]: value };
+      if (tuitionSnapshot && TUITION_IDENTITY_FIELDS.has(field)) {
+        next.annualTuition = "";
+      }
+      return next;
+    });
+    if (field === "annualTuition" || TUITION_IDENTITY_FIELDS.has(field)) {
+      setTuitionSnapshot(null);
+      setTuitionLookupState("idle");
+      setTuitionMessage("");
+    }
     if (state === "error") setState("idle");
+  }
+
+  function selectUniversityType(value: UniversityType) {
+    if (value === uniType) return;
+    setUniType(value);
+    if (tuitionSnapshot) {
+      setForm((previous) => ({ ...previous, annualTuition: "" }));
+    }
+    setTuitionSnapshot(null);
+    setTuitionLookupState("idle");
+    setTuitionMessage("");
+  }
+
+  async function resolveTuitionSnapshot() {
+    if (!form.university.trim() || !form.specialization.trim() || !form.country.trim()) {
+      setTuitionLookupState("missing");
+      setTuitionMessage("Add the university, programme and country before checking verified tuition.");
+      return;
+    }
+
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+      setTuitionLookupState("error");
+      setTuitionMessage("Refresh the page so Fence can verify this secure request.");
+      return;
+    }
+
+    setTuitionLookupState("loading");
+    setTuitionMessage("");
+    try {
+      const response = await fetch("/api/tuition/snapshots/resolve", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+        },
+        body: JSON.stringify({
+          university: form.university,
+          program: form.specialization,
+          country: form.country,
+          degree: form.degree,
+          student_residency: form.studentResidency,
+          institution_type: uniType,
+          currency: form.currency,
+          max_age_days: 1460,
+          minimum_confidence: "medium",
+          allow_country_fallback: false,
+        }),
+      });
+
+      if (!response.ok) {
+        setTuitionSnapshot(null);
+        setTuitionLookupState(response.status === 422 ? "missing" : "error");
+        setTuitionMessage(response.status === 422
+          ? "No matching verified record is stored yet. Enter the official fee manually and Fence will label it as user-provided."
+          : await responseMessage(response));
+        return;
+      }
+
+      const snapshot = (await response.json()) as TuitionSnapshot;
+      setTuitionSnapshot(snapshot);
+      setForm((previous) => ({ ...previous, annualTuition: snapshot.annual_tuition }));
+      setTuitionLookupState("found");
+      setTuitionMessage("Verified stored record selected. Fence will keep its source with this scenario revision.");
+    } catch {
+      setTuitionSnapshot(null);
+      setTuitionLookupState("error");
+      setTuitionMessage("Fence could not check stored tuition records. You can still enter the official fee manually.");
+    }
   }
 
   // ─── Submit ───────────────────────────────────────────────────
@@ -168,17 +276,7 @@ export default function ScenarioBuilder() {
     setState("checking");
 
     try {
-      const session = await fetch("/api/auth/me", {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      if (!session.ok) {
-        setState("error");
-        setMessage(await responseMessage(session));
-        return;
-      }
-
-      const csrfToken = readCookie("csrf_token");
+      const csrfToken = getCsrfToken();
       if (!csrfToken) {
         setState("error");
         setMessage("Fence could not verify this browser session. Refresh the page before trying again.");
@@ -192,27 +290,29 @@ export default function ScenarioBuilder() {
       };
 
       setState("creating");
+      const assumptions = {
+        university:           form.university,
+        specialization:       form.specialization,
+        country:              form.country,
+        degree:               form.degree,
+        currency:             form.currency,
+        study_duration_years: form.studyDuration,
+        career_target:        form.careerTarget,
+        existing_skills:      [],
+        additional_education: [],
+        courses:              [],
+        certifications:       [],
+        experience_years:     form.experienceYears,
+        ...(tuitionSnapshot ? {} : { annual_tuition: String(estimatedAnnualTuition) }),
+      };
       const scenarioResponse = await fetch("/api/simulations", {
         method: "POST",
         credentials: "include",
         headers: mutationHeaders,
         body: JSON.stringify({
           name: form.name,
-          assumptions: {
-            university:           form.university,
-            specialization:       form.specialization,
-            country:              form.country,
-            degree:               form.degree,
-            currency:             form.currency,
-            annual_tuition:       String(estimatedAnnualTuition),
-            study_duration_years: form.studyDuration,
-            career_target:        form.careerTarget,
-            existing_skills:      [],
-            additional_education: [],
-            courses:              [],
-            certifications:       [],
-            experience_years:     form.experienceYears,
-          },
+          assumptions,
+          ...(tuitionSnapshot ? { tuition_snapshot_id: tuitionSnapshot.id } : {}),
         }),
       });
 
@@ -228,7 +328,7 @@ export default function ScenarioBuilder() {
 
       const acquiredAt = new Date().toISOString();
       const userEvidence = [
-        {
+        ...(!tuitionSnapshot ? [{
           metric: "tuition",
           source_name: "User-provided tuition estimate",
           source_reference: "user-provided:scenario-form",
@@ -238,7 +338,7 @@ export default function ScenarioBuilder() {
           seniority: form.seniority,
           currency: form.currency,
           confidence: "low",
-        },
+        }] : []),
         ...(Number(form.baselineAnnualSalary) > 0 ? [{
           metric: "baseline_salary",
           source_name: "User-provided baseline salary",
@@ -315,10 +415,12 @@ export default function ScenarioBuilder() {
       if (!projectionResponse.ok) {
         setState("partial");
         setMessage(await responseMessage(projectionResponse));
+        router.push(`/workspace/scenarios/${scenario.id}`);
+        router.refresh();
         return;
       }
 
-      router.push("/workspace/overview");
+      router.push(`/workspace/scenarios/${scenario.id}`);
       router.refresh();
     } catch {
       setState("error");
@@ -393,12 +495,45 @@ export default function ScenarioBuilder() {
                   value={form.studyDuration}
                   onChange={(e) => update("studyDuration", e.target.value)} />
               </Field>
-              <Field label="Annual tuition" hint={form.currency}>
+              <Field label="Fee category">
+                <select value={form.studentResidency}
+                  onChange={(e) => update("studentResidency", e.target.value)}>
+                  <option value="unspecified">Not specified</option>
+                  <option value="domestic">Domestic student</option>
+                  <option value="international">International student</option>
+                  <option value="eu">EU / EEA student</option>
+                  <option value="non_eu">Non-EU student</option>
+                  <option value="in_state">US in-state</option>
+                  <option value="out_of_state">US out-of-state</option>
+                </select>
+              </Field>
+              <Field label="Annual tuition" hint={tuitionSnapshot ? `Verified · ${form.currency}` : form.currency}>
                 <input required type="number" min="0" step="0.01"
                   value={form.annualTuition}
+                  readOnly={Boolean(tuitionSnapshot)}
                   onChange={(e) => update("annualTuition", e.target.value)}
                   placeholder="Enter the quoted annual fee" />
               </Field>
+              <div className={`tuition-source-panel field-wide is-${tuitionLookupState}`} aria-live="polite">
+                <div>
+                  <span>Tuition source</span>
+                  <strong>{tuitionSnapshot ? "Verified record selected" : "Check Fence data before entering a fee"}</strong>
+                  <p>
+                    {tuitionSnapshot
+                      ? `${tuitionSnapshot.sources[0]?.name || "Stored source"} · ${tuitionSnapshot.academic_year} · ${tuitionSnapshot.confidence} confidence`
+                      : "Fence checks stored, validated records only. The calculator never waits for a live provider request."}
+                  </p>
+                  {tuitionMessage ? <small>{tuitionMessage}</small> : null}
+                </div>
+                {tuitionSnapshot ? (
+                  <button type="button" onClick={() => update("annualTuition", "")}>Use manual fee</button>
+                ) : (
+                  <button type="button" onClick={resolveTuitionSnapshot}
+                    disabled={tuitionLookupState === "loading"}>
+                    {tuitionLookupState === "loading" ? "Checking…" : "Check verified tuition"}
+                  </button>
+                )}
+              </div>
             </div>
           </section>
 
@@ -466,8 +601,9 @@ export default function ScenarioBuilder() {
               <div className="field-note-box">
                 <span>Calculation policy</span>
                 <p>
-                  Your explicit tuition is used for the calculation. Regional ranges are
-                  orientation only and never become evidence automatically.
+                  {tuitionSnapshot
+                    ? "The selected snapshot is stored with its source and reused deterministically."
+                    : "Your explicit tuition is labelled as user-provided. Regional ranges remain orientation only."}
                 </p>
               </div>
             </div>
@@ -548,7 +684,7 @@ export default function ScenarioBuilder() {
             <button
               type="button"
               className={`uni-type-btn ${uniType === "public" ? "is-active" : ""}`}
-              onClick={() => setUniType("public")}
+              onClick={() => selectUniversityType("public")}
             >
               <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 2 2 7h16L10 2ZM4 7v8M8 7v8M12 7v8M16 7v8M2 15h16" />
@@ -558,7 +694,7 @@ export default function ScenarioBuilder() {
             <button
               type="button"
               className={`uni-type-btn ${uniType === "private" ? "is-active" : ""}`}
-              onClick={() => setUniType("private")}
+              onClick={() => selectUniversityType("private")}
             >
               <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="9" width="16" height="9" rx="1.5" />
@@ -608,10 +744,11 @@ export default function ScenarioBuilder() {
           <div className="forecast-trust-callout">
             <span aria-hidden="true">!</span>
             <div>
-              <strong>Market evidence required</strong>
+              <strong>{tuitionSnapshot ? "Tuition source verified" : "Evidence required"}</strong>
               <p>
-                Leave salary empty for a validated market snapshot, or provide your own estimate.
-                User-provided values remain visibly low-confidence.
+                {tuitionSnapshot
+                  ? `Tuition uses snapshot #${tuitionSnapshot.id}. Salary still needs a market snapshot or an explicit estimate.`
+                  : "Check stored tuition first. User-provided tuition and salary stay visibly low-confidence."}
               </p>
             </div>
           </div>
@@ -626,6 +763,7 @@ export default function ScenarioBuilder() {
               <div><dt>Target role</dt><dd>{form.careerTarget || "Not set"}</dd></div>
               <div><dt>Market</dt><dd>{form.country} · {form.seniority}</dd></div>
               <div><dt>Experience</dt><dd>{form.experienceYears} years</dd></div>
+              <div><dt>Tuition source</dt><dd>{tuitionSnapshot ? `${tuitionSnapshot.confidence} confidence` : "User-provided"}</dd></div>
               <div><dt>Salary source</dt><dd>{form.annualStartSalary ? "User-provided estimate" : "Validated snapshot"}</dd></div>
             </dl>
           </section>
@@ -647,7 +785,7 @@ export default function ScenarioBuilder() {
               <strong>{fmt(getPresetForType(form.currency, "private").mid, form.currency)}</strong>
             </div>
             <p className="cost-data-note">
-              Averages from regional data · exact fees will be pulled from university records
+              Regional ranges are orientation only. Exact stored fees are used only after an explicit source match.
             </p>
           </section>
 
@@ -657,7 +795,7 @@ export default function ScenarioBuilder() {
               <strong>{state === "partial" ? "Scenario saved. Forecast paused." : "This scenario was not completed."}</strong>
               <p>{message}</p>
               {state === "partial" && savedScenarioId && (
-                <Link href="/workspace/overview">Open saved scenario <span aria-hidden="true">→</span></Link>
+                <Link href={`/workspace/scenarios/${savedScenarioId}`}>Open saved calculation <span aria-hidden="true">→</span></Link>
               )}
             </div>
           )}

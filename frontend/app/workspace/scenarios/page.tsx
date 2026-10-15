@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import "../../styles/dashboard.css";
 import { useRouter } from "next/navigation";
+import { apiRequest } from "@/lib/api/client";
 
 type ScenarioSummary = {
   id: number;
@@ -30,14 +31,15 @@ export default function ScenariosPage() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadScenarios() {
       try {
-        const res = await fetch("/api/simulations", { headers: { Accept: "application/json" } });
-        if (res.ok) setScenarios(await res.json());
-      } catch {
-        // Handle silently
+        setScenarios(await apiRequest<ScenarioSummary[]>("/api/simulations", { authenticated: true }));
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Could not load saved scenarios.");
       } finally {
         setLoading(false);
       }
@@ -45,8 +47,20 @@ export default function ScenariosPage() {
     loadScenarios();
   }, []);
 
+  useEffect(() => {
+    if (selectedId === null) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedId]);
+
   const selectedScenario = scenarios.find(s => s.id === selectedId);
   const selectedEnrich = selectedScenario ? ENRICH_DATA[scenarios.indexOf(selectedScenario) % ENRICH_DATA.length] : null;
+  const filteredScenarios = scenarios.filter((scenario) =>
+    `${scenario.name} ${scenario.country} ${scenario.target_role}`.toLowerCase().includes(query.trim().toLowerCase())
+  );
 
   if (loading) return <div className="dashboard-layout" style={{ paddingTop: 100 }}>Loading scenarios...</div>;
 
@@ -63,19 +77,21 @@ export default function ScenariosPage() {
       </header>
 
       <div className="scenarios-page-container">
+        {error && <div className="workspace-status is-error" role="alert">{error}</div>}
         <div className="scenarios-main">
           
           <div className="scenarios-toolbar">
             <div className="scenarios-search">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" placeholder="Search scenarios by name, university or field..." />
+              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search scenarios by name, country or role..." />
             </div>
             <Link href="/workspace/scenario/new" className="btn-new-scenario">+ New scenario</Link>
-            <span className="scenarios-count">{scenarios.length} scenarios</span>
+            <span className="scenarios-count">{filteredScenarios.length} scenarios</span>
           </div>
 
           <div className="scenarios-grid">
-            {scenarios.map((scenario, idx) => {
+            {filteredScenarios.map((scenario) => {
+              const idx = scenarios.indexOf(scenario);
               const enrich = ENRICH_DATA[idx % ENRICH_DATA.length];
               const isDark = enrich.theme === "dark";
               const isActive = scenario.status === "active" || scenario.status === "complete";
@@ -121,6 +137,17 @@ export default function ScenariosPage() {
                     </div>
                   </div>
 
+                  <div className="sc-summary-strip">
+                    <div>
+                      <span>Target role</span>
+                      <strong>{scenario.target_role || "Not selected yet"}</strong>
+                    </div>
+                    <div>
+                      <span>Updated</span>
+                      <strong>{new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(new Date(scenario.updated_at))}</strong>
+                    </div>
+                  </div>
+
                   <div className="sc-footer">
                     <div className="sc-cost">
                       <small>ESTIMATED TOTAL COST</small>
@@ -133,7 +160,7 @@ export default function ScenariosPage() {
                         router.push(`/workspace/scenarios/${scenario.id}`);
                       }}
                     >
-                      Open full university details →
+                      Open full calculation →
                     </button>
                   </div>
                 </div>
@@ -141,10 +168,10 @@ export default function ScenariosPage() {
             })}
             
             {/* If empty, show a placeholder or mock card */}
-            {scenarios.length === 0 && (
+            {filteredScenarios.length === 0 && (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px", background: "#fff", borderRadius: "16px" }}>
-                <p style={{ color: "#5f6669", marginBottom: "16px" }}>You have no saved scenarios.</p>
-                <Link href="/workspace/scenario/new" className="btn-new-scenario">+ Create your first scenario</Link>
+                <p style={{ color: "#5f6669", marginBottom: "16px" }}>{scenarios.length ? "No scenarios match your search." : "You have no saved scenarios."}</p>
+                {!scenarios.length && <Link href="/workspace/scenario/new" className="btn-new-scenario">+ Create your first scenario</Link>}
               </div>
             )}
           </div>
@@ -161,7 +188,7 @@ export default function ScenariosPage() {
         {/* Side Panel */}
         {selectedScenario && selectedEnrich && (
           <aside className="scenarios-side-panel">
-            <button className="sp-close" onClick={() => setSelectedId(null)}>
+            <button className="sp-close" type="button" aria-label="Close scenario details" onClick={() => setSelectedId(null)}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
 
@@ -204,39 +231,39 @@ export default function ScenariosPage() {
 
             <h3 className="sp-actions-title">Explore and plan</h3>
             <div className="sp-actions-list">
-              <div className="sp-action-item">
+              <Link className="sp-action-item" href={`/workspace/scenarios/${selectedScenario.id}#investment`}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 <div className="sp-action-content">
-                  <strong>Admissions &amp; documents</strong>
-                  <p>Entry requirements, required documents and application process (example).</p>
+                  <strong>Investment breakdown</strong>
+                  <p>Review tuition, opportunity cost and the total investment.</p>
                 </div>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
+              </Link>
               
-              <div className="sp-action-item">
+              <Link className="sp-action-item" href={`/workspace/scenarios/${selectedScenario.id}#trajectory`}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 <div className="sp-action-content">
-                  <strong>Subjects &amp; scholarships</strong>
-                  <p>Curriculum overview and scholarship options (example).</p>
+                  <strong>Salary trajectory</strong>
+                  <p>Compare projected and baseline salary by year.</p>
                 </div>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
+              </Link>
               
-              <div className="sp-action-item">
+              <Link className="sp-action-item" href={`/workspace/scenarios/${selectedScenario.id}#evidence`}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                 <div className="sp-action-content">
-                  <strong>Motivation letter support</strong>
-                  <p>Guidance and examples to help you prepare (example).</p>
+                  <strong>Evidence &amp; assumptions</strong>
+                  <p>Inspect sources, methodology and values requiring review.</p>
                 </div>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
+              </Link>
             </div>
 
             <Link href={`/workspace/scenarios/${selectedScenario.id}`} className="btn-sp-full" style={{ textDecoration: 'none' }}>
-              Open full university details
+              Open full calculation
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
             </Link>
-            <span className="sp-footer-note">Includes official links, documents, curriculum and career planning.</span>
+            <span className="sp-footer-note">Includes investment, salary, payback, evidence and calculation assumptions.</span>
           </aside>
         )}
 

@@ -146,11 +146,6 @@ body {
   min-width: var(--touch-target);
 }
 
-.footer-language select {
-  min-height: var(--touch-target);
-  max-width: 100%;
-}
-
 .footer-wordmark,
 .footer-legal-actions .footer-link {
   min-height: var(--touch-target);
@@ -232,7 +227,6 @@ body {
     margin-inline: auto;
   }
 
-  .info-card,
   .calculator-main,
   .university-card,
   .factor-card,
@@ -260,9 +254,8 @@ body {
     text-align: center;
   }
 
-  /* Every horizontal rail is full-bleed in both directions. Matching side
-     padding places the first and last cards on the viewport centre line. */
-  #hero .overlay-bento,
+  /* Browsable card rails remain swipeable; the hero preview is a fixed,
+     centered composition and must never become a nested scroller. */
   #comparison .university-cards,
   #scholarships .scholarship-carousel {
     box-sizing: border-box;
@@ -276,14 +269,12 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 
-  #hero .overlay-bento::-webkit-scrollbar,
   #comparison .university-cards::-webkit-scrollbar,
   #scholarships .scholarship-carousel::-webkit-scrollbar {
     display: block !important;
     height: 6px;
   }
 
-  #hero .overlay-bento::-webkit-scrollbar-thumb,
   #comparison .university-cards::-webkit-scrollbar-thumb,
   #scholarships .scholarship-carousel::-webkit-scrollbar-thumb {
     border-radius: 999px;
@@ -297,14 +288,34 @@ body {
   }
 
   #hero .overlay-bento {
-    --mobile-rail-card: 140px;
-    padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
-    scroll-padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2);
+    position:relative!important;
+    left:auto!important;
+    bottom:auto!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)!important;
+    width:min(100%,540px)!important;
+    margin:clamp(210px,50vw,320px) auto 0!important;
+    padding:0!important;
+    gap:clamp(8px,1.8vw,12px)!important;
+    overflow:visible!important;
+    scroll-snap-type:none!important;
+    transform:none!important;
+    scrollbar-width:auto!important;
   }
 
   #hero .overlay-bento .bento-card {
-    scroll-snap-align: center;
-    scroll-snap-stop: normal;
+    min-width:0;
+    width:100%;
+    flex:none!important;
+    cursor:default;
+    scroll-snap-align:none;
+    animation:none!important;
+    translate:none!important;
+  }
+
+  #hero .overlay-bento .bento-col {
+    width:auto;
+    min-width:0;
   }
 
   #comparison .university-cards {
@@ -324,14 +335,56 @@ body {
     gap: 14px;
     padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
     scroll-padding-inline: calc(((100% + (2 * var(--layout-gutter))) - var(--mobile-rail-card)) / 2) !important;
+    scroll-snap-type: x mandatory !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+  }
+
+  #scholarships .scholarship-carousel::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #scholarships .scholarship-card {
+    scroll-snap-stop: always;
   }
 
   .roadmap-section .roadmap-journey {
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 14px;
+    width:100%;
+    padding-left:34px!important;
     overflow: visible;
     scroll-snap-type: none;
   }
+
+  .roadmap-section .roadmap-line {
+    display:block!important;
+    top:42px!important;
+    right:auto!important;
+    bottom:42px!important;
+    left:10px!important;
+    width:4px!important;
+    min-width:0!important;
+    height:auto!important;
+    border-radius:999px;
+    background:linear-gradient(to bottom,var(--fence-lime) 0 39%,#171819 39% 100%)!important;
+  }
+
+  .roadmap-section .roadmap-line svg { display:none; }
+  .roadmap-section .roadmap-card::before {
+    content:"";
+    position:absolute;
+    z-index:4;
+    top:42px;
+    left:-31px;
+    width:14px;
+    height:14px;
+    border:3px solid #171819;
+    border-radius:50%;
+    background:var(--fence-surface);
+    box-shadow:0 0 0 4px var(--fence-surface);
+  }
+  .roadmap-section .roadmap-card:nth-of-type(-n+3)::before { background:var(--fence-lime); }
 
   .landing-page.js-ready #roadmap:not(.is-visible) .roadmap-card,
   .landing-page.js-ready #scholarships:not(.is-visible) .scholarship-card {
@@ -344,35 +397,38 @@ body {
   }
 
   .factor-orbit {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-    width: 100%;
-    height: auto;
-    min-height: 0;
-    margin: 0;
-    transform: none;
+    position:relative;
+    display:block;
+    width:780px;
+    height:680px;
+    min-height:680px;
+    margin:0 0 -204px calc(50% - 390px);
+    transform:scale(.7);
+    transform-origin:top center;
   }
 
   .orbit-circle {
-    display: none;
+    display:block;
   }
 
   .salary-core {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    padding: 24px 18px;
-    border: 1px solid rgba(255,255,255,.28);
-    border-radius: 18px;
-    background: rgba(255,255,255,.05);
-    transform: none;
+    position:absolute;
+    top:268px;
+    right:auto;
+    bottom:auto;
+    left:50%;
+    width:340px;
+    padding:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    transform:translateX(-50%);
   }
 
   .salary-core strong {
-    margin: 12px 0;
-    font-size: clamp(44px, 14vw, 68px);
-    white-space: normal;
+    margin:22px 0;
+    font-size:clamp(50px,5.2vw,88px);
+    white-space:nowrap;
   }
 
   .factor-card,
@@ -385,21 +441,50 @@ body {
   .factor-card:hover,
   .factor-card--0:hover,
   .factor-card--5:hover {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    min-height: 96px;
-    transform: none;
+    position:absolute;
+    width:290px;
+    min-height:110px;
   }
 
   .factor-card {
-    grid-template-columns: 52px minmax(0, 1fr) auto;
+    grid-template-columns:58px 1fr auto;
   }
 
   .factor-card > i {
-    width: 48px;
-    height: 48px;
+    width:52px;
+    height:52px;
   }
+
+  .factor-card--0 { top:4px; right:auto; bottom:auto; left:50%; transform:translateX(-50%); }
+  .factor-card--1 { top:154px; right:auto; bottom:auto; left:0; transform:none; }
+  .factor-card--2 { top:154px; right:0; bottom:auto; left:auto; transform:none; }
+  .factor-card--3 { top:auto; right:4%; bottom:30px; left:auto; transform:none; }
+  .factor-card--4 { top:auto; right:auto; bottom:36px; left:0; transform:none; }
+  .factor-card--5 { top:auto; right:auto; bottom:-3px; left:50%; transform:translateX(-50%); }
+
+  #hero .info-card {
+    align-items:flex-start;
+    margin-bottom:26px;
+    text-align:left;
+  }
+  #hero .info-card .tag-row { justify-content:flex-start; }
+  #hero { padding-bottom:56px!important; }
+  #hero .section-index {
+    position:relative;
+    z-index:8;
+    bottom:auto!important;
+    left:auto;
+    width:min(100%,460px);
+    margin:0 auto;
+  }
+}
+
+@media (max-width:560px) {
+  .factor-orbit { margin-bottom:-292px; transform:scale(.57); }
+}
+
+@media (max-width:420px) {
+  .factor-orbit { margin-top:24px; margin-bottom:-366px; transform:scale(.44); }
 }
 
 @media (max-width: 480px) {
@@ -481,6 +566,193 @@ body {
 @media (max-width: 600px) {
   #hero .overlay-bento {
     --mobile-rail-card: 120px;
+    width: min(100%, 420px) !important;
+    gap: 6px !important;
+  }
+
+  #hero .overlay-bento .bento-card {
+    align-items: center;
+    justify-content: center;
+    min-height: 68px !important;
+    padding: 9px 7px !important;
+    border-radius: 14px !important;
+    text-align: center;
+  }
+
+  #hero .overlay-bento .bento-card--tall {
+    min-height: 150px !important;
+  }
+
+  #hero .overlay-bento .bento-card--grey {
+    padding: 0 !important;
+  }
+
+  #hero .overlay-bento .bento-card--grey .bento-art {
+    width: 100%;
+    min-height: 68px;
+  }
+
+  #hero .overlay-bento .bento-card--grey .bento-copy {
+    width: 100%;
+    padding: 11px 7px 14px !important;
+  }
+
+  #hero .overlay-bento .bento-col {
+    display: grid;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  #hero .overlay-bento .bento-col .bento-card {
+    min-height: 0 !important;
+    padding: 8px 6px !important;
+  }
+
+  #hero .overlay-bento .bento-copy {
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+  }
+
+  #hero .overlay-bento .bento-copy--row {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  #hero .overlay-bento .bento-copy strong {
+    font-size: clamp(20px, 6.4vw, 28px) !important;
+    white-space: nowrap;
+  }
+
+  #hero .overlay-bento .bento-copy span {
+    font-size: clamp(7px, 2.05vw, 10px) !important;
+    line-height: 1.2;
+  }
+
+  #hero .overlay-bento .bento-topline {
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 4px;
+  }
+
+  #hero .overlay-bento .bento-faces {
+    justify-content: center;
+    transform: none !important;
+  }
+
+  #hero .overlay-bento .face {
+    width: 18px;
+    height: 18px;
+    margin-left: -4px;
+    border-width: 1px;
+  }
+
+  #hero .overlay-bento .face:first-child {
+    margin-left: 0;
+  }
+
+  #hero .overlay-bento .bento-arrow-btn {
+    flex: 0 0 24px;
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 12px !important;
+  }
+
+  #factors .factors-shell {
+    gap: 32px;
+  }
+
+  #factors .factors-intro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #factors .feature-description {
+    max-width: 350px;
+  }
+
+  #factors .lime-button {
+    justify-content: space-between;
+    width: min(100%, 324px);
+    margin-inline: auto;
+  }
+
+  #factors .factor-proof {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(100%, 360px);
+    gap: 0;
+    margin: 32px auto 0;
+  }
+
+  #factors .factor-proof b {
+    align-items: center;
+    min-width: 0;
+    padding: 0 8px;
+    font-size: clamp(10px, 3vw, 14px);
+    line-height: 1.12;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  #factors .factor-proof small {
+    font-size: 7px;
+    letter-spacing: .09em;
+  }
+
+  #final-decision {
+    padding-bottom: clamp(78px, 20vw, 112px) !important;
+  }
+
+  #final-decision .decision-routes {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px;
+    margin-top: 34px;
+  }
+
+  #final-decision .decision-route {
+    min-width: 0;
+    min-height: 232px;
+    padding: 50px 10px 12px !important;
+    border-radius: 16px;
+  }
+
+  #final-decision .decision-route > span {
+    font-size: 10px;
+  }
+
+  #final-decision .decision-route > i {
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+  }
+
+  #final-decision .decision-route > i svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  #final-decision .decision-route h3 {
+    max-width: none;
+    margin: 12px 0 8px;
+    font-size: clamp(15px, 4.7vw, 22px);
+    line-height: .98;
+    overflow-wrap: anywhere;
+  }
+
+  #final-decision .decision-route p {
+    font-size: clamp(8px, 2.35vw, 11px);
+    line-height: 1.25;
+  }
+
+  #final-decision .decision-route small {
+    font-size: 6px;
+    line-height: 1.2;
+    letter-spacing: .1em;
   }
 }
 
@@ -518,4 +790,10 @@ body {
   .final-head h2,
   .footer-brand h2 { letter-spacing: -.075em; }
   .factor-card { padding-inline: 12px; }
+  .factor-orbit { margin-bottom: -423px; transform: scale(.36); }
+
+  #final-decision .decision-routes { gap: 4px; }
+  #final-decision .decision-route { min-height: 220px; padding-inline: 8px !important; }
+  #final-decision .decision-route h3 { font-size: 14px; }
+  #final-decision .decision-route p { font-size: 8px; }
 }

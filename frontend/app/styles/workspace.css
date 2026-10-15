@@ -287,6 +287,21 @@
 .field-note-box > span { color:#526789; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
 .field-note-box > p { margin:6px 0 0; color:#728098; font-size:11px; line-height:1.45; }
 
+/* ── Verified tuition source selector ─────────────────────────── */
+.tuition-source-panel { grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:18px; min-height:94px; padding:16px 18px; border:1px solid #cbd5df; border-radius:11px; background:linear-gradient(135deg,#f7f8f8,#f0f3f5); }
+.tuition-source-panel.is-found { border-color:#9bd527; background:linear-gradient(135deg,rgba(183,255,42,.16),rgba(215,199,255,.15)); }
+.tuition-source-panel.is-missing,.tuition-source-panel.is-error { border-color:#d7c7ff; background:#f4f0ff; }
+.tuition-source-panel span { display:block; color:#60718c; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.tuition-source-panel strong { display:block; margin-top:5px; color:#202a3a; font-family:'Manrope',sans-serif; font-size:14px; letter-spacing:-.02em; }
+.tuition-source-panel p { margin:5px 0 0; color:#667590; font-size:10px; line-height:1.45; }
+.tuition-source-panel small { display:block; margin-top:7px; color:#5d38c7; font-size:9px; line-height:1.4; }
+.tuition-source-panel button { min-height:40px; padding:0 15px; border:1px solid #26354c; border-radius:8px; background:#171819; color:#fff; font-size:10px; font-weight:800; white-space:nowrap; cursor:pointer; transition:transform var(--ws-motion-fast) ease,box-shadow var(--ws-motion-fast) ease,opacity var(--ws-motion-fast) ease; }
+.tuition-source-panel.is-found button { background:#fff; color:#171819; }
+.tuition-source-panel button:hover:not(:disabled) { box-shadow:0 8px 18px rgba(23,24,25,.12); transform:translateY(-1px); }
+.tuition-source-panel button:focus-visible { outline:3px solid rgba(112,71,228,.42); outline-offset:2px; }
+.tuition-source-panel button:disabled { cursor:wait; opacity:.58; }
+.forecast-input-panel .scenario-field input[readonly] { border-color:#9bd527; background:rgba(183,255,42,.09); color:#263119; }
+
 /* ── Optional detailed financial inputs ──────────────────────── */
 .detailed-analysis { border-top:1px solid #dde1e5; }
 .detailed-analysis summary { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:22px 29px; color:#26354c; font-size:13px; font-weight:800; cursor:pointer; list-style:none; }
@@ -349,6 +364,8 @@
   .detailed-analysis summary { padding:20px; }
   .detailed-analysis-body { padding:0 20px 24px; }
   .professional-field-grid,.professional-field-grid--three { grid-template-columns:1fr; }
+  .tuition-source-panel { grid-template-columns:1fr; align-items:start; }
+  .tuition-source-panel button { width:100%; }
   .professional-evidence-panel { padding:16px; }
   .forecast-preview { padding:23px 20px; }
   .forecast-preview-top { display:grid; }
