@@ -13,6 +13,9 @@ RUN npm ci
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+# Next.js bakes rewrites into the build, so the API address must be known here.
+ARG FLASK_API_URL=http://api:8122
+ENV FLASK_API_URL=$FLASK_API_URL
 COPY . .
 
 # Вимикаємо телеметрію Next.js (опціонально, але добре для CI)

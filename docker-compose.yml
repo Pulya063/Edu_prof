@@ -1,6 +1,9 @@
 services:
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        FLASK_API_URL: http://api:8122
     environment:
       FLASK_API_URL: http://api:8122
       PORT: 3221
@@ -22,6 +25,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3221}
       OAUTH_REDIRECT_URI: ${OAUTH_REDIRECT_URI:-http://localhost:3221/api/auth/callback/google}
       REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
     depends_on:
       db:
         condition: service_healthy
@@ -42,7 +47,7 @@ services:
     ports:
       - "5442:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U education -d education_roi"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d education_roi"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -67,7 +72,8 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/education_roi
-      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
@@ -78,5 +84,4 @@ services:
 
 volumes:
   postgres_data:
-  rabbitmq_data:
   redis_data:
