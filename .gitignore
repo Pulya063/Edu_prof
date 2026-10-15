@@ -16,3 +16,12 @@ frontend/.next/
 *.tsbuildinfo
 app/logs/
 uv.lock
+
+# Local binaries and data
+*.exe
+*.zip
+instance/
+chroma_db/
+logs/
+*.db
+*.sqlite3
