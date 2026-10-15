@@ -152,6 +152,7 @@ def test_simulation_scenario_revision_flow(client, monkeypatch):
     assert forecast["calculation_inputs"]["annual_start_salary"] == "50000.00"
     assert forecast["cost_breakdown"]["tuition"] == "48000.00"
     assert forecast["unverified_assumptions"] == ["annual_tuition"]
+    assert forecast["ai_review"]["status"] == "not_configured"
 
     explainability = client.get(
         f"/api/simulations/{scenario['id']}/revisions/2/projections/"
@@ -174,9 +175,16 @@ def test_simulation_scenario_revision_flow(client, monkeypatch):
     assert overview_data["projection"]["id"] == forecast["id"]
     assert overview_data["explainability"]["calculation_type"] == "deterministic"
 
+    reviewed = client.post(
+        f"/api/simulations/{scenario['id']}/revisions/2/projections/"
+        f"{forecast['id']}/ai-review",
+        headers=headers,
+    )
+    assert reviewed.status_code == 200
+    assert reviewed.get_json()["ai_review"]["status"] == "not_configured"
+
     retired = client.post("/api/roi/analyze", json={}, headers=headers)
-    assert retired.status_code == 410
-    assert retired.get_json()["replacement"]["create_scenario"] == "/api/simulations"
+    assert retired.status_code == 404
 
     duplicate = client.post(
         f"/api/simulations/{scenario['id']}/revisions/2/projections",

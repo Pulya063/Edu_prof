@@ -22,6 +22,29 @@ def create_market_snapshot(user: User) -> tuple[Response, int]:
     return jsonify(response.model_dump(mode="json")), 201 if created else 200
 
 
+@blueprint.post("/snapshots/refresh")
+@get_current_user
+def queue_market_refresh(user: User) -> tuple[Response, int]:
+    if not user.is_admin:
+        raise AppError("Недостатньо прав для оновлення market data", status_code=403)
+        
+    payload = request.get_json(silent=True) or {}
+    role = payload.get("role")
+    if not role:
+        raise AppError("Поле 'role' є обов'язковим", status_code=422)
+        
+    country = payload.get("country", "United States")
+    currency = payload.get("currency", "USD")
+    
+    from app.tasks.market_tasks import refresh_market_snapshot
+    try:
+        task = refresh_market_snapshot.delay(role, country, currency)
+    except Exception as error:
+        raise AppError("Черга оновлення market data недоступна", status_code=503) from error
+
+    return jsonify({"job_id": task.id}), 202
+
+
 @blueprint.get("/snapshots")
 @get_current_user
 def list_market_snapshots(user: User) -> Response:

@@ -44,15 +44,15 @@ def create_app() -> Flask:
     def health_check() -> tuple[dict[str, str], int]:
         return {"status": "ok"}, 200
 
-    from app.api import auth, mail, market, roi, roadmap, simulations, workspace
+    from app.api import auth, mail, market, roi, roadmap, simulations, tuition, workspace
 
     flask_app.register_blueprint(auth.blueprint, url_prefix="/api/auth")
     flask_app.register_blueprint(roi.blueprint, url_prefix="/api/roi")
     flask_app.register_blueprint(mail.blueprint, url_prefix="/api/mail")
     flask_app.register_blueprint(simulations.blueprint, url_prefix="/api/simulations")
     flask_app.register_blueprint(market.blueprint, url_prefix="/api/market")
+    flask_app.register_blueprint(tuition.blueprint, url_prefix="/api/tuition")
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/roadmap")
-    # JSON API namespace used by the Next.js application.
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/api/roadmap", name="roadmap_api")
     flask_app.register_blueprint(workspace.blueprint, url_prefix="/api/workspace")
     if resource_audit_enabled():
@@ -72,6 +72,10 @@ def create_app() -> Flask:
         g.new_tokens = None  # filled when silent refresh occurs
         g.clear_auth_cookies = False
 
+        if request.path == "/api/resources" or request.path == "/resources":
+            logger.info("Public endpoint accessed: %s", request.path)
+            return
+
         access_token = request.cookies.get("access_token")
         if access_token:
             user = AuthService(db.session).get_current_user(access_token)
@@ -79,6 +83,9 @@ def create_app() -> Flask:
                 g.user = user
                 logger.info("Authenticated request user_id=%s", user.id)
                 return
+
+
+
 
         # --- Silent refresh: access token missing/expired, try refresh token ---
         refresh_token = request.cookies.get("refresh_token")

@@ -22,6 +22,7 @@ blueprint = Blueprint("simulations", __name__)
 @blueprint.post("")
 @get_current_user
 def create_simulation(user: User) -> tuple[Response, int]:
+    """Зберегти умови; прогноз запитується окремо й може бути недоступним без джерел."""
     payload = SimulationCreateRequest.model_validate(request.get_json(silent=True) or {})
     scenario = SimulationService(db.session).create(user.id, payload)
     response = SimulationScenarioResponse.model_validate(scenario)
@@ -39,6 +40,7 @@ def list_simulations(user: User) -> Response:
 @blueprint.get("/overview")
 @get_current_user
 def get_simulation_overview(user: User) -> Response:
+    """Зібрати останній сценарій, його поточний прогноз і джерела для overview."""
     simulation_service = SimulationService(db.session)
     scenarios = simulation_service.list_for_user(user.id)
     if not scenarios:
@@ -83,6 +85,7 @@ def get_simulation(scenario_id: int, user: User) -> Response:
 @blueprint.post("/<int:scenario_id>/revisions")
 @get_current_user
 def create_simulation_revision(scenario_id: int, user: User) -> tuple[Response, int]:
+    """Контракт для запланованого редактора: додати ревізію, зберігши старі результати."""
     payload = SimulationRevisionCreateRequest.model_validate(request.get_json(silent=True) or {})
     scenario = SimulationService(db.session).add_revision(user.id, scenario_id, payload)
     response = SimulationScenarioResponse.model_validate(scenario)
@@ -132,4 +135,23 @@ def get_simulation_projection_explainability(
         projection_id,
     )
     response = SimulationProjectionExplainabilityResponse.model_validate(explanation)
+    return jsonify(response.model_dump(mode="json"))
+
+
+@blueprint.post(
+    "/<int:scenario_id>/revisions/<int:revision_number>/projections/"
+    "<int:projection_id>/ai-review"
+)
+@get_current_user
+def review_simulation_projection(
+    scenario_id: int,
+    revision_number: int,
+    projection_id: int,
+    user: User,
+) -> Response:
+    """Run or retry the bounded Deep Agent review without changing canonical numbers."""
+    projection = SimulationProjectionService(db.session).review_projection(
+        user.id, scenario_id, revision_number, projection_id
+    )
+    response = SimulationProjectionResponse.model_validate(projection)
     return jsonify(response.model_dump(mode="json"))

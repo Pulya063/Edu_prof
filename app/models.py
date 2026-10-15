@@ -42,11 +42,6 @@ class User(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     plan: Mapped[str] = mapped_column(String(20), default="Free", server_default="Free", nullable=False)
     workspace_data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
 
-    roi_calculations: Mapped[list["ROICalculation"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
     roadmaps: Mapped[list["UserRoadmap"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -131,22 +126,6 @@ class UniversityScholarship(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     university: Mapped[University] = relationship(back_populates="scholarships")
 
 
-class TuitionPrice(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    """Yearly tuition reference data, independent from application code."""
-
-    __tablename__ = "tuition_prices"
-    __table_args__ = (UniqueConstraint("country", "academic_year", name="uq_tuition_country_year"),)
-    repr_fields = ("id", "country", "academic_year")
-
-    country: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
-    academic_year: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
-    tuition_in_state: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    tuition_out_of_state: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD", server_default="USD")
-    source: Mapped[str] = mapped_column(String(255), nullable=False)
-    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-
-
 class EducationProgram(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "education_programs"
     __table_args__ = (Index("ix_education_programs_university_name", "university_id", "name"),)
@@ -161,126 +140,6 @@ class EducationProgram(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     annual_growth_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
 
     university: Mapped[University] = relationship(back_populates="programs")
-    roi_calculations: Mapped[list["ROICalculation"]] = relationship(back_populates="program")
-
-
-class SalaryStatistic(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    __tablename__ = "salary_statistics"
-    __table_args__ = (Index("ix_salary_statistics_profession_country", "profession", "country"),)
-    repr_fields = ("id", "profession", "country")
-
-    profession: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
-    country: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
-    average_salary: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    growth_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
-
-
-class CareerForecast(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    __tablename__ = "career_forecasts"
-    __table_args__ = (Index("ix_career_forecasts_profession_year", "profession", "forecast_year"),)
-    repr_fields = ("id", "profession", "forecast_year")
-
-    profession: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
-    demand_score: Mapped[int] = mapped_column(Integer, nullable=False)
-    ai_risk_score: Mapped[int] = mapped_column(Integer, nullable=False)
-    forecast_growth_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
-    forecast_year: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
-
-
-class CareerAnalysis(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    """A persisted full career analysis, including anonymous trial analyses."""
-
-    __tablename__ = "career_analyses"
-    repr_fields = ("id", "university", "specialization")
-
-    user_id: Mapped[int | None] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True
-    )
-    university: Mapped[str] = mapped_column(String(255), nullable=False)
-    degree: Mapped[str] = mapped_column(String(255), nullable=False)
-    specialization: Mapped[str] = mapped_column(String(500), nullable=False)
-    country: Mapped[str] = mapped_column(String(120), nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
-    study_years: Mapped[Decimal] = mapped_column(Numeric(4, 1), nullable=False)
-    living_costs_included: Mapped[bool] = mapped_column(nullable=False, server_default="false")
-
-    education: Mapped["CareerEducation"] = relationship(
-        back_populates="analysis", uselist=False, cascade="all, delete-orphan"
-    )
-    salary_forecast: Mapped["CareerSalaryForecast"] = relationship(
-        back_populates="analysis", uselist=False, cascade="all, delete-orphan"
-    )
-    roi: Mapped["CareerROI"] = relationship(
-        back_populates="analysis", uselist=False, cascade="all, delete-orphan"
-    )
-    scores: Mapped["CareerScores"] = relationship(
-        back_populates="analysis", uselist=False, cascade="all, delete-orphan"
-    )
-    insights: Mapped[list["CareerInsight"]] = relationship(
-        back_populates="analysis", cascade="all, delete-orphan"
-    )
-
-
-class CareerEducation(BaseIDMixin, db.Model):
-    __tablename__ = "career_education"
-    analysis_id: Mapped[int] = mapped_column(ForeignKey("career_analyses.id", ondelete="CASCADE"), unique=True)
-    tuition_min: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    tuition_max: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    learning_budget_min: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    learning_budget_max: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    investment_min: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    investment_max: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    analysis: Mapped[CareerAnalysis] = relationship(back_populates="education")
-
-
-class CareerSalaryForecast(BaseIDMixin, db.Model):
-    __tablename__ = "career_salary_forecasts"
-    analysis_id: Mapped[int] = mapped_column(ForeignKey("career_analyses.id", ondelete="CASCADE"), unique=True)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
-    analysis: Mapped[CareerAnalysis] = relationship(back_populates="salary_forecast")
-    bands: Mapped[list["CareerSalaryBand"]] = relationship(back_populates="forecast", cascade="all, delete-orphan")
-
-
-class CareerSalaryBand(BaseIDMixin, db.Model):
-    __tablename__ = "career_salary_bands"
-    forecast_id: Mapped[int] = mapped_column(ForeignKey("career_salary_forecasts.id", ondelete="CASCADE"), index=True)
-    stage: Mapped[str] = mapped_column(String(40), nullable=False)
-    monthly_min: Mapped[int] = mapped_column(Integer, nullable=False)
-    monthly_max: Mapped[int] = mapped_column(Integer, nullable=False)
-    realistic_target_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    realistic_target_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    forecast: Mapped[CareerSalaryForecast] = relationship(back_populates="bands")
-
-
-class CareerROI(BaseIDMixin, db.Model):
-    __tablename__ = "career_roi"
-    analysis_id: Mapped[int] = mapped_column(ForeignKey("career_analyses.id", ondelete="CASCADE"), unique=True)
-    payback_likely: Mapped[bool] = mapped_column(nullable=False)
-    probability_percent: Mapped[int] = mapped_column(Integer, nullable=False)
-    payback_months_min: Mapped[int] = mapped_column(Integer, nullable=False)
-    payback_months_max: Mapped[int] = mapped_column(Integer, nullable=False)
-    first_year_roi_min: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    first_year_roi_max: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    long_term_roi: Mapped[str] = mapped_column(String(20), nullable=False)
-    analysis: Mapped[CareerAnalysis] = relationship(back_populates="roi")
-
-
-class CareerScores(BaseIDMixin, db.Model):
-    __tablename__ = "career_scores"
-    analysis_id: Mapped[int] = mapped_column(ForeignKey("career_analyses.id", ondelete="CASCADE"), unique=True)
-    career_potential: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
-    data_confidence: Mapped[int] = mapped_column(Integer, nullable=False)
-    analysis: Mapped[CareerAnalysis] = relationship(back_populates="scores")
-
-
-class CareerInsight(BaseIDMixin, db.Model):
-    __tablename__ = "career_insights"
-    __table_args__ = (Index("ix_career_insights_analysis_kind", "analysis_id", "kind"),)
-    analysis_id: Mapped[int] = mapped_column(ForeignKey("career_analyses.id", ondelete="CASCADE"), index=True)
-    kind: Mapped[str] = mapped_column(String(40), nullable=False)
-    name: Mapped[str] = mapped_column(String(80), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    analysis: Mapped[CareerAnalysis] = relationship(back_populates="insights")
 
 
 class Partner(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
@@ -323,32 +182,6 @@ class MotivationLetter(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     user: Mapped[User] = relationship(back_populates="motivation_letters")
     university: Mapped[University | None] = relationship(back_populates="motivation_letters")
 
-class ROICalculation(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    __tablename__ = "roi_calculations"
-    __table_args__ = (
-        Index("ix_roi_calculations_user_deleted_created", "user_id", "deleted_at", "created_at"),
-        Index("ix_roi_calculations_program_deleted", "program_id", "deleted_at"),
-    )
-    repr_fields = ("id", "user_id", "program_id")
-
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
-    program_id: Mapped[int | None] = mapped_column(
-        ForeignKey("education_programs.id", ondelete="SET NULL"),
-        index=True,
-        nullable=True,
-    )
-    total_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    roi_percent: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    break_even_months: Mapped[int] = mapped_column(Integer, nullable=False)
-    study_years: Mapped[Decimal] = mapped_column(Numeric(4, 1), nullable=False, server_default="4")
-    possible_monthly_salary: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, server_default="0")
-    methodology_version: Mapped[str] = mapped_column(String(30), nullable=False, server_default="v1")
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
-
-    user: Mapped[User] = relationship(back_populates="roi_calculations")
-    program: Mapped[EducationProgram | None] = relationship(back_populates="roi_calculations")
-
-
 class UserRoadmap(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     __tablename__ = "user_roadmaps"
     __table_args__ = (Index("ix_user_roadmaps_user_updated", "user_id", "updated_at"),)
@@ -363,7 +196,7 @@ class UserRoadmap(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
 
 
 class SimulationScenario(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    """User-owned decision scenario with immutable numbered revisions."""
+    """Сценарій власника; summary відображає поточну ревізію, умови зберігаються окремо."""
 
     __tablename__ = "simulation_scenarios"
     __table_args__ = (Index("ix_simulation_scenarios_user_updated", "user_id", "updated_at"),)
@@ -387,7 +220,7 @@ class SimulationScenario(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
 
 
 class SimulationRevision(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    """Immutable input snapshot for a simulation scenario."""
+    """Знімок умов: сервіс додає нову ревізію замість зміни вже збереженої."""
 
     __tablename__ = "simulation_revisions"
     __table_args__ = (
@@ -417,7 +250,7 @@ class SimulationRevision(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
 
 
 class SimulationProjection(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
-    """Immutable deterministic financial result for one scenario revision."""
+    """Компактний канонічний підсумок; деталі розкладені у пов'язані таблиці."""
 
     __tablename__ = "simulation_projections"
     __table_args__ = (
@@ -438,30 +271,262 @@ class SimulationProjection(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     salary_basis: Mapped[str] = mapped_column(String(30), nullable=False)
-    total_direct_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    opportunity_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    total_investment: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    estimated_start_salary: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    calculation_inputs: Mapped[dict] = mapped_column(
-        JSON, nullable=False, default=dict, server_default="{}"
-    )
-    cost_breakdown: Mapped[dict] = mapped_column(
-        JSON, nullable=False, default=dict, server_default="{}"
-    )
+    total_direct_cost: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    opportunity_cost: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    total_investment: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    estimated_start_salary: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    # Окупність після випуску та від початку навчання; NULL означає, що її не досягнуто.
     payback_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     payback_from_enrollment_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     break_even_reached: Mapped[bool] = mapped_column(Boolean, nullable=False)
     horizon_years: Mapped[int] = mapped_column(Integer, nullable=False)
-    cumulative_incremental_earnings: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
-    roi_percent: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
-    salary_trajectory: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
-    evidence: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
-    source_snapshot_refs: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, default=list, server_default="[]"
-    )
-    unverified_assumptions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-
+    cumulative_incremental_earnings: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    roi_percent: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     revision: Mapped[SimulationRevision] = relationship(back_populates="projections")
+    inputs: Mapped["ProjectionInput"] = relationship(
+        back_populates="projection", uselist=False, cascade="all, delete-orphan"
+    )
+    costs: Mapped["ProjectionCost"] = relationship(
+        back_populates="projection", uselist=False, cascade="all, delete-orphan"
+    )
+    trajectory_points: Mapped[list["ProjectionTrajectoryPoint"]] = relationship(
+        back_populates="projection", cascade="all, delete-orphan", order_by="ProjectionTrajectoryPoint.year"
+    )
+    evidence_records: Mapped[list["ProjectionEvidenceRecord"]] = relationship(
+        back_populates="projection", cascade="all, delete-orphan", order_by="ProjectionEvidenceRecord.id"
+    )
+    source_records: Mapped[list["ProjectionSource"]] = relationship(
+        back_populates="projection", cascade="all, delete-orphan", order_by="ProjectionSource.id"
+    )
+    warning_records: Mapped[list["ProjectionWarning"]] = relationship(
+        back_populates="projection", cascade="all, delete-orphan", order_by="ProjectionWarning.id"
+    )
+    ai_review: Mapped["ProjectionAIReview | None"] = relationship(
+        back_populates="projection", uselist=False, cascade="all, delete-orphan"
+    )
+
+    @property
+    def calculation_inputs(self) -> dict:
+        return self.inputs.as_dict() if self.inputs else {}
+
+    @property
+    def cost_breakdown(self) -> dict:
+        return self.costs.as_dict() if self.costs else {}
+
+    @property
+    def salary_trajectory(self) -> list[dict]:
+        return [point.as_dict() for point in self.trajectory_points]
+
+    @property
+    def evidence(self) -> list[dict]:
+        return [record.as_dict() for record in self.evidence_records]
+
+    @property
+    def source_snapshot_refs(self) -> list[str]:
+        return [record.reference for record in self.source_records]
+
+    @property
+    def unverified_assumptions(self) -> list[str]:
+        return [record.code for record in self.warning_records]
+
+
+class ProjectionInput(db.Model):
+    """Resolved numeric assumptions actually supplied to the deterministic engine."""
+
+    __tablename__ = "projection_inputs"
+
+    projection_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_projections.id", ondelete="CASCADE"), primary_key=True
+    )
+    annual_start_salary: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    baseline_annual_salary: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    annual_salary_growth_percent: Mapped[Decimal] = mapped_column(Numeric(7, 3), nullable=False)
+    baseline_salary_growth_percent: Mapped[Decimal] = mapped_column(Numeric(7, 3), nullable=False)
+    foregone_income_percent: Mapped[Decimal] = mapped_column(Numeric(7, 3), nullable=False)
+    mandatory_fees: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    scholarships_and_grants: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    additional_education_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    incremental_living_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    employment_income_during_study: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    horizon_years: Mapped[int] = mapped_column(Integer, nullable=False)
+    market_snapshot_id: Mapped[int | None] = mapped_column(
+        ForeignKey("market_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+    salary_source_kind: Mapped[str] = mapped_column(String(30), nullable=False)
+
+    projection: Mapped[SimulationProjection] = relationship(back_populates="inputs")
+
+    def as_dict(self) -> dict:
+        return {
+            "market_snapshot_id": self.market_snapshot_id,
+            "annual_start_salary": self.annual_start_salary,
+            "baseline_annual_salary": self.baseline_annual_salary,
+            "annual_salary_growth_percent": self.annual_salary_growth_percent,
+            "baseline_salary_growth_percent": self.baseline_salary_growth_percent,
+            "foregone_income_percent": self.foregone_income_percent,
+            "mandatory_fees": self.mandatory_fees,
+            "scholarships_and_grants": self.scholarships_and_grants,
+            "additional_education_cost": self.additional_education_cost,
+            "incremental_living_cost": self.incremental_living_cost,
+            "employment_income_during_study": self.employment_income_during_study,
+            "horizon_years": self.horizon_years,
+        }
+
+
+class ProjectionCost(db.Model):
+    """One-to-one auditable cost composition for a projection."""
+
+    __tablename__ = "projection_costs"
+
+    projection_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_projections.id", ondelete="CASCADE"), primary_key=True
+    )
+    tuition: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    mandatory_fees: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    additional_education: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    incremental_living_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    scholarships_and_grants: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    gross_direct_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    net_direct_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    baseline_income_during_study: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    employment_income_during_study: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    opportunity_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+
+    projection: Mapped[SimulationProjection] = relationship(back_populates="costs")
+
+    def as_dict(self) -> dict:
+        return {
+            "tuition": self.tuition,
+            "mandatory_fees": self.mandatory_fees,
+            "additional_education": self.additional_education,
+            "incremental_living_cost": self.incremental_living_cost,
+            "scholarships_and_grants": self.scholarships_and_grants,
+            "gross_direct_cost": self.gross_direct_cost,
+            "net_direct_cost": self.net_direct_cost,
+            "baseline_income_during_study": self.baseline_income_during_study,
+            "employment_income_during_study": self.employment_income_during_study,
+            "opportunity_cost": self.opportunity_cost,
+        }
+
+
+class ProjectionTrajectoryPoint(db.Model):
+    __tablename__ = "projection_trajectory_points"
+    __table_args__ = (UniqueConstraint("projection_id", "year", name="uq_projection_trajectory_year"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    projection_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_projections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_salary: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    baseline_salary: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    incremental_earnings: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    cumulative_incremental_earnings: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+
+    projection: Mapped[SimulationProjection] = relationship(back_populates="trajectory_points")
+
+    def as_dict(self) -> dict:
+        return {
+            "year": self.year,
+            "target_salary": self.target_salary,
+            "baseline_salary": self.baseline_salary,
+            "incremental_earnings": self.incremental_earnings,
+            "cumulative_incremental_earnings": self.cumulative_incremental_earnings,
+        }
+
+
+class ProjectionEvidenceRecord(db.Model):
+    __tablename__ = "projection_evidence"
+    __table_args__ = (Index("ix_projection_evidence_projection_metric", "projection_id", "metric"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    projection_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_projections.id", ondelete="CASCADE"), nullable=False
+    )
+    metric: Mapped[str] = mapped_column(String(50), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_reference: Mapped[str] = mapped_column(String(1000), nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    country: Mapped[str] = mapped_column(String(120), nullable=False)
+    role: Mapped[str] = mapped_column(String(255), nullable=False)
+    seniority: Mapped[str] = mapped_column(String(120), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    sample_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    projection: Mapped[SimulationProjection] = relationship(back_populates="evidence_records")
+
+    def as_dict(self) -> dict:
+        return {
+            "metric": self.metric,
+            "source_name": self.source_name,
+            "source_reference": self.source_reference,
+            "acquired_at": self.acquired_at,
+            "country": self.country,
+            "role": self.role,
+            "seniority": self.seniority,
+            "currency": self.currency,
+            "sample_size": self.sample_size,
+            "confidence": self.confidence,
+        }
+
+
+class ProjectionSource(db.Model):
+    __tablename__ = "projection_sources"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    projection_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_projections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source_kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    reference: Mapped[str] = mapped_column(String(255), nullable=False)
+    market_snapshot_id: Mapped[int | None] = mapped_column(
+        ForeignKey("market_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+    tuition_snapshot_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tuition_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+
+    projection: Mapped[SimulationProjection] = relationship(back_populates="source_records")
+
+
+class ProjectionWarning(db.Model):
+    __tablename__ = "projection_warnings"
+    __table_args__ = (UniqueConstraint("projection_id", "code", name="uq_projection_warning_code"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    projection_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_projections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    projection: Mapped[SimulationProjection] = relationship(back_populates="warning_records")
+
+
+class ProjectionAIReview(TimestampMixin, db.Model):
+    """Advisory Deep Agent review; it never overwrites deterministic financial fields."""
+
+    __tablename__ = "projection_ai_reviews"
+    __table_args__ = (UniqueConstraint("projection_id", name="uq_projection_ai_review_projection"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    projection_id: Mapped[int] = mapped_column(
+        ForeignKey("simulation_projections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending", server_default="pending")
+    provider_model: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    confidence_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    ai_risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    calculation_consistent: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    prediction_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verdict: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recommendations: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    risks: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    suggested_adjustments: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    projection: Mapped[SimulationProjection] = relationship(back_populates="ai_review")
 
 
 class MarketSnapshot(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
@@ -497,6 +562,51 @@ class MarketSnapshot(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     sources: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
     acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     sample_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[str] = mapped_column(String(20), nullable=False)
+    methodology_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    validation_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="validated", server_default="validated"
+    )
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class TuitionSnapshot(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """Збережене джерело tuition для чинного resolver; ingestion відокремлений від розрахунку."""
+
+    __tablename__ = "tuition_snapshots"
+    __table_args__ = (
+        UniqueConstraint("fingerprint", name="uq_tuition_snapshot_fingerprint"),
+        Index(
+            "ix_tuition_snapshots_lookup",
+            "country",
+            "university",
+            "program",
+            "degree",
+            "currency",
+            "snapshot_date",
+        ),
+    )
+    repr_fields = ("id", "scope", "country", "university", "program", "snapshot_date")
+
+    scope: Mapped[str] = mapped_column(String(30), nullable=False)
+    country: Mapped[str] = mapped_column(String(120), nullable=False)
+    university: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    program: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    degree: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    study_mode: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    student_residency: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="unspecified", server_default="unspecified"
+    )
+    institution_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    academic_year: Mapped[str] = mapped_column(String(20), nullable=False)
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    annual_tuition_min: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    annual_tuition: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    annual_tuition_max: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    mandatory_fees: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    sources: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     confidence: Mapped[str] = mapped_column(String(20), nullable=False)
     methodology_version: Mapped[str] = mapped_column(String(50), nullable=False)
     validation_status: Mapped[str] = mapped_column(

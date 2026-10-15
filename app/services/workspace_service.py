@@ -15,7 +15,7 @@ from app.schemas import RoadmapPreviewRequest, WorkspacePreferences, WorkspacePr
 DEFAULT_PROFILE = WorkspaceProfile().model_dump()
 DEFAULT_PREFERENCES = WorkspacePreferences().model_dump()
 DEFAULT_CONNECTIONS = {
-    "youtube": {"connected": False, "available": True, "label": "Not connected"},
+    "youtube": {"connected": False, "available": False, "label": "Integration not configured"},
     "github": {"connected": False, "available": False, "label": "OAuth not configured"},
     "linkedin": {"connected": False, "available": False, "label": "OAuth not configured"},
 }
@@ -25,6 +25,15 @@ COURSES = [
     {"id": "fastapi-zero", "title": "FastAPI from zero", "description": "Build practical APIs with validation, documentation and testing.", "level": "Beginner", "language": "English", "format": "Self-paced", "duration": "6–8 hours", "skills": ["FastAPI", "APIs", "Python"], "provider_name": "Fence learning catalog", "provider_url": None},
     {"id": "git-essentials", "title": "Git essentials", "description": "Master version control with Git and collaborate confidently on real projects.", "level": "Beginner", "language": "English", "format": "Self-paced", "duration": "3–5 hours", "skills": ["Git", "Version control"], "provider_name": "Fence learning catalog", "provider_url": None},
     {"id": "python-testing", "title": "Python testing", "description": "Write reliable automated tests and improve the quality of your projects.", "level": "Intermediate", "language": "English", "format": "Self-paced", "duration": "5–7 hours", "skills": ["Python", "Testing", "Pytest"], "provider_name": "Fence learning catalog", "provider_url": None},
+]
+
+RESOURCES = [
+    {"id": "fastapi-tutorial", "title": "FastAPI project walkthrough", "description": "Build a real API step by step with the official FastAPI tutorial.", "source": "Public web", "url": "https://fastapi.tiangolo.com/tutorial/", "skills": ["FastAPI", "APIs", "Python", "Backend"]},
+    {"id": "python-tutorial", "title": "Python language tutorial", "description": "Strengthen Python fundamentals with the official language guide.", "source": "Public web", "url": "https://docs.python.org/3/tutorial/", "skills": ["Python", "Programming", "Backend"]},
+    {"id": "postgresql-tutorial", "title": "PostgreSQL hands-on tutorial", "description": "Learn relational databases, queries and data modelling from the official documentation.", "source": "Public web", "url": "https://www.postgresql.org/docs/current/tutorial.html", "skills": ["SQL", "PostgreSQL", "Databases", "Backend"]},
+    {"id": "git-tutorial", "title": "Git project workflow", "description": "Use the official Git tutorial to practice a reliable version-control workflow.", "source": "Public web", "url": "https://git-scm.com/docs/gittutorial", "skills": ["Git", "Version control", "Portfolio"]},
+    {"id": "fastapi-video-search", "title": "FastAPI project video lessons", "description": "Explore practical FastAPI project walkthroughs on YouTube.", "source": "YouTube", "url": "https://www.youtube.com/results?search_query=FastAPI+project+tutorial", "skills": ["FastAPI", "APIs", "Python", "Backend"]},
+    {"id": "python-portfolio-video-search", "title": "Python portfolio project ideas", "description": "Find guided Python projects that can become portfolio case studies.", "source": "YouTube", "url": "https://www.youtube.com/results?search_query=Python+portfolio+projects", "skills": ["Python", "Portfolio", "Projects"]},
 ]
 
 ILLUSTRATIVE_UNIVERSITIES = [
@@ -133,6 +142,19 @@ class WorkspaceService:
             results.append({**course, "saved": course["id"] in saved})
         return results
 
+    def resources(self, query: str = "", source: str = "") -> list[dict[str, Any]]:
+        normalized_query = query.strip().casefold()
+        normalized_source = source.strip().casefold()
+        results = []
+        for resource in RESOURCES:
+            haystack = " ".join([resource["title"], resource["description"], *resource["skills"]]).casefold()
+            if normalized_query and normalized_query not in haystack:
+                continue
+            if normalized_source and resource["source"].casefold() != normalized_source:
+                continue
+            results.append(resource)
+        return results
+
     def set_course_saved(self, user: User, course_id: str, saved: bool) -> dict[str, Any]:
         if course_id not in {course["id"] for course in COURSES}:
             raise AppError("Курс не знайдено", status_code=404)
@@ -162,6 +184,82 @@ class WorkspaceService:
         if results:
             return results
         return [item for item in ILLUSTRATIVE_UNIVERSITIES if (not country or item["country"].casefold() == country.casefold()) and (not query or query.casefold() in item["name"].casefold())]
+
+    def university_details(self, university_id: str) -> dict[str, Any]:
+        if university_id.startswith("db-"):
+            try:
+                database_id = int(university_id.removeprefix("db-"))
+            except ValueError as error:
+                raise AppError("Університет не знайдено", status_code=404) from error
+            university = self.session.execute(
+                select(University)
+                .options(
+                    selectinload(University.programs),
+                    selectinload(University.documents),
+                    selectinload(University.scholarships),
+                )
+                .where(University.id == database_id)
+            ).scalar_one_or_none()
+            if university is None:
+                raise AppError("Університет не знайдено", status_code=404)
+            primary = university.programs[0] if university.programs else None
+            return {
+                "id": university_id,
+                "name": university.name,
+                "country": university.country,
+                "city": None,
+                "website": university.website,
+                "description": primary.description if primary and primary.description else "University information stored in the Fence catalog.",
+                "annual_tuition": float(primary.tuition_cost) if primary else None,
+                "currency": "USD",
+                "duration_years": float(primary.duration_years) if primary else None,
+                "study_mode": "Full-time",
+                "program_name": primary.name if primary else "Programme not selected",
+                "data_quality": "database",
+                "programmes": [
+                    {
+                        "id": programme.id,
+                        "name": programme.name,
+                        "description": programme.description,
+                        "duration_years": float(programme.duration_years),
+                        "tuition_cost": float(programme.tuition_cost),
+                    }
+                    for programme in university.programs
+                ],
+                "documents": [
+                    {"id": document.id, "title": document.title, "subject_name": document.subject_name, "source_url": document.source_url}
+                    for document in university.documents
+                ],
+                "scholarships": [
+                    {
+                        "id": scholarship.id,
+                        "name": scholarship.name,
+                        "description": scholarship.description,
+                        "amount": float(scholarship.amount) if scholarship.amount is not None else None,
+                        "currency": scholarship.currency,
+                        "eligibility": scholarship.eligibility,
+                        "application_url": scholarship.application_url,
+                        "deadline": scholarship.deadline.isoformat() if scholarship.deadline else None,
+                    }
+                    for scholarship in university.scholarships
+                ],
+            }
+
+        illustrative = next((item for item in ILLUSTRATIVE_UNIVERSITIES if item["id"] == university_id), None)
+        if illustrative is None:
+            raise AppError("Університет не знайдено", status_code=404)
+        return {
+            **illustrative,
+            "programmes": [{
+                "id": university_id,
+                "name": illustrative["program_name"],
+                "description": illustrative["description"],
+                "duration_years": illustrative["duration_years"],
+                "tuition_cost": illustrative["annual_tuition"],
+            }],
+            "documents": [],
+            "scholarships": [],
+        }
 
     def update_roadmap_task(self, user: User, roadmap_id: int, task_id: str, completed: bool) -> dict[str, Any]:
         roadmap = self.session.execute(select(UserRoadmap).where(UserRoadmap.id == roadmap_id, UserRoadmap.user_id == user.id)).scalar_one_or_none()

@@ -28,9 +28,10 @@ Education
 ## Current: frontend
 
 - Основний UI: `frontend/`, Next.js 14 App Router, React 18 і TypeScript.
-- Реальні routes: `/`, `/plans`, `/payment`, `/contact`, `/legal/[document]`, `/login`, `/register`, `/reset-password`, `/workspace/overview`, `/workspace/scenario/new`, `/workspace/scenarios`, `/workspace/scenarios/[id]`, `/workspace/profile`, `/workspace/compare`, `/workspace/roadmap`, `/workspace/roadmap/simulation`, `/workspace/roadmap/plan`, `/workspace/courses` і `/workspace/settings`.
-- Workspace overview, scenario creation/list/detail та profile використовують поточні API або реальні локальні дані. Compare, roadmap dashboard/simulation/plan, course search і settings зараз є demo UI surfaces за наданими ескізами; їхні майбутні серверні mutations та зовнішні provider connections ще не реалізовані.
+- Реальні routes: `/`, `/plans`, `/payment`, `/contact`, `/legal/[document]`, `/login`, `/register`, `/reset-password`, `/workspace/overview`, `/workspace/scenario/new`, `/workspace/scenarios`, `/workspace/scenarios/[id]`, `/workspace/universities/[id]`, `/workspace/profile`, `/workspace/compare`, `/workspace/roadmap`, `/workspace/roadmap/simulation`, `/workspace/roadmap/plan`, `/workspace/courses` і `/workspace/settings`.
+- Workspace overview, scenario creation/list/detail, profile, compare, roadmap dashboard/simulation/plan, course search і settings підключені до Flask API. Новий `/api/workspace` namespace зберігає профіль, preferences, saved courses і task progress; університети читаються з БД із явно позначеним illustrative fallback, а Career insights отримує searchable/filterable каталог через `/api/workspace/resources`. Зовнішні provider/OAuth connections не імітуються і залишаються недоступними, доки інтеграції не налаштовано.
 - Landing page містить локальну client-side симуляцію та hardcoded university/career/scholarship/roadmap data. Вона не викликає Flask ROI API; authenticated workspace використовує simulation contracts для створення сценарію, deterministic projection і read-only overview.
+- Landing localization зберігається як UTF-8 для English, Ukrainian і Polish; перемикання мови оновлює `html[lang]` до `en`, `uk-UA` або `pl-PL`, а Ukrainian використовує Unicode-consistent Manrope stack без змішаних fallback glyphs.
 - `/payment` і legal content залишаються placeholders.
 - Jinja/HTMX не є основним frontend. Flask templates зберігаються лише як legacy/local diagnostic surface.
 - Візуальна основа: editorial composition, `#171819`, white, lime `#B7FF2A`, violet `#D7C7FF`, сильна типографіка та purposeful motion.
@@ -41,15 +42,17 @@ Education
 - Redis зберігає refresh tokens; RabbitMQ/Celery виконує email jobs.
 - Основні API:
   - auth: `/api/auth/me`, `/register`, `/login`, `/refresh`, `/logout`, `/password-reset-request`, `/password-reset`, `/login/google`, `/callback/google`;
-  - ROI: `/api/roi/trial`, legacy read-only `/history`, `/trash`, delete/restore, university search і tuition history; `/analyze` retired з `410 Gone`;
+  - ROI: `/api/roi/trial`, legacy read-only `/history`, university search і tuition history; `/analyze`, `/trash`, delete/restore видалені після аудиту 2026-10-07 і повертають `404`;
   - simulations: `POST/GET /api/simulations`, `GET /api/simulations/<id>`, `POST /api/simulations/<id>/revisions`, `POST/GET /api/simulations/<id>/revisions/<number>/projections`, `GET /api/simulations/<id>/revisions/<number>/projections/<projection_id>/explainability`;
   - market: `POST /api/market/snapshots` для admin ingestion, `GET /api/market/snapshots` і `GET /api/market/snapshots/<id>` для authenticated reads;
+  - tuition: `POST /api/tuition/snapshots` для normalized admin ingestion, `POST /api/tuition/snapshots/refresh/college-scorecard` для background refresh за UNITID, authenticated list/get та `POST /api/tuition/snapshots/resolve` для deterministic source resolution;
   - roadmap: `/roadmap/`, `/roadmap/generate` та дубльований `/api/roadmap/*` namespace;
+  - workspace: `GET /api/workspace`, `PATCH /api/workspace/profile`, `PATCH /api/workspace/preferences`, `GET /api/workspace/universities`, `GET /api/workspace/universities/<id>`, `GET /api/workspace/courses`, `GET /api/workspace/resources`, save/unsave course, roadmap preview і task completion;
   - mail: `/api/mail/university-letter`;
   - health: `/health`.
-- Основні models: `User`, `University`, `UniversityDocument`, `UniversityScholarship`, `TuitionPrice`, `EducationProgram`, `SalaryStatistic`, `CareerForecast`, `CareerAnalysis` та його normalized children, `ROICalculation`, `UserRoadmap`, `SimulationScenario`, `SimulationRevision`, `SimulationProjection`, `MarketSnapshot`, `Partner`, `MotivationLetter`.
+- Основні models: `User`, `University`, `UniversityDocument`, `UniversityScholarship`, legacy `TuitionPrice`, `TuitionSnapshot`, `EducationProgram`, `SalaryStatistic`, `CareerForecast`, `CareerAnalysis` та його normalized children, `ROICalculation`, `UserRoadmap`, `SimulationScenario`, `SimulationRevision`, `SimulationProjection`, `MarketSnapshot`, `Partner`, `MotivationLetter`.
 - `CareerAnalysis`, його `CareerROI` child і legacy `ROICalculation` збережені для історії; нові фінансові результати створюються лише через `SimulationProjection`.
-- Roadmap зберігається як opaque JSON і не має normalized tasks, skill evidence або feedback loop.
+- Roadmap зберігає оригінальний payload і normalized Fence plan із фазами та tasks; task completion оновлюється через authenticated workspace endpoint. Skill evidence і feedback loop ще не реалізовані.
 - Phase 0 не змінював database schema. Phase 1 додає окремі versioned simulation scenarios без зміни legacy ROI/roadmap tables.
 
 ## Current: calculations, data and AI
@@ -58,7 +61,7 @@ Education
 - Active salary lookup використовує локальний CSV, O*NET за наявності credentials і country multipliers; це не повноцінний market snapshot pipeline.
 - LLM використовується для qualitative insights. Він не повинен бути джерелом tuition, salary, ROI, payback, inflation або інших deterministic financial values.
 - Chroma/Ollama/LangChain присутні як експериментальна AI/RAG інфраструктура; auditable ingestion, document versioning і citation pipeline ще відсутні.
-- University data використовує College Scorecard і Hipolabs синхронно; кешування та scheduled refresh pipeline відсутні.
+- Legacy university search використовує College Scorecard і Hipolabs синхронно. Новий tuition contour має окремий College Scorecard fetcher/normalizer і Celery job; periodic schedule та офіційні adapters для інших країн ще відсутні.
 - DreamWork roadmap generation є синхронною зовнішньою інтеграцією зі спільним service account.
 
 ## Verified: Phase 0 security
@@ -91,7 +94,7 @@ Education
 ## Verified: Calculation Foundation v2
 
 - `simulation_projections` є канонічним сховищем нових фінансових прогнозів; legacy `career_roi` залишається read-only історією і не переписується під нову методологію.
-- `POST /api/roi/analyze` більше не створює `CareerAnalysis/CareerROI`: authenticated request повертає `410 Gone` і посилання на versioned simulation endpoints.
+- `POST /api/roi/analyze` спочатку був retired із `410 Gone`; після аудиту 2026-10-07 маршрут і старий writer видалені. Нові результати створюються через versioned simulation endpoints.
 - Методологія `scenario-projection-v2` зберігає resolved `calculation_inputs`, деталізований `cost_breakdown` і окремий `payback_from_enrollment_months`; існуючий `payback_months` означає окупність після завершення навчання.
 - Direct cost враховує tuition, mandatory fees, additional education, incremental living costs та scholarships/grants. Opportunity cost може опційно зменшуватися на загальний дохід під час навчання.
 - Employment during study не є обов'язковим припущенням: незаповнене поле дорівнює нулю і доступне лише в розгорнутому detailed analysis.
@@ -108,6 +111,32 @@ Education
 - Fetcher/parser/background refresh ще не реалізовані: цей етап створює стабільний storage та API contract без scraping або LLM.
 - Targeted market/simulation/migration checks пройшли в канонічному checkout 2026-09-30; міграцію створено, але не застосовано до користувацької бази даних.
 - Повний backend suite після Phase 3: 33 passed.
+
+## Verified: tuition snapshot foundation
+
+- `TuitionSnapshot` зберігає immutable normalized tuition range та selected annual value для program, university або country-average scope.
+- Контракт включає country, university/program, degree, study mode, residency, institution type, academic year, currency, mandatory fees, source URLs/references, acquisition date, confidence, methodology version і canonical fingerprint.
+- Admin ingestion є ідемпотентним; authenticated read API підтримує фільтрацію, а resolver детерміновано віддає найточніший validated snapshot за freshness і confidence.
+- Country-average fallback вимкнений за замовчуванням і використовується лише через явний `allow_country_fallback=true`, тому broad average не маскується під ціну конкретної програми.
+- Legacy `tuition_prices` залишається доступним для старої country-history відповіді; нові точні джерела мають надходити в `tuition_snapshots`.
+- Live external API не викликається під час resolution або calculation. Calculator читає лише validated snapshots із БД; provider fetch відокремлено в admin-triggered Celery job.
+- `SimulationCreateRequest` і revision contract приймають або explicit `annual_tuition`, або рівно одне snapshot source. Resolver записує selected tuition у immutable assumptions і `tuition_snapshot:<id>` у revision source refs.
+- Projection service автоматично додає verified tuition evidence з revision snapshot; manual tuition лишається low-confidence/unverified, доки не має незалежного evidence.
+- Additive migration `d8e9f0a1b2c3` застосована до локальної development БД.
+
+## Verified: tuition source integration
+
+- `/workspace/scenario/new` явно перевіряє stored tuition source за university/program/country/degree/residency/institution type/currency; broad country fallback у UI не використовується.
+- При точному збігу форма зберігає `tuition_snapshot_id`, а не дублює значення як manual evidence. Зміна ідентифікуючого поля скидає source selection, щоб stale match не перетворився непомітно на ручний input.
+- Коли snapshot відсутній або resolver недоступний, користувач може ввести fee вручну; він залишається user-provided low-confidence input.
+- College Scorecard adapter нормалізує official institution-level `latest.cost.tuition.in_state` і `latest.cost.tuition.out_of_state` у різні residency snapshots. Оскільки `latest` response не дає точного academic year у цьому контракті, confidence обмежено до `medium`; повтор тієї самої source observation є ідемпотентним, а fetch time не входить у fingerprint.
+- Background endpoint доступний лише admin, потребує `COLLEGE_SCORECARD_API_KEY`, повертає `202 queued` і контрольований `503`, якщо provider або queue не налаштовані.
+- Focused tuition/simulation tests: 5 passed; Python compile і TypeScript `--noEmit` пройшли 2026-10-02. Browser QA і реальний зовнішній College Scorecard fetch не запускалися.
+
+## Implemented but unverified: multi-country tuition ingestion
+
+- Для Польщі та інших країн поки немає вигаданого scraper/adaptor: normalized admin ingestion уже працює, але official RAD-on/POL-on dataset adapter слід додавати лише після фіксації стабільного офіційного endpoint або import format.
+- Periodic refresh не ввімкнений: спочатку потрібен реєстр tracked institutions/provider identifiers і явна freshness policy.
 
 ## Verified: Phase 4 forecast source resolution
 
@@ -146,13 +175,23 @@ Education
 - Annual tuition вводиться користувачем явно. Regional public/private ranges показуються лише як orientation і не підставляються в projection як evidence.
 - Detailed financial analysis містить необов'язкові baseline, foregone income, total income during study, fees, scholarships, extra education, living costs і growth assumptions; базовий flow не вимагає їх заповнення.
 - Ненульовий baseline salary вимагає provenance evidence (source, reference, acquisition date, confidence); financial outputs залишаються відповідальністю versioned deterministic service.
-- Workspace navigation активує лише реалізовані Overview і Build scenario; Forecast та Roadmap залишаються позначеними як недоступні. Landing CTA/deep links не активувалися.
+- Workspace navigation активує Overview, ROI, saved scenarios, compare, roadmap dashboard/simulation/plan, course search, profile і settings. Кожен новий активний route має реальний API read/mutation або чесно disabled зовнішню дію.
 - Scenario builder візуально узгоджений з наданими Fence workspace ескізами: компактний app shell, біла панель inputs, темна sticky forecast surface, lime лише для primary action/progress і violet для prediction/evidence states.
 - Frontend TypeScript check пройшов. Responsive geometry перевірено у браузері на 320, 375, 768, 1024, 1440 і 1920px без горизонтального document overflow; зміна tuition `12000 → 15000` реактивно оновила investment `36,000 → 45,000 PLN`, keyboard focus видимий, framework overlay і console warnings/errors відсутні. Повний authenticated submit до live backend у цій перевірці не виконувався.
 
 ## Implemented but unverified: Phase 7 final visual refinement
 
 - Після responsive QA cost-assumption group переведено у дві колонки на звичайному desktop, щоб прибрати затиснуті labels; три колонки залишаються лише від 1700px. Ця остання CSS-only правка ще не пройшла повторну browser-перевірку.
+
+## Implemented but unverified: workspace sketch integration
+
+- Compare, roadmap dashboard/simulation/plan, courses, profile і settings відтворюють надану Fence visual system та працюють через authenticated `/api/workspace` і `/api/roadmap` endpoints.
+- Saved Scenarios відкриває `/workspace/scenarios/[id]` як повну фінансову калькуляцію з cost breakdown, salary trajectory, payback, ROI, evidence та assumptions. Compare відкриває окремий `/workspace/universities/[id]` із програмами, документами та scholarships.
+- Quick actions у Saved Scenarios ведуть до відповідних секцій повної калькуляції; Overview resources, password reset і plan options більше не є декоративними контролами.
+- `users.workspace_data` зберігає profile/preferences/saved courses; міграцію `c7d8e9f0a1b2` створено, але не застосовано до користувацької бази.
+- Якщо DreamWork недоступний, backend зберігає детермінований локальний roadmap і повертає warning замість фальшивого успіху зовнішньої інтеграції.
+- GitHub, LinkedIn, YouTube, resume assistant, payment upgrades і provider enrolment залишаються disabled, доки відповідний backend/OAuth не реалізовано.
+- На пряме прохання користувача тести, build, migrations і browser QA для цього зрізу не запускалися.
 
 ## Planned: цільова архітектура
 
@@ -165,6 +204,8 @@ Education
 - Flask/SQLAlchemy modular monolith залишається цільовою backend формою, доки виміряні operational constraints не обґрунтують поділ.
 
 ## Відомі розбіжності й обмеження
+
+- Аудит створення симуляції й аналізу 2026-10-07: `SIMULATION_AUDIT.md` містить потік даних, обґрунтування очищення, збережені Planned контракти та відкриті обмеження provenance/concurrency. Видалення legacy API не змінює таблиці або історичні дані.
 
 - Старий опис нижче містить маршрути та user flows, яких немає в поточному Next.js frontend.
 - Старі згадки `/api/roi/calculate`, `/pricing`, `/main` і AI salary fallback не відповідають поточній реалізації.
@@ -474,7 +515,7 @@ Backend навмисно повертає однакове успішне пов
 3. генерує план через `/api/plan/generate`;
 4. зберігає відповідь у `user_roadmaps` і повертає її frontend.
 
-Клієнт має таймаути HTTP-запитів і перетворює помилки зовнішнього сервісу на HTTP `502`. Access token DreamWork кешується лише в межах одного екземпляра `DreamworkClient`; кожен виклик генерації створює новий клієнт. Усі користувачі наразі використовують один service account.
+Клієнт має таймаути HTTP-запитів. Для Next.js workspace успішна зовнішня відповідь доповнюється normalized Fence plan; якщо DreamWork недоступний, backend створює і зберігає локальний deterministic roadmap та повертає warning. Access token DreamWork кешується лише в межах одного екземпляра `DreamworkClient`; кожен виклик генерації створює новий клієнт. Усі користувачі наразі використовують один service account.
 
 ### Університети та tuition
 
@@ -500,7 +541,7 @@ Backend навмисно повертає однакове успішне пов
 | `OAUTH_REDIRECT_URI` | Callback URI, зареєстрований у Google | `http://localhost:3221/api/auth/callback/google` |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth credentials | не задані за замовчуванням |
 | `DREAMWORK_API_URL`, `DREAMWORK_USERNAME`, `DREAMWORK_PASSWORD` | Підключення до DreamWork | див. `.env` |
-| `COLLEGE_SCORECARD_API_KEY` | College Scorecard API key | `DEMO_KEY` |
+| `COLLEGE_SCORECARD_API_KEY` | College Scorecard API key; required for queued tuition refresh (legacy update script still has a `DEMO_KEY` fallback) | none |
 | `CHROMA_PERSIST_DIR` | Каталог vector store | `./chroma_db` |
 | `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` | Черга та backend Celery | RabbitMQ / `rpc://` |
 | `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_HOST`, `SMTP_PORT` | Відправлення reset email | Gmail SMTP, порт `587` |

@@ -4,7 +4,7 @@ external_api.py — інтеграція з зовнішніми API для ун
 Джерела:
   1. College Scorecard (api.data.gov) — університети США, вартість навчання по роках (2015–2023)
   2. Hipolabs Universities API — пошук університетів по всьому світу (назва, країна, сайт)
-  3. TuitionPrice table — normalized yearly tuition data for non-US countries.
+  3. TuitionSnapshot — normalized yearly tuition data for non-US countries.
 """
 from __future__ import annotations
 
@@ -162,7 +162,7 @@ def get_tuition_history_usa(scorecard_id: int) -> list[dict[str, Any]]:
 def get_tuition_history_non_us(country: str, db_session: Session) -> list[dict[str, Any]]:
     """
     Повертає середню вартість навчання по роках (2018–2023)
-    для не-американських університетів з таблиці TuitionPrice.
+    для не-американських університетів з validated country-average snapshots.
     """
     from app.services.tuition_service import get_tuition_history
 
@@ -189,7 +189,7 @@ def get_tuition_history(scorecard_id: int | None, country: str, db_session: Sess
     """
     Повертає вартість навчання по роках.
     Якщо є scorecard_id → College Scorecard (США).
-    Інакше → таблиця TuitionPrice по країні.
+    Інакше → validated TuitionSnapshot по країні.
     """
     if scorecard_id is not None:
         return get_tuition_history_usa(scorecard_id)

@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Generic, Literal, TypeVar
 
@@ -59,7 +59,7 @@ class TokenPairResponse(BaseModel):
 
 
 class ROICalculationRequest(BaseModel):
-    """The only business inputs accepted by the ROI calculation API."""
+    """Legacy anonymous trial inputs; versioned simulations use SimulationCreateRequest."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -69,32 +69,12 @@ class ROICalculationRequest(BaseModel):
     study_years: Decimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
 
 
-class CareerAnalysisRequest(BaseModel):
-    """Inputs for the full education and career decision analysis."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    university: str = Field(min_length=2, max_length=255)
-    degree: str = Field(min_length=2, max_length=255)
-    specialization_focus: str = Field(min_length=2, max_length=500)
-    country: str = Field(default="United States", min_length=2, max_length=120)
-    currency: str = Field(default="USD", pattern="^USD$")
-    study_years: Decimal = Field(ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
-    monthly_payment: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    payments_per_year: int = Field(default=12, ge=1, le=24)
-    additional_learning_budget_min: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
-    additional_learning_budget_max: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
-    include_living_costs: bool = False
-
-    @model_validator(mode="after")
-    def validate_budget_range(self) -> "CareerAnalysisRequest":
-        if self.additional_learning_budget_max < self.additional_learning_budget_min:
-            raise ValueError("Максимальний бюджет не може бути меншим за мінімальний")
-        return self
-
-
 class TrialROIRequest(ROICalculationRequest):
     """Four-field input accepted by the anonymous trial endpoint."""
+    university: str = Field(default="Demo University", min_length=2, max_length=255)
+    faculty: str = Field(default="Computer Science", min_length=2, max_length=255)
+    annual_tuition: Decimal = Field(default=Decimal("15000.00"), gt=Decimal("0"), max_digits=14, decimal_places=2)
+    study_years: Decimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
 
 
 class TrialMinimumMoney(BaseModel):
@@ -120,6 +100,7 @@ class TrialEducationResponse(BaseModel):
 
     specialization: str = Field(min_length=2, max_length=500)
     total_investment: TrialMinimumMoney
+    total_education_cost: TrialMinimumMoney
 
 
 class TrialROIResultResponse(BaseModel):
@@ -127,6 +108,7 @@ class TrialROIResultResponse(BaseModel):
 
     payback_months: TrialMinimumMonths
     first_year_roi_percent: TrialMinimumPercent
+    roi_percent: TrialMinimumPercent
 
 
 class TrialROIResponse(BaseModel):
@@ -136,20 +118,6 @@ class TrialROIResponse(BaseModel):
 
     education: TrialEducationResponse
     roi: TrialROIResultResponse
-
-
-class ROICalculationResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int | None = None
-    roi_percent: Decimal
-    break_even_months: int
-    total_education_investment: Decimal
-    career_growth_projection: list[Decimal]
-    study_years: Decimal
-    possible_monthly_salary: Decimal
-    methodology_version: str = "v2-scenario"
-    created_at: datetime | None = None
 
 
 class APIResponse(BaseModel, Generic[T]):
@@ -185,7 +153,7 @@ class PasswordResetSchema(BaseModel):
 
 
 class SimulationAssumptions(BaseModel):
-    """Decision inputs stored unchanged in each scenario revision."""
+    """Вхідні умови освіти й кар'єри; після вибору tuition зберігаються в ревізії."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -194,7 +162,8 @@ class SimulationAssumptions(BaseModel):
     country: str = Field(min_length=2, max_length=120)
     degree: str = Field(min_length=2, max_length=255)
     currency: str = Field(default="USD", min_length=3, max_length=3)
-    annual_tuition: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    # None означає вибір snapshot; 0 є явною вартістю безкоштовного навчання.
+    annual_tuition: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
     study_duration_years: Decimal = Field(gt=Decimal("0"), le=Decimal("12"), decimal_places=1)
     career_target: str = Field(min_length=2, max_length=255)
     existing_skills: list[str] = Field(default_factory=list, max_length=100)
@@ -209,19 +178,93 @@ class SimulationAssumptions(BaseModel):
         return value.upper()
 
 
+class TuitionSnapshotSelection(BaseModel):
+    """Пошук збереженої ціни: точність, давність і довіра; без live API викликів."""
+    model_config = ConfigDict(extra="forbid")
+
+    university: str = Field(min_length=2, max_length=255)
+    program: str = Field(min_length=2, max_length=500)
+    country: str = Field(min_length=2, max_length=120)
+    degree: str | None = Field(default=None, min_length=2, max_length=255)
+    study_mode: str | None = Field(default=None, min_length=2, max_length=80)
+    student_residency: Literal[
+        "domestic", "international", "eu", "non_eu", "in_state", "out_of_state", "unspecified"
+    ] = "unspecified"
+    institution_type: Literal["public", "private", "other"] | None = None
+    currency: str = Field(min_length=3, max_length=3)
+    as_of_date: date = Field(default_factory=date.today)
+    max_age_days: int = Field(default=730, ge=1, le=3650)
+    minimum_confidence: Literal["low", "medium", "high"] = "medium"
+    allow_country_fallback: bool = False
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return value.upper()
+
+
+class CollegeScorecardTuitionRefreshRequest(BaseModel):
+    """Queue an official institution-level tuition refresh for one UNITID."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scorecard_id: int = Field(gt=0)
+
+
+class TuitionRefreshAcceptedResponse(BaseModel):
+    job_id: str
+    provider: Literal["college_scorecard"] = "college_scorecard"
+    status: Literal["queued"] = "queued"
+
+
 class SimulationCreateRequest(BaseModel):
+    """Створення сценарію: ручна ціна або одне джерело tuition, без змішування."""
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=2, max_length=255)
     assumptions: SimulationAssumptions
+    tuition_snapshot_id: int | None = Field(default=None, ge=1)
+    tuition_snapshot_selection: TuitionSnapshotSelection | None = None
+
+    @model_validator(mode="after")
+    def select_tuition_source(self) -> "SimulationCreateRequest":
+        source_count = sum(
+            source is not None
+            for source in (self.tuition_snapshot_id, self.tuition_snapshot_selection)
+        )
+        if source_count > 1:
+            raise ValueError("Вкажіть лише одне tuition snapshot source")
+        if source_count == 0 and self.assumptions.annual_tuition is None:
+            raise ValueError("Вкажіть annual_tuition або tuition snapshot source")
+        if source_count == 1 and self.assumptions.annual_tuition is not None:
+            raise ValueError("Не поєднуйте manual annual_tuition з tuition snapshot source")
+        return self
 
 
 class SimulationRevisionCreateRequest(BaseModel):
+    """Новий повний набір умов; попередню ревізію та її прогнози не переписуємо."""
     model_config = ConfigDict(extra="forbid")
     assumptions: SimulationAssumptions
     change_note: str | None = Field(default=None, max_length=500)
+    tuition_snapshot_id: int | None = Field(default=None, ge=1)
+    tuition_snapshot_selection: TuitionSnapshotSelection | None = None
+
+    @model_validator(mode="after")
+    def select_tuition_source(self) -> "SimulationRevisionCreateRequest":
+        source_count = sum(
+            source is not None
+            for source in (self.tuition_snapshot_id, self.tuition_snapshot_selection)
+        )
+        if source_count > 1:
+            raise ValueError("Вкажіть лише одне tuition snapshot source")
+        if source_count == 0 and self.assumptions.annual_tuition is None:
+            raise ValueError("Вкажіть annual_tuition або tuition snapshot source")
+        if source_count == 1 and self.assumptions.annual_tuition is not None:
+            raise ValueError("Не поєднуйте manual annual_tuition з tuition snapshot source")
+        return self
 
 
 class SimulationRevisionResponse(BaseModel):
+    """Збережені умови й посилання на джерела для відтворення рішення."""
     model_config = ConfigDict(from_attributes=True)
     id: int
     revision_number: int
@@ -233,6 +276,7 @@ class SimulationRevisionResponse(BaseModel):
 
 
 class SimulationScenarioSummary(BaseModel):
+    """Короткий запис для списків; фінансові результати читаються окремо."""
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
@@ -246,10 +290,12 @@ class SimulationScenarioSummary(BaseModel):
 
 
 class SimulationScenarioResponse(SimulationScenarioSummary):
+    """Сценарій разом з історією його умов, а не лише поточними значеннями."""
     revisions: list[SimulationRevisionResponse]
 
 
 class ProjectionEvidence(BaseModel):
+    """Походження конкретного показника; валідна форма не підтверджує правдивість джерела."""
     model_config = ConfigDict(extra="forbid")
 
     metric: Literal[
@@ -294,6 +340,7 @@ class MarketSnapshotSelection(BaseModel):
 
 
 class SimulationProjectionRequest(BaseModel):
+    """Умови фінансового прогнозу: рівно одне джерело зарплати та явний baseline."""
     model_config = ConfigDict(extra="forbid")
 
     market_snapshot_id: int | None = Field(default=None, ge=1)
@@ -303,6 +350,7 @@ class SimulationProjectionRequest(BaseModel):
     annual_salary_growth_percent: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
     baseline_salary_growth_percent: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
     foregone_income_percent: Decimal = Field(default=Decimal("100"), ge=Decimal("0"), le=Decimal("100"))
+    # Додаткові витрати та гранти — суми за весь період навчання, не річні платежі.
     mandatory_fees: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
     scholarships_and_grants: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
     additional_education_cost: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
@@ -336,6 +384,7 @@ class SimulationProjectionRequest(BaseModel):
 
 
 class SalaryTrajectoryPoint(BaseModel):
+    """Рік після навчання: дохід цільового шляху мінус альтернативний дохід."""
     year: int
     target_salary: Decimal
     baseline_salary: Decimal
@@ -358,7 +407,27 @@ class ProjectionCostBreakdown(BaseModel):
     opportunity_cost: Decimal | None = None
 
 
+class ProjectionAIReviewResponse(BaseModel):
+    """Advisory AI review stored separately from canonical financial numbers."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    status: Literal["pending", "running", "completed", "failed", "not_configured"]
+    provider_model: str | None = None
+    confidence_score: Decimal | None = None
+    ai_risk_score: int | None = None
+    calculation_consistent: bool | None = None
+    prediction_summary: str | None = None
+    verdict: str | None = None
+    recommendations: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    suggested_adjustments: list[dict] = Field(default_factory=list)
+    error_message: str | None = None
+    completed_at: datetime | None = None
+
+
 class SimulationProjectionResponse(BaseModel):
+    """Збережений deterministic результат із методологією, входами й обмеженнями."""
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -373,6 +442,8 @@ class SimulationProjectionResponse(BaseModel):
     estimated_start_salary: Decimal
     calculation_inputs: dict
     cost_breakdown: ProjectionCostBreakdown
+    # None: окупності немає в межах горизонту; 0: інвестиція дорівнює нулю.
+    # Перший показник рахується після випуску, другий — від початку навчання.
     payback_months: int | None
     payback_from_enrollment_months: int | None
     break_even_reached: bool
@@ -383,6 +454,7 @@ class SimulationProjectionResponse(BaseModel):
     evidence: list[ProjectionEvidence]
     source_snapshot_refs: list[str]
     unverified_assumptions: list[str]
+    ai_review: ProjectionAIReviewResponse | None = None
     created_at: datetime
 
 
@@ -477,6 +549,116 @@ class MarketSnapshotResponse(BaseModel):
     created_at: datetime
 
 
+class TuitionSnapshotSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=2, max_length=255)
+    reference: str = Field(min_length=2, max_length=1000)
+    url: HttpUrl | None = None
+    acquired_at: datetime
+
+    @field_validator("acquired_at")
+    @classmethod
+    def require_source_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("acquired_at має містити timezone")
+        return value
+
+
+class TuitionSnapshotCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scope: Literal["program", "university", "country_average"]
+    country: str = Field(min_length=2, max_length=120)
+    university: str | None = Field(default=None, min_length=2, max_length=255)
+    program: str | None = Field(default=None, min_length=2, max_length=500)
+    degree: str | None = Field(default=None, min_length=2, max_length=255)
+    study_mode: str | None = Field(default=None, min_length=2, max_length=80)
+    student_residency: Literal[
+        "domestic", "international", "eu", "non_eu", "in_state", "out_of_state", "unspecified"
+    ] = "unspecified"
+    institution_type: Literal["public", "private", "other"] | None = None
+    academic_year: str = Field(min_length=4, max_length=20)
+    snapshot_date: date
+    currency: str = Field(min_length=3, max_length=3)
+    annual_tuition_min: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    annual_tuition: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    annual_tuition_max: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    mandatory_fees: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
+    sources: list[TuitionSnapshotSource] = Field(min_length=1, max_length=20)
+    acquired_at: datetime
+    confidence: Literal["low", "medium", "high"]
+    methodology_version: str = Field(min_length=2, max_length=50)
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return value.upper()
+
+    @model_validator(mode="after")
+    def validate_snapshot(self) -> "TuitionSnapshotCreateRequest":
+        if not self.annual_tuition_min <= self.annual_tuition <= self.annual_tuition_max:
+            raise ValueError(
+                "Tuition range має відповідати annual_tuition_min <= annual_tuition <= annual_tuition_max"
+            )
+        if self.acquired_at.tzinfo is None or self.acquired_at.utcoffset() is None:
+            raise ValueError("acquired_at має містити timezone")
+        if self.snapshot_date > self.acquired_at.date():
+            raise ValueError("snapshot_date не може бути пізніше acquired_at")
+        if self.scope == "program" and (not self.university or not self.program):
+            raise ValueError("Program snapshot потребує university і program")
+        if self.scope == "university" and not self.university:
+            raise ValueError("University snapshot потребує university")
+        if self.scope == "country_average" and (self.university or self.program):
+            raise ValueError("Country average не повинен містити university або program")
+        return self
+
+
+class TuitionSnapshotQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    country: str | None = Field(default=None, min_length=2, max_length=120)
+    university: str | None = Field(default=None, min_length=2, max_length=255)
+    program: str | None = Field(default=None, min_length=2, max_length=500)
+    degree: str | None = Field(default=None, min_length=2, max_length=255)
+    scope: Literal["program", "university", "country_average"] | None = None
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    limit: int = Field(default=20, ge=1, le=100)
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str | None) -> str | None:
+        return value.upper() if value else value
+
+
+class TuitionSnapshotResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    scope: str
+    country: str
+    university: str | None
+    program: str | None
+    degree: str | None
+    study_mode: str | None
+    student_residency: str
+    institution_type: str | None
+    academic_year: str
+    snapshot_date: date
+    currency: str
+    annual_tuition_min: Decimal
+    annual_tuition: Decimal
+    annual_tuition_max: Decimal
+    mandatory_fees: Decimal | None
+    sources: list[TuitionSnapshotSource]
+    acquired_at: datetime
+    confidence: str
+    methodology_version: str
+    validation_status: str
+    fingerprint: str
+    created_at: datetime
+
+
 class ProjectionSnapshotProvenance(BaseModel):
     snapshot: MarketSnapshotResponse
     age_days: int = Field(ge=0)
@@ -485,6 +667,7 @@ class ProjectionSnapshotProvenance(BaseModel):
 
 
 class SimulationProjectionExplainabilityResponse(BaseModel):
+    """Джерела зарплати й обмеження збереженого прогнозу без нового розрахунку."""
     projection_id: int
     calculation_type: Literal["deterministic"] = "deterministic"
     ai_generated: Literal[False] = False
@@ -502,6 +685,7 @@ class SimulationProjectionExplainabilityResponse(BaseModel):
 
 
 class SimulationOverviewResponse(BaseModel):
+    """Стан звіту: сценаріїв немає, є лише умови або вже є фінансовий прогноз."""
     status: Literal["empty", "scenario_only", "projected"]
     scenario: SimulationScenarioResponse | None = None
     projection: SimulationProjectionResponse | None = None
@@ -572,6 +756,15 @@ class WorkspaceCourseResponse(BaseModel):
     saved: bool = False
 
 
+class WorkspaceResourceResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    source: Literal["Public web", "YouTube"]
+    url: str
+    skills: list[str]
+
+
 class WorkspaceUniversityResponse(BaseModel):
     id: str
     name: str
@@ -585,6 +778,12 @@ class WorkspaceUniversityResponse(BaseModel):
     study_mode: str = "Full-time"
     program_name: str
     data_quality: Literal["database", "illustrative"]
+
+
+class WorkspaceUniversityDetailsResponse(WorkspaceUniversityResponse):
+    programmes: list[dict[str, Any]] = Field(default_factory=list)
+    documents: list[dict[str, Any]] = Field(default_factory=list)
+    scholarships: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class RoadmapPreviewRequest(BaseModel):

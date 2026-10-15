@@ -6,12 +6,25 @@ from datetime import date
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.exceptions import AppError
-from app.models import MarketSnapshot, SimulationProjection, SimulationRevision, SimulationScenario
+from app.models import (
+    MarketSnapshot,
+    ProjectionCost,
+    ProjectionEvidenceRecord,
+    ProjectionInput,
+    ProjectionSource,
+    ProjectionTrajectoryPoint,
+    ProjectionWarning,
+    SimulationProjection,
+    SimulationRevision,
+    SimulationScenario,
+    TuitionSnapshot,
+)
 from app.schemas import ProjectionEvidence, SimulationProjectionRequest
 from app.services.market_snapshot_service import MarketSnapshotService
+from app.services.projection_ai_review_service import ProjectionAIReviewService
 
 
 METHODOLOGY_VERSION = "scenario-projection-v2"
@@ -36,6 +49,8 @@ class DeterministicProjectionEngine:
         if payload.annual_start_salary is None:
             raise ValueError("Projection engine requires a resolved annual_start_salary")
         study_years = Decimal(str(assumptions["study_duration_years"]))
+        if assumptions.get("annual_tuition") is None:
+            raise ValueError("Projection engine requires a resolved annual_tuition")
         annual_tuition = Decimal(str(assumptions["annual_tuition"]))
         tuition = annual_tuition * study_years
         gross_direct_cost = (
@@ -163,12 +178,15 @@ class DeterministicProjectionEngine:
             "cumulative_incremental_earnings": _money(cumulative),
             "roi_percent": roi_percent,
             "salary_trajectory": trajectory,
-            "evidence": [item.model_dump(mode="json") for item in payload.evidence],
+            # Normalized DateTime columns need real datetime values; API serialization
+            # converts them to ISO-8601 only at the transport boundary.
+            "evidence": [item.model_dump(mode="python") for item in payload.evidence],
             "unverified_assumptions": unverified_assumptions,
         }
 
 
 class SimulationProjectionService:
+    """Перевірка власника → джерела з БД → evidence → deterministic engine → збереження."""
     def __init__(self, db_session: Session) -> None:
         self.db = db_session
 
@@ -186,6 +204,19 @@ class SimulationProjectionService:
             raise AppError("Ревізію сценарію не знайдено", status_code=404)
         return revision
 
+    @staticmethod
+    def _projection_load_options() -> tuple:
+        """Relationships consumed by API serializers; eager loading prevents N+1 queries."""
+        return (
+            selectinload(SimulationProjection.inputs),
+            selectinload(SimulationProjection.costs),
+            selectinload(SimulationProjection.trajectory_points),
+            selectinload(SimulationProjection.evidence_records),
+            selectinload(SimulationProjection.source_records),
+            selectinload(SimulationProjection.warning_records),
+            selectinload(SimulationProjection.ai_review),
+        )
+
     def _resolve_salary_source(
         self, assumptions: dict, payload: SimulationProjectionRequest
     ) -> tuple[SimulationProjectionRequest, list[str]]:
@@ -193,15 +224,28 @@ class SimulationProjectionService:
             snapshot = MarketSnapshotService(self.db).get_validated(payload.market_snapshot_id)
         elif payload.market_snapshot_selection is not None:
             selection = payload.market_snapshot_selection
-            snapshot = MarketSnapshotService(self.db).resolve_validated(
-                role=assumptions["career_target"],
-                country=assumptions["country"],
-                seniority=selection.seniority,
-                currency=assumptions["currency"],
-                as_of_date=selection.as_of_date,
-                max_age_days=selection.max_age_days,
-                minimum_confidence=selection.minimum_confidence,
-            )
+            try:
+                snapshot = MarketSnapshotService(self.db).resolve_validated(
+                    role=assumptions["career_target"],
+                    country=assumptions["country"],
+                    seniority=selection.seniority,
+                    currency=assumptions["currency"],
+                    as_of_date=selection.as_of_date,
+                    max_age_days=selection.max_age_days,
+                    minimum_confidence=selection.minimum_confidence,
+                )
+            except AppError as e:
+                if e.status_code == 422:
+                    from app.tasks.market_tasks import refresh_market_snapshot
+                    role = assumptions.get("career_target", "")
+                    country = assumptions.get("country", "")
+                    currency = assumptions.get("currency", "")
+                    refresh_market_snapshot.delay(role, country, currency)
+                    raise AppError(
+                        f"Дані про зарплати для '{role}' ще не завантажені. Ми почали їх оновлення — будь ласка, повторіть спробу через декілька секунд.",
+                        status_code=409
+                    )
+                raise e
         else:
             return payload, []
 
@@ -233,6 +277,55 @@ class SimulationProjectionService:
             }
         )
         return resolved, [str(snapshot.id)]
+
+    def _with_tuition_evidence(
+        self,
+        revision: SimulationRevision,
+        payload: SimulationProjectionRequest,
+    ) -> SimulationProjectionRequest:
+        references = [
+            str(reference).split(":", 1)[1]
+            for reference in revision.source_snapshot_refs
+            if str(reference).startswith("tuition_snapshot:")
+        ]
+        if not references:
+            return payload
+
+        try:
+            snapshot_id = int(references[-1])
+        except ValueError as error:
+            raise AppError("Некоректний tuition snapshot reference", status_code=422) from error
+
+        snapshot = self.db.execute(
+            select(TuitionSnapshot).where(
+                TuitionSnapshot.id == snapshot_id,
+                TuitionSnapshot.validation_status == "validated",
+            )
+        ).scalar_one_or_none()
+        if snapshot is None:
+            raise AppError("Tuition snapshot сценарію більше не доступний", status_code=422)
+        if snapshot.country.casefold() != revision.assumptions["country"].casefold():
+            raise AppError("Країна tuition snapshot не відповідає сценарію", status_code=422)
+        if snapshot.currency != revision.assumptions["currency"].upper():
+            raise AppError("Валюта tuition snapshot не відповідає сценарію", status_code=422)
+        if Decimal(str(revision.assumptions["annual_tuition"])) != snapshot.annual_tuition:
+            raise AppError("Tuition snapshot не відповідає збереженому tuition", status_code=422)
+
+        reference = f"tuition_snapshot:{snapshot.id}"
+        if any(item.source_reference == reference for item in payload.evidence):
+            return payload
+        evidence = ProjectionEvidence(
+            metric="tuition",
+            source_name="Fence tuition snapshot",
+            source_reference=reference,
+            acquired_at=snapshot.acquired_at,
+            country=snapshot.country,
+            role=revision.assumptions["career_target"],
+            seniority=revision.assumptions["degree"],
+            currency=snapshot.currency,
+            confidence=snapshot.confidence,
+        )
+        return payload.model_copy(update={"evidence": [*payload.evidence, evidence]})
 
     @staticmethod
     def _validate_evidence(assumptions: dict, payload: SimulationProjectionRequest) -> None:
@@ -275,10 +368,12 @@ class SimulationProjectionService:
         revision_number: int,
         payload: SimulationProjectionRequest,
     ) -> tuple[SimulationProjection, bool]:
+        """Повертає прогноз і ознаку створення; повтор тих самих inputs повторно не рахуємо."""
         revision = self._get_revision(user_id, scenario_id, revision_number)
         resolved_payload, source_snapshot_refs = self._resolve_salary_source(
             revision.assumptions, payload
         )
+        resolved_payload = self._with_tuition_evidence(revision, resolved_payload)
         self._validate_evidence(revision.assumptions, resolved_payload)
         fingerprint = self._fingerprint(revision, resolved_payload, source_snapshot_refs)
 
@@ -293,17 +388,68 @@ class SimulationProjectionService:
             return existing, False
 
         result = DeterministicProjectionEngine.calculate(revision.assumptions, resolved_payload)
+        cost_breakdown = result.pop("cost_breakdown")
+        trajectory = result.pop("salary_trajectory")
+        evidence = result.pop("evidence")
+        warnings = result.pop("unverified_assumptions")
         projection = SimulationProjection(
             revision_id=revision.id,
             methodology_version=METHODOLOGY_VERSION,
             input_fingerprint=fingerprint,
-            calculation_inputs=resolved_payload.model_dump(mode="json"),
-            source_snapshot_refs=source_snapshot_refs,
             **result,
         )
+        market_snapshot_id = None
+        if source_snapshot_refs:
+            try:
+                market_snapshot_id = int(source_snapshot_refs[0])
+            except (TypeError, ValueError):
+                market_snapshot_id = None
+        projection.inputs = ProjectionInput(
+            annual_start_salary=resolved_payload.annual_start_salary,
+            baseline_annual_salary=resolved_payload.baseline_annual_salary,
+            annual_salary_growth_percent=resolved_payload.annual_salary_growth_percent,
+            baseline_salary_growth_percent=resolved_payload.baseline_salary_growth_percent,
+            foregone_income_percent=resolved_payload.foregone_income_percent,
+            mandatory_fees=resolved_payload.mandatory_fees,
+            scholarships_and_grants=resolved_payload.scholarships_and_grants,
+            additional_education_cost=resolved_payload.additional_education_cost,
+            incremental_living_cost=resolved_payload.incremental_living_cost,
+            employment_income_during_study=resolved_payload.employment_income_during_study,
+            horizon_years=resolved_payload.horizon_years,
+            market_snapshot_id=market_snapshot_id,
+            salary_source_kind="market_snapshot" if market_snapshot_id else "manual_evidence",
+        )
+        projection.costs = ProjectionCost(**cost_breakdown)
+        projection.trajectory_points = [ProjectionTrajectoryPoint(**point) for point in trajectory]
+        projection.evidence_records = [ProjectionEvidenceRecord(**item) for item in evidence]
+        projection.warning_records = [ProjectionWarning(code=code) for code in warnings]
+        projection.source_records = [
+            ProjectionSource(
+                source_kind="market_snapshot",
+                reference=str(reference),
+                market_snapshot_id=int(reference) if str(reference).isdigit() else None,
+            )
+            for reference in source_snapshot_refs
+        ]
+        for item in evidence:
+            reference = str(item.get("source_reference", ""))
+            if not reference.startswith("tuition_snapshot:"):
+                continue
+            try:
+                tuition_snapshot_id = int(reference.split(":", 1)[1])
+            except ValueError:
+                continue
+            projection.source_records.append(
+                ProjectionSource(
+                    source_kind="tuition_snapshot",
+                    reference=reference,
+                    tuition_snapshot_id=tuition_snapshot_id,
+                )
+            )
         self.db.add(projection)
         self.db.commit()
         self.db.refresh(projection)
+        ProjectionAIReviewService(self.db).review_best_effort(projection, revision.assumptions)
         return projection, True
 
     def list_for_revision(
@@ -313,6 +459,7 @@ class SimulationProjectionService:
         return list(
             self.db.execute(
                 select(SimulationProjection)
+                .options(*self._projection_load_options())
                 .where(SimulationProjection.revision_id == revision.id)
                 .order_by(SimulationProjection.created_at.desc())
             ).scalars()
@@ -327,6 +474,7 @@ class SimulationProjectionService:
     ) -> dict:
         projection = self.db.execute(
             select(SimulationProjection)
+            .options(*self._projection_load_options())
             .join(SimulationRevision)
             .join(SimulationScenario)
             .where(
@@ -341,7 +489,12 @@ class SimulationProjectionService:
 
         parsed_refs: list[int] = []
         missing_refs: list[str] = []
-        for reference in projection.source_snapshot_refs:
+        market_references = [
+            source.reference
+            for source in projection.source_records
+            if source.source_kind == "market_snapshot"
+        ]
+        for reference in market_references:
             try:
                 parsed_refs.append(int(reference))
             except (TypeError, ValueError):
@@ -369,7 +522,7 @@ class SimulationProjectionService:
                 }
             )
 
-        uses_snapshot = bool(projection.source_snapshot_refs)
+        uses_snapshot = bool(market_references)
         return {
             "projection_id": projection.id,
             "calculation_type": "deterministic",
@@ -386,3 +539,31 @@ class SimulationProjectionService:
             "evidence": projection.evidence,
             "unverified_assumptions": projection.unverified_assumptions,
         }
+
+    def review_projection(
+        self,
+        user_id: int,
+        scenario_id: int,
+        revision_number: int,
+        projection_id: int,
+    ) -> SimulationProjection:
+        """Run or retry the advisory review for an owner-scoped projection."""
+        projection = self.db.execute(
+            select(SimulationProjection)
+            .options(*self._projection_load_options())
+            .join(SimulationRevision)
+            .join(SimulationScenario)
+            .where(
+                SimulationProjection.id == projection_id,
+                SimulationRevision.revision_number == revision_number,
+                SimulationScenario.id == scenario_id,
+                SimulationScenario.user_id == user_id,
+            )
+        ).scalar_one_or_none()
+        if projection is None:
+            raise AppError("Проєкцію не знайдено", status_code=404)
+        ProjectionAIReviewService(self.db).review_best_effort(
+            projection, projection.revision.assumptions
+        )
+        self.db.refresh(projection)
+        return projection

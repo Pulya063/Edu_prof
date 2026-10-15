@@ -9,7 +9,9 @@ from app.schemas import (
     WorkspaceCourseResponse,
     WorkspacePreferences,
     WorkspaceProfileUpdate,
+    WorkspaceResourceResponse,
     WorkspaceStateResponse,
+    WorkspaceUniversityDetailsResponse,
     WorkspaceUniversityResponse,
 )
 from app.services.workspace_service import WorkspaceService, preview_roadmap
@@ -48,11 +50,27 @@ def list_universities(user: User) -> Response:
     return jsonify(response)
 
 
+@blueprint.get("/universities/<string:university_id>")
+@get_current_user
+def get_university(university_id: str, user: User) -> Response:
+    result = WorkspaceService(db.session).university_details(university_id)
+    response = WorkspaceUniversityDetailsResponse.model_validate(result)
+    return jsonify(response.model_dump(mode="json"))
+
+
 @blueprint.get("/courses")
 @get_current_user
 def list_courses(user: User) -> Response:
     results = WorkspaceService(db.session).courses(user, request.args.get("q") or "", request.args.get("level") or "", request.args.get("language") or "", request.args.get("format") or "")
     response = [WorkspaceCourseResponse.model_validate(item).model_dump(mode="json") for item in results]
+    return jsonify(response)
+
+
+@blueprint.get("/resources")
+@get_current_user
+def list_resources(user: User) -> Response:
+    results = WorkspaceService(db.session).resources(request.args.get("q") or "", request.args.get("source") or "")
+    response = [WorkspaceResourceResponse.model_validate(item).model_dump(mode="json") for item in results]
     return jsonify(response)
 
 

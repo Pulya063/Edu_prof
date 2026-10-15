@@ -2,9 +2,9 @@ import pytest
 from decimal import Decimal
 from unittest.mock import patch
 
-from app.schemas import CareerAnalysisRequest, TrialROIRequest
+from app.schemas import TrialROIRequest
 from app.services.roi_service import ROIService
-from app.models import CareerAnalysis
+from app.models import SimulationProjection, SimulationRevision, SimulationScenario, User
 
 @pytest.fixture
 def mock_market():
@@ -15,38 +15,6 @@ def mock_market():
             "forecast_growth_percent": 4.0,
             "demand_score": 80,
             "ai_risk_score": 20,
-        }
-        yield mock
-
-@pytest.fixture
-def mock_onet():
-    with patch("app.services.onet_service.OnetService.get_profession_data") as mock:
-        mock.return_value = {
-            "found": True,
-            "demand_score": 85,
-            "ai_risk_score": 15,
-            "skills": ["Python", "SQL"],
-            "bright_outlook": True
-        }
-        yield mock
-
-@pytest.fixture
-def mock_ai():
-    with patch("app.services.roi_service._generate_qualitative_insights") as mock:
-        mock.return_value = {
-            "ai_risk_score": 25,
-            "skills_to_learn_outside_university": ["Docker", "AWS"],
-            "recommended_strategy": {
-                "year_1": "Learn basics",
-                "year_2": "Internship",
-                "year_3": "Build portfolio",
-                "final_stage": "Apply for jobs"
-            },
-            "biggest_risk": {
-                "risk": "Burnout",
-                "result": "Take breaks"
-            },
-            "verdict": "Good choice."
         }
         yield mock
 
@@ -66,38 +34,6 @@ def test_analyze_trial_abbreviated_result(mock_market, db_session):
     assert result["roi"]["payback_months"]["min"] > 0
     assert result["roi"]["first_year_roi_percent"]["min"] > 0
 
-def test_analyze_career_full_analysis(mock_market, mock_onet, mock_ai, db_session):
-    service = ROIService(db_session)
-    payload = CareerAnalysisRequest(
-        university="WSIiZ Rzeszow",
-        degree="BSc",
-        specialization_focus="Software Engineering",
-        country="Poland",
-        currency="USD",
-        study_years=Decimal("3.5"),
-        monthly_payment=Decimal("1000.00"),
-        payments_per_year=10,
-        additional_learning_budget_min=Decimal("0"),
-        additional_learning_budget_max=Decimal("2000.00"),
-        include_living_costs=False
-    )
-    
-    result = service.analyze_career(payload)
-    
-    assert result["education"]["total_investment"]["min"] == 35000.00
-    assert result["education"]["total_investment"]["max"] == 41200.00
-    
-    # Check that AI insight overrides are present
-    assert result["verdict"] == "Good choice."
-    assert result["biggest_risk"]["risk"] == "Burnout"
-    assert result["skills_to_learn_outside_university"] == ["Docker", "AWS"]
-    
-    # Check if saved to DB
-    analysis = db_session.query(CareerAnalysis).first()
-    assert analysis is not None
-    assert analysis.specialization == "Software Engineering"
-    assert analysis.country == "Poland"
-
 def test_trial_endpoint(mock_market, client):
     response = client.post(
         "/api/roi/trial",
@@ -111,16 +47,65 @@ def test_trial_endpoint(mock_market, client):
     assert response.status_code == 200
     assert response.json["education"]["total_investment"]["min"] == 40000.0
 
-def test_analyze_endpoint_requires_auth(mock_market, mock_onet, mock_ai, client):
-    response = client.post(
-        "/api/roi/analyze",
-        json={
-            "university": "WSIiZ",
-            "degree": "BSc",
-            "specialization_focus": "Software Engineering",
-            "monthly_payment": "1000.00",
-            "payments_per_year": 12,
-            "study_years": "3"
-        }
-    )
-    assert response.status_code == 401
+
+@pytest.mark.parametrize("route,method", [
+    ("/api/roi/analyze", "POST"),
+    ("/api/roi/trash", "GET"),
+    ("/api/roi/1", "DELETE"),
+    ("/api/roi/1/restore", "POST"),
+])
+def test_removed_legacy_routes(client, route, method):
+    assert client.open(route, method=method).status_code == 404
+
+
+def test_projection_history_stays_owner_scoped(db_session):
+    owner = User(username="history-owner", email="history-owner@example.com", password_hash="unused")
+    other = User(username="history-other", email="history-other@example.com", password_hash="unused")
+    db_session.add_all([owner, other])
+    db_session.flush()
+    for user in (owner, other):
+        scenario = SimulationScenario(
+            user_id=user.id,
+            name="Historical university",
+            target_role="Computer Science",
+            country="Poland",
+            currency="PLN",
+            current_revision_number=1,
+        )
+        revision = SimulationRevision(
+            revision_number=1,
+            assumptions={
+                "university": "Historical university",
+                "career_target": "Computer Science",
+                "degree": "BSc",
+                "country": "Poland",
+                "study_duration_years": "3",
+            },
+            methodology_version="scenario-input-v1",
+            source_snapshot_refs=[],
+        )
+        scenario.revisions = [revision]
+        revision.projections = [SimulationProjection(
+            methodology_version="scenario-projection-v2",
+            input_fingerprint=f"{user.id:064d}",
+            currency="PLN",
+            salary_basis="gross_annual",
+            total_direct_cost=10000,
+            opportunity_cost=0,
+            total_investment=10000,
+            estimated_start_salary=40000,
+            payback_months=12,
+            payback_from_enrollment_months=48,
+            break_even_reached=True,
+            horizon_years=5,
+            cumulative_incremental_earnings=20000,
+            roi_percent=20,
+        )]
+        db_session.add(scenario)
+    db_session.commit()
+
+    history = ROIService(db_session).get_full_history(owner)
+    assert len(history) == 1
+    assert history[0]["source"] == "simulation_projection"
+    assert history[0]["university"] == "Historical university"
+    assert history[0]["total_investment_min"] == 10000
