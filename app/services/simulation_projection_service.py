@@ -449,7 +449,7 @@ class SimulationProjectionService:
         self.db.add(projection)
         self.db.commit()
         self.db.refresh(projection)
-        ProjectionAIReviewService(self.db).review_best_effort(projection, revision.assumptions)
+        ProjectionAIReviewService(self.db).enqueue(projection)
         return projection, True
 
     def list_for_revision(
@@ -547,7 +547,7 @@ class SimulationProjectionService:
         revision_number: int,
         projection_id: int,
     ) -> SimulationProjection:
-        """Run or retry the advisory review for an owner-scoped projection."""
+        """Queue (or re-queue) the advisory review for an owner-scoped projection."""
         projection = self.db.execute(
             select(SimulationProjection)
             .options(*self._projection_load_options())
@@ -562,8 +562,6 @@ class SimulationProjectionService:
         ).scalar_one_or_none()
         if projection is None:
             raise AppError("Проєкцію не знайдено", status_code=404)
-        ProjectionAIReviewService(self.db).review_best_effort(
-            projection, projection.revision.assumptions
-        )
+        ProjectionAIReviewService(self.db).enqueue(projection)
         self.db.refresh(projection)
         return projection

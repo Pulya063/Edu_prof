@@ -4,6 +4,8 @@ import os
 # (load_dotenv() does not override variables that are already set).
 os.environ["CELERY_BROKER_URL"] = "memory://"
 os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
+# The advisory AI reviewer stays off in tests unless a test enables it explicitly.
+os.environ["DEEP_AGENT_MODEL"] = ""
 
 import pytest
 from flask import Flask

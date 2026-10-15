@@ -149,9 +149,10 @@ def review_simulation_projection(
     projection_id: int,
     user: User,
 ) -> Response:
-    """Run or retry the bounded Deep Agent review without changing canonical numbers."""
+    """Queue or retry the bounded Deep Agent review without changing canonical numbers."""
     projection = SimulationProjectionService(db.session).review_projection(
         user.id, scenario_id, revision_number, projection_id
     )
     response = SimulationProjectionResponse.model_validate(projection)
-    return jsonify(response.model_dump(mode="json"))
+    queued = projection.ai_review is not None and projection.ai_review.status == "pending"
+    return jsonify(response.model_dump(mode="json")), 202 if queued else 200

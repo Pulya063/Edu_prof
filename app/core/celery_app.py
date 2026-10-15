@@ -19,6 +19,7 @@ def make_celery(app_name=__name__):
             'app.tasks.email_tasks',
             'app.tasks.tuition_tasks',
             'app.tasks.market_tasks',
+            'app.tasks.ai_review_tasks',
         ]
     )
     celery.conf.update(
