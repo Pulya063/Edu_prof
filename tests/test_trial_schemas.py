@@ -32,10 +32,12 @@ def test_trial_response_validates_output() -> None:
             "education": {
                 "specialization": "Computer Science",
                 "total_investment": {"min": 20000.0},
+                "total_education_cost": {"min": 20000.0},
             },
             "roi": {
                 "payback_months": {"min": 5},
                 "first_year_roi_percent": {"min": 113.75},
+                "roi_percent": {"min": 113.75},
             },
         }
     )
@@ -50,10 +52,12 @@ def test_trial_response_rejects_invalid_payback() -> None:
                 "education": {
                     "specialization": "Computer Science",
                     "total_investment": {"min": 20000.0},
+                    "total_education_cost": {"min": 20000.0},
                 },
                 "roi": {
                     "payback_months": {"min": 0},
                     "first_year_roi_percent": {"min": 113.75},
+                    "roi_percent": {"min": 113.75},
                 },
             }
         )
@@ -65,10 +69,12 @@ def test_trial_endpoint_validates_request_and_response(mock_analyze, client) -> 
         "education": {
             "specialization": "Computer Science",
             "total_investment": {"min": 20000.0},
+            "total_education_cost": {"min": 20000.0},
         },
         "roi": {
             "payback_months": {"min": 5},
             "first_year_roi_percent": {"min": 113.75},
+            "roi_percent": {"min": 113.75},
         },
     }
 
@@ -82,7 +88,7 @@ def test_trial_endpoint_validates_request_and_response(mock_analyze, client) -> 
 
 @patch("app.api.roi.ROIService.analyze_trial")
 def test_trial_endpoint_rejects_invalid_request(mock_analyze, client) -> None:
-    response = client.post("/api/roi/trial", json={"university": "Test University"})
+    response = client.post("/api/roi/trial", json={**VALID_TRIAL_REQUEST, "unknown": True})
 
     assert response.status_code == 422
     mock_analyze.assert_not_called()

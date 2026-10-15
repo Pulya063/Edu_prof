@@ -184,7 +184,8 @@ def test_admin_snapshot_ingestion_and_projection_reference(client, app, monkeypa
         },
         headers=headers,
     )
-    assert no_match.status_code == 422
+    # No matching snapshot: API queues a background refresh and asks the client to retry.
+    assert no_match.status_code == 409
 
     wrong_role = client.post(
         "/api/market/snapshots",

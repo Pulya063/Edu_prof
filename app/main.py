@@ -164,7 +164,7 @@ def create_app() -> Flask:
             elif "String should have at least" in msg:
                 msg = "Занадто коротке значення"
             return f'<p class="mt-4 text-sm font-medium text-red-500 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg">Помилка валідації: {msg}</p>', 200
-        return jsonify(detail=error.errors(include_url=False, include_context=False)), 422
+        return jsonify(detail=error.errors(include_url=False, include_context=False, include_input=False)), 422
 
     @flask_app.errorhandler(HTTPException)
     def handle_http_error(error: HTTPException) -> tuple[Response, int]:

@@ -1,6 +1,12 @@
+import os
+
+# Keep tests off the real Redis broker/result store; must be set before app imports
+# (load_dotenv() does not override variables that are already set).
+os.environ["CELERY_BROKER_URL"] = "memory://"
+os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
+
 import pytest
 from flask import Flask
-from sqlalchemy.orm import Session
 
 from app.main import create_app
 from app.core.database import db
