@@ -26,3 +26,15 @@ def get_current_user(func):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def admin_required(func):
+    """Декоратор після get_current_user: пускає лише адміністраторів (403 для решти)."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        user = kwargs.get("user")
+        if user is None or not user.is_admin:
+            raise AppError("Розділ доступний лише адміністраторам", status_code=403)
+        return func(*args, **kwargs)
+
+    return wrapper

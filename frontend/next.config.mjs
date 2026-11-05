@@ -14,6 +14,11 @@ const nextConfig = {
     ];
   },
 
+  async redirects() {
+    // Pricing used to live at /plans; keep old links and any indexed URL working.
+    return [{ source: "/plans", destination: "/pricing", permanent: true }];
+  },
+
   output: "standalone",
 
   images: {

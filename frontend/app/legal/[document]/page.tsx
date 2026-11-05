@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import SitePage from "../../components/SitePage";
 
 const documents = {
   privacy: { title: "Privacy", copy: "This draft privacy page is a placeholder for Fence’s approved privacy policy. Replace this content with reviewed legal copy before launch." },
@@ -14,5 +15,5 @@ export default function LegalDocumentPage({ params }: { params: { document: stri
   const document = documents[params.document as keyof typeof documents];
   if (!document) notFound();
 
-  return <main className="legal-page"><a href="/">← Back to Fence</a><p className="legal-kicker">Fence / legal</p><h1>{document.title}</h1><p>{document.copy}</p></main>;
+  return <SitePage kicker="Fence / legal · draft" title={document.title} lead={document.copy}>{null}</SitePage>;
 }

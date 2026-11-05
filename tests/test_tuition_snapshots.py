@@ -76,8 +76,8 @@ def test_tuition_snapshot_ingestion_and_resolution(client, app, monkeypatch):
     assert created.status_code == 201
     snapshot = created.get_json()
     assert snapshot["currency"] == "PLN"
-    assert snapshot["annual_tuition"] == "12000.00"
-    assert snapshot["mandatory_fees"] == "500.00"
+    assert snapshot["annual_tuition"] == 12000.00
+    assert snapshot["mandatory_fees"] == 500.00
 
     duplicate = client.post("/api/tuition/snapshots", json=_snapshot_payload(), headers=headers)
     assert duplicate.status_code == 200
@@ -152,7 +152,7 @@ def test_tuition_snapshot_ingestion_and_resolution(client, app, monkeypatch):
     assert scenario.status_code == 201
     scenario_data = scenario.get_json()
     revision = scenario_data["revisions"][0]
-    assert revision["assumptions"]["annual_tuition"] == "12000.00"
+    assert revision["assumptions"]["annual_tuition"] == 12000.00
     assert revision["source_snapshot_refs"] == [f"tuition_snapshot:{snapshot['id']}"]
 
     projection = client.post(
@@ -180,7 +180,8 @@ def test_tuition_snapshot_ingestion_and_resolution(client, app, monkeypatch):
     )
     assert projection.status_code == 201
     projection_data = projection.get_json()
-    assert projection_data["unverified_assumptions"] == []
+    # Tuition and salary are sourced; only the missing inflation input is flagged.
+    assert projection_data["unverified_assumptions"] == ["inflation_not_applied"]
     assert any(
         item["source_reference"] == f"tuition_snapshot:{snapshot['id']}"
         for item in projection_data["evidence"]

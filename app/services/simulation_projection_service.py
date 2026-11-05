@@ -27,7 +27,7 @@ from app.services.market_snapshot_service import MarketSnapshotService
 from app.services.projection_ai_review_service import ProjectionAIReviewService
 
 
-METHODOLOGY_VERSION = "scenario-projection-v2"
+METHODOLOGY_VERSION = "scenario-projection-v5"
 SALARY_BASIS = "gross_annual"
 MONEY = Decimal("0.01")
 PERCENT = Decimal("0.01")
@@ -42,10 +42,121 @@ def _percent(value: Decimal) -> Decimal:
 
 
 class DeterministicProjectionEngine:
-    """Pure financial model; it never calls external APIs or an LLM."""
+    """Pure financial model; it never calls external APIs or an LLM.
+
+    scenario-projection-v5 (all amounts in today's money when inflation i is given):
+    - real growth = (1 + g) / (1 + i) − 1 for the target and the baseline path;
+    - both paths keep growing while the student studies: foregone income in study year y is
+      baseline × (1 + g_b)^(y−1), and after graduation baseline year t = baseline × (1 + g_b)^(S + t − 1)
+      and target year t = start × (1 + g)^(S + t − 1), because the start salary is today's market;
+    - year 1 after graduation pays (12 − job_search_months) / 12 of the target salary;
+    - with employment probability p the expected income is p × target + (1 − p) × baseline;
+    - pessimistic / base / optimistic start from the market snapshot min / median / max;
+    - optional NPV discounts year t by (1 + r)^(S + t), with all costs at enrollment;
+    - an optional target payback period T (years after graduation) yields a yes/no verdict.
+    """
 
     @staticmethod
-    def calculate(assumptions: dict, payload: SimulationProjectionRequest) -> dict:
+    def _real_rate(nominal_percent: Decimal, inflation_percent: Decimal | None) -> Decimal:
+        nominal = nominal_percent / Decimal("100")
+        if inflation_percent is None:
+            return nominal
+        return (Decimal("1") + nominal) / (Decimal("1") + inflation_percent / Decimal("100")) - Decimal("1")
+
+    @staticmethod
+    def _growth(rate: Decimal, years: Decimal | int) -> Decimal:
+        """(1 + rate)^years; fractional study years use a real power."""
+        base = Decimal("1") + rate
+        if isinstance(years, int) or years == years.to_integral_value():
+            return base ** int(years)
+        return base ** years
+
+    @staticmethod
+    def _foregone_baseline(payload: SimulationProjectionRequest, study_years: Decimal) -> Decimal:
+        """Baseline income over the study period, growing each study year; a partial last year counts pro rata."""
+        growth = DeterministicProjectionEngine._real_rate(payload.baseline_salary_growth_percent, payload.inflation_percent)
+        full_years = int(study_years)
+        total = sum(
+            (payload.baseline_annual_salary * DeterministicProjectionEngine._growth(growth, year) for year in range(full_years)),
+            Decimal("0"),
+        )
+        remainder = study_years - full_years
+        if remainder:
+            total += payload.baseline_annual_salary * DeterministicProjectionEngine._growth(growth, full_years) * remainder
+        return total
+
+    @staticmethod
+    def _run_trajectory(
+        start_salary: Decimal, payload: SimulationProjectionRequest, total_investment: Decimal, study_years: Decimal = Decimal("0")
+    ) -> tuple[list[dict], Decimal, int | None]:
+        """Unrounded yearly points, cumulative incremental earnings and payback after graduation."""
+        engine = DeterministicProjectionEngine
+        target_growth = engine._real_rate(payload.annual_salary_growth_percent, payload.inflation_percent)
+        baseline_growth = engine._real_rate(payload.baseline_salary_growth_percent, payload.inflation_percent)
+        employed = payload.employment_probability_percent / Decimal("100")
+        cumulative = Decimal("0")
+        payback_months: int | None = 0 if total_investment == 0 else None
+        trajectory: list[dict] = []
+
+        for year in range(1, payload.horizon_years + 1):
+            job_salary = start_salary * engine._growth(target_growth, study_years + year - 1)
+            if year == 1 and payload.job_search_months:
+                job_salary = job_salary * Decimal(12 - min(payload.job_search_months, 12)) / Decimal("12")
+            baseline_salary = payload.baseline_annual_salary * engine._growth(baseline_growth, study_years + year - 1)
+            target_salary = employed * job_salary + (Decimal("1") - employed) * baseline_salary
+            # Negative years are material: suppressing them would overstate ROI.
+            incremental = target_salary - baseline_salary
+            previous_cumulative = cumulative
+            cumulative += incremental
+
+            if payback_months is None and cumulative >= total_investment and incremental > 0:
+                remaining = total_investment - previous_cumulative
+                # Multiply before dividing: incremental / 12 is inexact and would push 6.000…01 up to 7.
+                months_in_year = (remaining * Decimal("12") / incremental).to_integral_value(
+                    rounding=ROUND_CEILING
+                )
+                payback_months = (year - 1) * 12 + int(months_in_year)
+
+            trajectory.append(
+                {
+                    "year": year,
+                    "target_salary": target_salary,
+                    "baseline_salary": baseline_salary,
+                    "incremental_earnings": incremental,
+                    "cumulative_incremental_earnings": cumulative,
+                }
+            )
+        return trajectory, cumulative, payback_months
+
+    @staticmethod
+    def _roi(cumulative: Decimal, total_investment: Decimal) -> Decimal | None:
+        if total_investment <= 0:
+            return None
+        return _percent((cumulative - total_investment) / total_investment * Decimal("100"))
+
+    @staticmethod
+    def _npv(
+        trajectory: list[dict],
+        total_investment: Decimal,
+        study_years: Decimal,
+        rate_percent: Decimal | None,
+    ) -> Decimal | None:
+        if rate_percent is None:
+            return None
+        factor = Decimal("1") + rate_percent / Decimal("100")
+        present = sum(
+            (point["incremental_earnings"] / factor ** (study_years + point["year"]) for point in trajectory),
+            Decimal("0"),
+        )
+        return _money(present - total_investment)
+
+    @staticmethod
+    def calculate(
+        assumptions: dict,
+        payload: SimulationProjectionRequest,
+        salary_range: tuple[Decimal, Decimal] | None = None,
+    ) -> dict:
+        """salary_range is the snapshot (min, max); without it only the base scenario is reported."""
         if payload.annual_start_salary is None:
             raise ValueError("Projection engine requires a resolved annual_start_salary")
         study_years = Decimal(str(assumptions["study_duration_years"]))
@@ -64,8 +175,7 @@ class DeterministicProjectionEngine:
             Decimal("0"),
         )
         baseline_income_during_study = (
-            payload.baseline_annual_salary
-            * study_years
+            DeterministicProjectionEngine._foregone_baseline(payload, study_years)
             * payload.foregone_income_percent
             / Decimal("100")
         )
@@ -75,43 +185,37 @@ class DeterministicProjectionEngine:
             Decimal("0"),
         )
         total_investment = direct_cost + opportunity_cost
+        rate = payload.discount_rate_percent
 
-        target_growth = payload.annual_salary_growth_percent / Decimal("100")
-        baseline_growth = payload.baseline_salary_growth_percent / Decimal("100")
-        cumulative = Decimal("0")
-        payback_months: int | None = 0 if total_investment == 0 else None
-        trajectory: list[dict] = []
+        engine = DeterministicProjectionEngine
+        trajectory, cumulative, payback_months = engine._run_trajectory(
+            payload.annual_start_salary, payload, total_investment, study_years
+        )
+        roi_percent = engine._roi(cumulative, total_investment)
+        npv = engine._npv(trajectory, total_investment, study_years, rate)
 
-        for year in range(1, payload.horizon_years + 1):
-            target_salary = payload.annual_start_salary * ((Decimal("1") + target_growth) ** (year - 1))
-            baseline_salary = payload.baseline_annual_salary * (
-                (Decimal("1") + baseline_growth) ** (year - 1)
-            )
-            # Negative years are material: suppressing them would overstate ROI.
-            incremental = target_salary - baseline_salary
-            previous_cumulative = cumulative
-            cumulative += incremental
-
-            if payback_months is None and cumulative >= total_investment and incremental > 0:
-                remaining = total_investment - previous_cumulative
-                months_in_year = (remaining / (incremental / Decimal("12"))).to_integral_value(
-                    rounding=ROUND_CEILING
-                )
-                payback_months = (year - 1) * 12 + int(months_in_year)
-
-            trajectory.append(
+        starts = [("base", payload.annual_start_salary)]
+        if salary_range is not None:
+            starts = [("pessimistic", salary_range[0]), *starts, ("optimistic", salary_range[1])]
+        scenario_outcomes = []
+        for scenario, start_salary in starts:
+            if scenario == "base":
+                points, total, payback = trajectory, cumulative, payback_months
+            else:
+                points, total, payback = engine._run_trajectory(start_salary, payload, total_investment, study_years)
+            scenario_roi = engine._roi(total, total_investment)
+            scenario_npv = engine._npv(points, total_investment, study_years, rate)
+            scenario_outcomes.append(
                 {
-                    "year": year,
-                    "target_salary": str(_money(target_salary)),
-                    "baseline_salary": str(_money(baseline_salary)),
-                    "incremental_earnings": str(_money(incremental)),
-                    "cumulative_incremental_earnings": str(_money(cumulative)),
+                    "scenario": scenario,
+                    "start_salary": str(_money(start_salary)),
+                    "cumulative_incremental_earnings": str(_money(total)),
+                    "roi_percent": None if scenario_roi is None else str(scenario_roi),
+                    "payback_months": payback,
+                    "break_even_reached": payback is not None,
+                    "npv": None if scenario_npv is None else str(scenario_npv),
                 }
             )
-
-        roi_percent = None
-        if total_investment > 0:
-            roi_percent = _percent((cumulative - total_investment) / total_investment * Decimal("100"))
 
         evidence_by_metric = {
             metric: [item for item in payload.evidence if item.metric == metric]
@@ -139,6 +243,10 @@ class DeterministicProjectionEngine:
             unverified_assumptions.append("scholarships_and_grants")
         if employment_income > 0 and not has_supported_evidence("study_income"):
             unverified_assumptions.append("employment_income_during_study")
+        if payload.inflation_percent is None:
+            unverified_assumptions.append("inflation_not_applied")
+        elif not has_supported_evidence("inflation"):
+            unverified_assumptions.append("inflation")
 
         payback_from_enrollment_months = None
         if payback_months is not None:
@@ -149,6 +257,15 @@ class DeterministicProjectionEngine:
                     (study_years * Decimal("12")).to_integral_value(rounding=ROUND_CEILING)
                 )
                 payback_from_enrollment_months = study_months + payback_months
+
+        target_years = payload.target_payback_years
+        payback_within_target = None
+        payback_target_gap_months = None
+        if target_years is not None:
+            payback_within_target = payback_months is not None and payback_months <= target_years * 12
+            if payback_months is not None:
+                # Positive: months later than the target; negative: months to spare.
+                payback_target_gap_months = payback_months - target_years * 12
 
         cost_breakdown = {
             "tuition": str(_money(tuition)),
@@ -174,10 +291,29 @@ class DeterministicProjectionEngine:
             "payback_months": payback_months,
             "payback_from_enrollment_months": payback_from_enrollment_months,
             "break_even_reached": payback_months is not None,
+            "target_payback_years": target_years,
+            "payback_within_target": payback_within_target,
+            "payback_target_gap_months": payback_target_gap_months,
             "horizon_years": payload.horizon_years,
             "cumulative_incremental_earnings": _money(cumulative),
             "roi_percent": roi_percent,
-            "salary_trajectory": trajectory,
+            "npv": npv,
+            "scenario_outcomes": scenario_outcomes,
+            "salary_trajectory": [
+                {
+                    "year": point["year"],
+                    **{
+                        key: str(_money(point[key]))
+                        for key in (
+                            "target_salary",
+                            "baseline_salary",
+                            "incremental_earnings",
+                            "cumulative_incremental_earnings",
+                        )
+                    },
+                }
+                for point in trajectory
+            ],
             # Normalized DateTime columns need real datetime values; API serialization
             # converts them to ISO-8601 only at the transport boundary.
             "evidence": [item.model_dump(mode="python") for item in payload.evidence],
@@ -219,7 +355,8 @@ class SimulationProjectionService:
 
     def _resolve_salary_source(
         self, assumptions: dict, payload: SimulationProjectionRequest
-    ) -> tuple[SimulationProjectionRequest, list[str]]:
+    ) -> tuple[SimulationProjectionRequest, list[str], tuple[Decimal, Decimal] | None]:
+        """Resolved payload, market snapshot refs and the snapshot (min, max) for the scenario range."""
         if payload.market_snapshot_id is not None:
             snapshot = MarketSnapshotService(self.db).get_validated(payload.market_snapshot_id)
         elif payload.market_snapshot_selection is not None:
@@ -247,7 +384,7 @@ class SimulationProjectionService:
                     )
                 raise e
         else:
-            return payload, []
+            return payload, [], None
 
         if snapshot.role.casefold() != assumptions["career_target"].casefold():
             raise AppError("Роль market snapshot не відповідає сценарію", status_code=422)
@@ -276,7 +413,7 @@ class SimulationProjectionService:
                 "evidence": [*payload.evidence, snapshot_evidence],
             }
         )
-        return resolved, [str(snapshot.id)]
+        return resolved, [str(snapshot.id)], (snapshot.salary_min, snapshot.salary_max)
 
     def _with_tuition_evidence(
         self,
@@ -370,7 +507,7 @@ class SimulationProjectionService:
     ) -> tuple[SimulationProjection, bool]:
         """Повертає прогноз і ознаку створення; повтор тих самих inputs повторно не рахуємо."""
         revision = self._get_revision(user_id, scenario_id, revision_number)
-        resolved_payload, source_snapshot_refs = self._resolve_salary_source(
+        resolved_payload, source_snapshot_refs, salary_range = self._resolve_salary_source(
             revision.assumptions, payload
         )
         resolved_payload = self._with_tuition_evidence(revision, resolved_payload)
@@ -387,7 +524,9 @@ class SimulationProjectionService:
         if existing is not None:
             return existing, False
 
-        result = DeterministicProjectionEngine.calculate(revision.assumptions, resolved_payload)
+        result = DeterministicProjectionEngine.calculate(
+            revision.assumptions, resolved_payload, salary_range
+        )
         cost_breakdown = result.pop("cost_breakdown")
         trajectory = result.pop("salary_trajectory")
         evidence = result.pop("evidence")
@@ -416,6 +555,11 @@ class SimulationProjectionService:
             incremental_living_cost=resolved_payload.incremental_living_cost,
             employment_income_during_study=resolved_payload.employment_income_during_study,
             horizon_years=resolved_payload.horizon_years,
+            discount_rate_percent=resolved_payload.discount_rate_percent,
+            inflation_percent=resolved_payload.inflation_percent,
+            job_search_months=resolved_payload.job_search_months,
+            employment_probability_percent=resolved_payload.employment_probability_percent,
+            target_payback_years=resolved_payload.target_payback_years,
             market_snapshot_id=market_snapshot_id,
             salary_source_kind="market_snapshot" if market_snapshot_id else "manual_evidence",
         )
@@ -464,6 +608,28 @@ class SimulationProjectionService:
                 .order_by(SimulationProjection.created_at.desc())
             ).scalars()
         )
+
+    def latest_for_current_revisions(
+        self, user_id: int, scenario_ids: list[int]
+    ) -> dict[int, SimulationProjection]:
+        """Найсвіжіший прогноз поточної ревізії кожного сценарію одним запитом; без прогнозу — ключа немає."""
+        if not scenario_ids:
+            return {}
+        rows = self.db.execute(
+            select(SimulationProjection, SimulationScenario.id)
+            .join(SimulationRevision, SimulationProjection.revision_id == SimulationRevision.id)
+            .join(SimulationScenario, SimulationRevision.scenario_id == SimulationScenario.id)
+            .where(
+                SimulationScenario.user_id == user_id,
+                SimulationScenario.id.in_(scenario_ids),
+                SimulationRevision.revision_number == SimulationScenario.current_revision_number,
+            )
+            .order_by(SimulationProjection.created_at.desc(), SimulationProjection.id.desc())
+        ).all()
+        latest: dict[int, SimulationProjection] = {}
+        for projection, scenario_id in rows:
+            latest.setdefault(scenario_id, projection)
+        return latest
 
     def explainability(
         self,

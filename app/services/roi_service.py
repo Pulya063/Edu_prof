@@ -1,19 +1,26 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.models import User
-from app.schemas import TrialROIRequest
+from app.schemas import SimulationProjectionRequest, TrialROIRequest
 from app.core.logging_config import log_call
 from app.services.market_data_service import MarketDataService
+from app.services.simulation_projection_service import METHODOLOGY_VERSION, DeterministicProjectionEngine
 
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_COUNTRY = "United States"
+TRIAL_HORIZON_YEARS = 10
+TRIAL_NOTE = (
+    "Rough preview: dataset start salary, no baseline income, no salary growth or scenarios. "
+    "Create a scenario for a sourced forecast."
+)
 
 
 class ROIService:
@@ -25,26 +32,43 @@ class ROIService:
 
     @log_call
     def analyze_trial(self, payload: TrialROIRequest) -> dict:
-        """Lightweight analysis for trial without full projections and DB saving."""
+        """Rough preview on the same deterministic engine as simulations, but with a dataset salary,
+        no baseline income and no growth, so it is not a saved or evidence-backed forecast."""
         prospects = self.market_service.predict_career_prospects(payload.faculty, DEFAULT_COUNTRY)
-        start_salary = float(prospects.get("expected_start_salary"))
-
-        total_investment = float(payload.annual_tuition * payload.study_years)
-
-        realistic_monthly = start_salary / 12.0
-        payback_months = max(1, int(round(total_investment / realistic_monthly))) if realistic_monthly > 0 else 1200
-        first_year_roi = (((realistic_monthly * 0.95 * 12 - total_investment) / total_investment) * 100) if total_investment > 0 else 0
+        start_salary = Decimal(str(prospects.get("expected_start_salary"))).quantize(Decimal("0.01"))
+        request = SimulationProjectionRequest(
+            annual_start_salary=start_salary,
+            baseline_annual_salary=Decimal("0"),
+            horizon_years=TRIAL_HORIZON_YEARS,
+        )
+        result = DeterministicProjectionEngine.calculate(
+            {
+                "currency": "USD",
+                "study_duration_years": payload.study_years,
+                "annual_tuition": payload.annual_tuition,
+            },
+            request,
+        )
+        total_investment = result["total_investment"]
+        first_year = Decimal(result["salary_trajectory"][0]["incremental_earnings"])
+        first_year_roi = (
+            (first_year - total_investment) / total_investment * Decimal("100") if total_investment > 0 else Decimal("0")
+        )
 
         return {
+            "preview": "rough",
+            "methodology_version": METHODOLOGY_VERSION,
+            "horizon_years": TRIAL_HORIZON_YEARS,
+            "note": TRIAL_NOTE,
             "education": {
                 "specialization": payload.faculty,
-                "total_investment": {"min": round(total_investment, 2)},
-                "total_education_cost": {"min": round(total_investment, 2)},
+                "total_investment": {"min": float(total_investment)},
+                "total_education_cost": {"min": float(total_investment)},
             },
             "roi": {
-                "payback_months": {"min": payback_months},
-                "first_year_roi_percent": {"min": round(first_year_roi, 2)},
-                "roi_percent": {"min": round(first_year_roi, 2)},
+                "payback_months": {"min": result["payback_months"]},
+                "first_year_roi_percent": {"min": float(round(first_year_roi, 2))},
+                "roi_percent": {"min": float(result["roi_percent"] or 0)},
             },
         }
 

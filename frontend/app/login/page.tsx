@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { clearSessionCache } from "@/lib/auth/session";
+import GoogleAuthButton, { OAUTH_ERROR_MESSAGES } from "../components/GoogleAuthButton";
 import "../styles/auth.css";
 
+import AuthBrandArt from "../components/AuthBrandArt";
 type ApiError = {
   detail?: string | Array<{ msg?: string }>;
 };
@@ -31,6 +33,11 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const oauthError = new URLSearchParams(window.location.search).get("oauth_error");
+    if (oauthError) setError(OAUTH_ERROR_MESSAGES[oauthError] ?? OAUTH_ERROR_MESSAGES.google_failed);
+  }, []);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -50,7 +57,7 @@ export default function LoginPage() {
       }
 
       const requestedPath = new URLSearchParams(window.location.search).get("next");
-      const destination = requestedPath?.startsWith("/workspace/")
+      const destination = requestedPath?.startsWith("/workspace/") || requestedPath?.startsWith("/payment")
         ? requestedPath
         : "/workspace/overview";
       clearSessionCache();
@@ -88,6 +95,7 @@ export default function LoginPage() {
           </span>
         </div>
 
+        <AuthBrandArt />
         <p className="auth-brand-footer">Education today. A brighter tomorrow.</p>
       </div>
 
@@ -144,6 +152,8 @@ export default function LoginPage() {
         </form>
 
         <div className="auth-divider" style={{ marginTop: 28 }}>or</div>
+
+        <GoogleAuthButton label="Continue with Google" />
 
         <p className="auth-alt-link" style={{ marginTop: 18 }}>
           Don&apos;t have an account?{" "}

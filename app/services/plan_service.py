@@ -8,11 +8,15 @@ from app.models import SimulationProjection, SimulationRevision, SimulationScena
 PLAN_LIMITS: dict[str, int | None] = {
     "Free": 3,
     "Pro": 30,
+    "Plus": 100,
+    "Teams": None,
 }
 
 PLAN_FEATURES: dict[str, tuple[str, ...]] = {
     "Free": ("3 ROI-розрахунки", "Базовий прогноз", "Історія результатів"),
     "Pro": ("30 ROI-розрахунків", "Повний прогноз на 5 і 10 років", "AI-рекомендації"),
+    "Plus": ("100 ROI-розрахунків", "Розширене порівняння сценаріїв", "AI-рекомендації"),
+    "Teams": ("Без ліміту розрахунків", "Спільна бібліотека сценаріїв", "AI-рекомендації"),
 }
 
 

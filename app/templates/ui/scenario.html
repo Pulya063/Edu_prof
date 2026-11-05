@@ -1,0 +1,65 @@
+{% extends "ui/base.html" %}
+{% block title %}{{ scenario.name }}{% endblock %}
+{% macro money(v) %}{% if v is none %}—{% else %}{{ "{:,.0f}".format(v|float).replace(",", " ") }} {{ scenario.currency }}{% endif %}{% endmacro %}
+{% block content %}
+<a class="back" href="/ui/">← Сценарії</a>
+<div class="head"><div><p class="eyebrow">{{ assumptions.university }} · {{ assumptions.specialization }} · {{ assumptions.country }}</p><h1>{{ scenario.name }}</h1></div></div>
+{% if projection %}
+{% set p = projection %}
+<section class="hero">
+  <div class="kpi"><span>Інвестиція</span><strong>{{ money(p.total_investment) }}</strong><small>навчання + упущений дохід</small></div>
+  <div class="kpi"><span>Стартова зарплата</span><strong>{{ money(p.estimated_start_salary) }}</strong><small>річна, брутто</small></div>
+  <div class="kpi"><span>Окупність</span><strong>{% if p.payback_months is none %}не в горизонті{% elif p.payback_months < 24 %}{{ p.payback_months }} міс{% else %}{{ "%.1f"|format(p.payback_months / 12) }} р{% endif %}</strong><small>після випуску</small></div>
+  <div class="kpi is-lime"><span>ROI за {{ p.horizon_years }} р</span><strong>{% if p.roi_percent is none %}—{% else %}{{ "%.1f"|format(p.roi_percent|float) }}%{% endif %}</strong><small>{{ money(p.cumulative_incremental_earnings) }} приросту</small></div>
+</section>
+<div class="cols">
+  <section class="card">
+    <h2>Структура інвестиції</h2>
+    <dl class="lines">
+      {% for key, value in (p.cost_breakdown or {}).items() if value is not none %}
+      <div><dt>{{ key.replace("_", " ") }}</dt><dd>{{ money(value) }}</dd></div>
+      {% endfor %}
+      <div class="total"><dt>Разом</dt><dd>{{ money(p.total_investment) }}</dd></div>
+    </dl>
+  </section>
+  <section class="card">
+    <h2>Траєкторія доходу</h2>
+    {% set maxv = (p.salary_trajectory | map(attribute="target_salary") | map("float") | max) or 1 %}
+    <div class="traj">
+      {% for t in p.salary_trajectory %}
+      <div class="traj-row">
+        <span>{{ t.year }}</span>
+        <div class="bars"><i class="b-target" style="width: {{ (t.target_salary|float / maxv * 100)|round(1) }}%"></i><i class="b-base" style="width: {{ (t.baseline_salary|float / maxv * 100)|round(1) }}%"></i></div>
+        <strong class="{{ 'neg' if t.incremental_earnings|float < 0 }}">{{ money(t.incremental_earnings) }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="legend"><i class="b-target"></i> ціль <i class="b-base"></i> без навчання</p>
+  </section>
+</div>
+{% if p.unverified_assumptions %}<div class="card warn"><strong>Без підтвердженого джерела:</strong> {{ p.unverified_assumptions | join(", ") }}</div>{% endif %}
+
+<section class="card ai" data-ai
+  data-scenario="{{ scenario.id }}" data-revision="{{ scenario.current_revision_number }}" data-projection="{{ p.id }}"
+  data-status="{{ p.ai_review.status if p.ai_review else 'not_configured' }}">
+  <div class="ai-head"><h2>AI-рев'ю</h2><span class="chip chip-violet" data-ai-status>{{ p.ai_review.status if p.ai_review else 'not_configured' }}</span></div>
+  <p class="muted">Друга думка агента. Не змінює числа вище.</p>
+  <div data-ai-body>
+    {% set r = p.ai_review %}
+    {% if r and r.status == "completed" %}
+      <div class="ai-stats"><div><span>Перевірка розрахунку</span><strong>{{ "узгоджено" if r.calculation_consistent else "є розбіжності" }}</strong></div><div><span>Впевненість</span><strong>{{ r.confidence_score|float|round|int }}/100</strong></div><div><span>Кар'єрний ризик</span><strong>{{ r.ai_risk_score }}/100</strong></div></div>
+      <p class="verdict">{{ r.verdict }}</p><p>{{ r.prediction_summary }}</p>
+      {% if r.recommendations %}<h3>Рекомендації</h3><ul>{% for x in r.recommendations %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+      {% if r.risks %}<h3>Ризики</h3><ul>{% for x in r.risks %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+    {% elif r and r.status in ("pending", "running") %}
+      <p class="pulse">Агент перевіряє розрахунок…</p>
+    {% else %}
+      <p class="muted">{{ r.error_message if r and r.error_message else "AI-рев'ю ще не запускалось." }}</p>
+    {% endif %}
+  </div>
+  <button class="btn btn-violet" data-ai-run>Запустити рев'ю</button>
+</section>
+{% else %}
+<div class="card empty"><h2>Прогнозу ще немає</h2><p class="muted">Сценарій збережено, але розрахунок не створено. Створи новий сценарій з джерелом зарплати.</p>{% if request.args.get("error") %}<p class="flash-inline">Причина: {{ request.args.get("error") }}</p>{% endif %}<a class="btn btn-lime" href="/ui/new">Новий розрахунок</a></div>
+{% endif %}
+{% endblock %}

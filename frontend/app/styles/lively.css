@@ -1,0 +1,221 @@
+/* Lively layer for the workspace: chunky ink outlines, offset "pressable" shadows, bigger type and
+   colour-blocked cards. Same palette (#171819 / #F7F7F3 / lime / violet); prefixed with
+   .workspace-shell so it wins over page stylesheets loaded later. */
+.workspace-shell {
+  --lv-ink:#171819; --lv-paper:#f7f7f3; --lv-lime:#b7ff2a; --lv-lime-deep:#6e9a12; --lv-violet:#d7c7ff; --lv-violet-deep:#8f78d6;
+  --lv-shadow:0 4px 0 var(--lv-ink); --lv-shadow-lift:0 7px 0 var(--lv-ink);
+  background:var(--lv-paper);
+}
+.workspace-shell .workspace-main { background:
+  radial-gradient(circle at 92% 4%, rgba(215,199,255,.55) 0 180px, transparent 181px),
+  radial-gradient(circle at 4% 96%, rgba(183,255,42,.28) 0 220px, transparent 221px),
+  var(--lv-paper); }
+
+/* Headings: larger, tighter, a little playful */
+.workspace-shell .sketch-heading-row h1,
+.workspace-shell .workbench-title-row h1,
+.workspace-shell .dashboard-title-row h1,
+.workspace-shell .ov-title-row h1 { font-family:'Manrope',sans-serif; font-size:clamp(40px,5vw,72px); font-weight:800; letter-spacing:-.06em; line-height:.95; }
+/* One title highlight everywhere: the violet swoosh behind the emphasised words */
+.workspace-shell .workbench-title-row h1 span,
+.workspace-shell .highlight-violet,
+.workspace-shell .ov-mark { position:relative; z-index:0; display:inline-block; padding:0 .06em; border-radius:0; background:none; line-height:inherit; }
+.workspace-shell .workbench-title-row h1 span::before,
+.workspace-shell .highlight-violet::before,
+.workspace-shell .ov-mark::before { content:""; position:absolute; z-index:-1; inset:57% 0 4%; border-radius:50%; background:var(--lv-violet); transform:rotate(-2deg); }
+
+/* Cards: outlined, offset shadow, lift on hover */
+.workspace-shell .sketch-card,
+.workspace-shell .ov-card,
+.workspace-shell .forecast-input-panel,
+.workspace-shell .forecast-preview {
+  border:2px solid var(--lv-ink); border-radius:26px; box-shadow:var(--lv-shadow);
+}
+.workspace-shell .sketch-card:not(.sketch-card-dark):not(.sketch-card-violet),
+.workspace-shell .ov-card { background:#fff; }
+.workspace-shell button.sketch-card,
+.workspace-shell a.sketch-card,
+.workspace-shell .ov-card { transition:transform .18s ease, box-shadow .18s ease; }
+.workspace-shell button.sketch-card:hover,
+.workspace-shell a.sketch-card:hover { transform:translateY(-3px); box-shadow:var(--lv-shadow-lift); }
+.workspace-shell .sketch-card-violet { background:var(--lv-violet); }
+
+/* Buttons: pressable */
+.workspace-shell .sketch-btn,
+.workspace-shell .forecast-action button,
+.workspace-shell .field-note-action {
+  border:2px solid var(--lv-ink); border-radius:16px; font-weight:800; box-shadow:var(--lv-shadow);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.workspace-shell .sketch-btn:active,
+.workspace-shell .forecast-action button:active,
+.workspace-shell .field-note-action:active { transform:translateY(3px); box-shadow:0 1px 0 var(--lv-ink); }
+.workspace-shell .sketch-btn-primary,
+.workspace-shell .forecast-action button { background:var(--lv-lime); color:var(--lv-ink); }
+.workspace-shell .forecast-action button { width:100%; padding:16px 20px; font-size:17px; }
+.workspace-shell .field-note-action { margin-top:8px; padding:8px 14px; background:var(--lv-lime); color:var(--lv-ink); cursor:pointer; }
+
+/* Chips */
+.workspace-shell .sketch-chip,
+.workspace-shell .ov-pill { border:1.5px solid var(--lv-ink); border-radius:999px; font-weight:800; }
+.workspace-shell .sketch-chip.is-active { background:var(--lv-lime); color:var(--lv-ink); transform:rotate(-2deg); }
+
+/* Form fields: soft paper inputs with a solid focus ring */
+.workspace-shell .scenario-field input,
+.workspace-shell .scenario-field select,
+.workspace-shell .sketch-field { border:2px solid #d9dccd; border-radius:14px; background:var(--lv-paper); }
+.workspace-shell .scenario-field input:focus,
+.workspace-shell .scenario-field select:focus { outline:none; border-color:var(--lv-ink); box-shadow:0 3px 0 var(--lv-ink); background:#fff; }
+.workspace-shell .input-section-title > span { display:grid; place-items:center; width:40px; height:40px; border:2px solid var(--lv-ink); border-radius:14px; background:var(--lv-violet); color:var(--lv-ink); font-weight:800; box-shadow:0 3px 0 var(--lv-ink); }
+.workspace-shell .input-section:nth-of-type(2) .input-section-title > span { background:var(--lv-lime); }
+
+/* Calculation result: colour-blocked KPI tiles */
+.workspace-shell .calculation-kpis > div { padding:16px 18px; border-radius:18px; background:rgba(255,255,255,.06); }
+.workspace-shell .calculation-kpis > div:first-child { background:var(--lv-lime); color:var(--lv-ink); }
+.workspace-shell .calculation-kpis > div:first-child small,
+.workspace-shell .calculation-kpis > div:first-child span { color:var(--lv-ink); }
+.workspace-shell .calculation-kpis strong { font-size:clamp(22px,2.2vw,34px); white-space:nowrap; }
+.workspace-shell .scenario-outcome { border:2px solid var(--lv-ink); border-radius:20px; box-shadow:var(--lv-shadow); }
+.workspace-shell .calculation-warnings { border:2px solid var(--lv-ink); border-radius:18px; background:var(--lv-violet); }
+
+/* Saved scenarios, profile and other dashboard.css pages: same outlined cards, fields and buttons */
+.workspace-shell .sc-card,
+.workspace-shell .widget,
+.workspace-shell .scenarios-side-panel { border:2px solid var(--lv-ink); border-radius:26px; box-shadow:var(--lv-shadow); }
+.workspace-shell .sc-card.is-light,
+.workspace-shell .widget:not(.widget-plan) { background:#fff; }
+.workspace-shell .sc-card.is-light { border:2px solid var(--lv-ink); }
+.workspace-shell .sc-card { aspect-ratio:auto; min-height:340px; transition:transform .18s ease, box-shadow .18s ease; }
+.workspace-shell .sc-footer { flex-wrap:wrap; gap:12px; }
+.workspace-shell .sc-cost strong,
+.workspace-shell .btn-open-prediction { white-space:nowrap; }
+.workspace-shell .sc-card:hover { transform:translateY(-3px); box-shadow:var(--lv-shadow-lift); }
+.workspace-shell .sc-card.is-light .sc-summary-strip { border:2px solid var(--lv-ink); border-radius:16px; background:var(--lv-paper); }
+.workspace-shell .sc-card.is-dark .sc-summary-strip { border-radius:16px; }
+.workspace-shell .sc-card .ws-status-pill { border:1.5px solid var(--lv-ink); font-weight:800; }
+.workspace-shell .sp-action-item { border:2px solid var(--lv-ink); border-radius:16px; box-shadow:0 3px 0 var(--lv-ink); }
+.workspace-shell .sp-action-item:hover { border-color:var(--lv-ink); background:var(--lv-violet); }
+.workspace-shell .wi-notice,
+.workspace-shell .workspace-status { border:2px solid var(--lv-ink); border-radius:18px; box-shadow:0 3px 0 var(--lv-ink); }
+.workspace-shell .wi-notice,
+.workspace-shell .workspace-status:not(.is-error):not(.is-success) { background:var(--lv-violet); color:var(--lv-ink); }
+.workspace-shell .workspace-status a { color:var(--lv-ink); font-weight:800; }
+
+.workspace-shell .btn-new-scenario,
+.workspace-shell .btn-open-prediction,
+.workspace-shell .btn-sp-full,
+.workspace-shell .btn-edit-profile,
+.workspace-shell .btn-plan-options,
+.workspace-shell .btn-upload,
+.workspace-shell .btn-create,
+.workspace-shell .ov-button,
+.workspace-shell .settings-row button,
+.workspace-shell .settings-link-button {
+  border:2px solid var(--lv-ink); border-radius:16px; font-weight:800; box-shadow:var(--lv-shadow);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.workspace-shell .btn-new-scenario:active,
+.workspace-shell .btn-open-prediction:active,
+.workspace-shell .btn-sp-full:active,
+.workspace-shell .btn-edit-profile:active,
+.workspace-shell .btn-plan-options:active,
+.workspace-shell .btn-upload:active:not(:disabled),
+.workspace-shell .btn-create:active:not(:disabled),
+.workspace-shell .ov-button:active,
+.workspace-shell .settings-row button:active:not(:disabled),
+.workspace-shell .settings-link-button:active { transform:translateY(3px); box-shadow:0 1px 0 var(--lv-ink); }
+.workspace-shell .btn-upload,
+.workspace-shell .settings-row button,
+.workspace-shell .settings-link-button { background:#fff; color:var(--lv-ink); }
+.workspace-shell .btn-upload:disabled,
+.workspace-shell .btn-create:disabled,
+.workspace-shell .settings-row button:disabled { opacity:.5; box-shadow:none; cursor:not-allowed; }
+
+.workspace-shell .scenarios-search,
+.workspace-shell .pi-select,
+.workspace-shell .pi-textarea,
+.workspace-shell .settings-row select { border:2px solid #d9dccd; border-radius:14px; background:var(--lv-paper); }
+.workspace-shell .scenarios-search:focus-within,
+.workspace-shell .pi-select:focus,
+.workspace-shell .pi-textarea:focus,
+.workspace-shell .settings-row select:focus { outline:none; border-color:var(--lv-ink); box-shadow:0 3px 0 var(--lv-ink); background:#fff; }
+.workspace-shell .pi-textarea { font-family:inherit; }
+
+.workspace-shell .skill-tag,
+.workspace-shell .career-target-tag,
+.workspace-shell .resume-step-pill,
+.workspace-shell .demo-pill { border:1.5px solid var(--lv-ink); border-radius:999px; color:var(--lv-ink); font-weight:800; }
+.workspace-shell .demo-pill { background:var(--lv-violet); }
+
+/* Builder preview: live market + economy cards */
+.preview-live-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.preview-live-card { display:flex; flex-direction:column; gap:4px; min-width:0; padding:14px 16px; border:2px solid #171819; border-radius:18px; box-shadow:0 3px 0 #171819; color:#171819; }
+.preview-live-card.is-lime { background:#b7ff2a; }
+.preview-live-card.is-violet { background:#d7c7ff; }
+.preview-live-card span { font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.preview-live-card strong { font-family:'Manrope',sans-serif; font-size:22px; font-weight:800; letter-spacing:-.03em; }
+.preview-live-card small { font-size:12px; line-height:1.35; overflow-wrap:anywhere; }
+
+/* University live search */
+.university-search { position:relative; }
+.university-search input { width:100%; }
+.university-search-list { position:absolute; z-index:30; top:calc(100% + 6px); right:0; left:0; max-height:320px; margin:0; padding:6px; overflow:auto; list-style:none; border:2px solid #171819; border-radius:18px; background:#fff; box-shadow:0 6px 0 #171819; }
+.university-search-list li { display:flex; flex-direction:column; gap:2px; padding:10px 12px; border-radius:12px; cursor:pointer; }
+.university-search-list li strong { font-size:14px; color:#171819; }
+.university-search-list li span { font-size:12px; color:#5e6469; }
+.university-search-list li:hover,
+.university-search-list li.is-active { background:#b7ff2a; }
+.university-search-list li.is-loading { cursor:default; color:#5e6469; }
+
+/* Overview market news */
+.ov-news { display:grid; gap:10px; padding-top:12px; border-top:2px dashed #d9dccd; }
+.ov-news h3 { margin:0; font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.ov-news ul { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.ov-news li { display:flex; flex-direction:column; gap:2px; padding:10px 12px; border-radius:14px; background:#f7f7f3; }
+.ov-news li:nth-child(odd) { background:#efe9ff; }
+.ov-news a { color:#171819; font-weight:700; line-height:1.35; text-decoration:none; }
+.ov-news a:hover { text-decoration:underline; text-decoration-color:#b7ff2a; text-decoration-thickness:3px; }
+.ov-news small { color:#5e6469; }
+
+@media (max-width: 620px) {
+  .workspace-shell .sketch-card,
+  .workspace-shell .ov-card,
+  .workspace-shell .forecast-input-panel,
+  .workspace-shell .forecast-preview,
+  .workspace-shell .sc-card,
+  .workspace-shell .widget { border-radius:22px; }
+  .preview-live-grid { grid-template-columns:1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell button.sketch-card:hover,
+  .workspace-shell a.sketch-card:hover,
+  .workspace-shell .sc-card:hover { transform:none; }
+}
+
+/* App shell on desktop: the rail always spans the full height and only the content column scrolls,
+   so long pages never run past the end of the sidebar. Mobile keeps normal page scrolling. */
+@media (min-width: 821px) {
+  .workspace-shell { height:100svh; min-height:0; overflow:hidden; }
+  .workspace-shell .workspace-main { height:100svh; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+}
+
+/* Target payback period: preset chips in the builder and the yes/no verdict on the saved calculation */
+.workspace-shell .payback-target-field { display:grid; gap:8px; grid-column:1 / -1; }
+.workspace-shell .payback-target-label { font-size:13px; font-weight:800; color:var(--lv-ink); }
+.workspace-shell .payback-target-options { display:flex; flex-wrap:wrap; gap:8px; }
+.workspace-shell .payback-target-options button,
+.workspace-shell .payback-target-options input { min-height:44px; padding:0 16px; border:2px solid var(--lv-ink); border-radius:999px; background:#fff; color:var(--lv-ink); font:inherit; font-size:14px; font-weight:800; box-shadow:var(--lv-shadow); }
+.workspace-shell .payback-target-options button { cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, background-color .15s ease; }
+.workspace-shell .payback-target-options button:hover { transform:translateY(-2px); box-shadow:var(--lv-shadow-lift); }
+.workspace-shell .payback-target-options button.is-active { background:var(--lv-lime); }
+.workspace-shell .payback-target-options input { width:84px; padding:0 14px; }
+.workspace-shell .payback-target-options input:focus,
+.workspace-shell .payback-target-options button:focus-visible { outline:3px solid var(--lv-violet-deep); outline-offset:2px; }
+.workspace-shell .payback-target-hint { font-size:12px; color:#5d6470; }
+.workspace-shell .payback-target-hint.is-error { color:#b42318; font-weight:700; }
+.workspace-shell .payback-verdict { position:relative; display:flex; align-items:center; gap:14px; margin-top:22px; padding:14px 18px; border:2px solid var(--lv-ink); border-radius:20px; background:var(--lv-paper); color:var(--lv-ink); box-shadow:var(--lv-shadow); }
+.workspace-shell .payback-verdict p { margin:0; font-size:15px; line-height:1.4; }
+.workspace-shell .payback-verdict-badge { flex:none; display:grid; place-items:center; min-width:58px; height:40px; padding:0 12px; border:2px solid var(--lv-ink); border-radius:999px; font-family:'Manrope',sans-serif; font-size:16px; font-weight:800; }
+.workspace-shell .payback-verdict.is-met .payback-verdict-badge { background:var(--lv-lime); }
+.workspace-shell .payback-verdict.is-missed .payback-verdict-badge { background:var(--lv-violet); }
+@media (prefers-reduced-motion: reduce) { .workspace-shell .payback-target-options button { transition:none; } }

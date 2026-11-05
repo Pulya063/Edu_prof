@@ -359,7 +359,6 @@
   .workbench-title-row > div:first-child > p { font-size:14px; }
   .panel-heading { padding:23px 20px 21px; }
   .panel-heading h2 { font-size:23px; }
-  .completion-mark { display:none; }
   .input-section { padding:23px 20px 25px; }
   .detailed-analysis summary { padding:20px; }
   .detailed-analysis-body { padding:0 20px 24px; }
@@ -426,3 +425,5 @@
 @media (max-width:1100px) {
   .workspace-topbar { left:205px; }
 }
+.scenario-field.has-error input,.scenario-field.has-error select { border-color:#c4472f; box-shadow:0 0 0 3px rgba(196,71,47,.12); }
+.scenario-field-error { color:#b23a24; font-size:11px; font-weight:700; line-height:1.3; }

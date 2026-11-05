@@ -12,6 +12,10 @@ from app.models import MarketSnapshot
 from app.schemas import MarketSnapshotCreateRequest, MarketSnapshotQuery
 
 
+# Snapshots built from vacancies that do not state experience; used only when no exact seniority exists.
+ALL_LEVELS = "all levels"
+
+
 class MarketSnapshotService:
     def __init__(self, db_session: Session) -> None:
         self.db = db_session
@@ -84,7 +88,10 @@ class MarketSnapshotService:
         max_age_days: int,
         minimum_confidence: str,
     ) -> MarketSnapshot:
-        """Resolve one reproducible salary source using explicit quality constraints."""
+        """Resolve one reproducible salary source using explicit quality constraints.
+
+        An exact seniority always wins; an "all levels" snapshot is the documented fallback.
+        """
 
         confidence_rank = {"low": 1, "medium": 2, "high": 3}
         minimum_rank = confidence_rank[minimum_confidence]
@@ -104,7 +111,7 @@ class MarketSnapshotService:
                 MarketSnapshot.validation_status == "validated",
                 func.lower(MarketSnapshot.role) == role.strip().lower(),
                 func.lower(MarketSnapshot.country) == country.strip().lower(),
-                func.lower(MarketSnapshot.seniority) == seniority.strip().lower(),
+                func.lower(MarketSnapshot.seniority).in_([seniority.strip().lower(), ALL_LEVELS]),
                 MarketSnapshot.currency == currency.upper(),
                 MarketSnapshot.salary_basis == "gross_annual",
                 MarketSnapshot.snapshot_date >= cutoff_date,
@@ -112,6 +119,7 @@ class MarketSnapshotService:
                 MarketSnapshot.confidence.in_(allowed_confidence),
             )
             .order_by(
+                case((func.lower(MarketSnapshot.seniority) == seniority.strip().lower(), 0), else_=1),
                 MarketSnapshot.snapshot_date.desc(),
                 confidence_order.desc(),
                 func.coalesce(MarketSnapshot.sample_size, 0).desc(),

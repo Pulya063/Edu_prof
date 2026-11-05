@@ -5,26 +5,24 @@ import Link from "next/link";
 import "../../styles/dashboard.css";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api/client";
+import { formatMoney, formatPercent } from "@/lib/api/decimal";
+import type { SimulationScenarioListItem } from "@/lib/api/generated";
 
-type ScenarioSummary = {
-  id: number;
-  name: string;
-  status: string;
-  current_revision_number: number;
-  target_role: string;
-  country: string;
-  currency: string;
-  created_at: string;
-  updated_at: string;
-};
+type ScenarioSummary = SimulationScenarioListItem;
 
-// Mock data to enrich the UI to match the design, since the summary endpoint doesn't return full details
-const ENRICH_DATA = [
-  { theme: "dark", studyMode: "On-campus", degree: "Bachelor's", duration: "3 years", cost: "$18,000", btn: "lime" },
-  { theme: "light", studyMode: "On-campus", degree: "Bachelor's", duration: "3 years", cost: "$21,000", btn: "violet" },
-  { theme: "light", studyMode: "On-campus", degree: "Bachelor's", duration: "3 years", cost: "$16,500", btn: "violet" },
-  { theme: "dark", studyMode: "Online", degree: "Certificate", duration: "6 months", cost: "$3,000", btn: "lime" },
-];
+function formatYears(years: number | null | undefined): string {
+  if (years == null) return "—";
+  return `${years} ${years === 1 ? "year" : "years"}`;
+}
+
+/** Investment from the stored forecast; without one, tuition × duration from the saved inputs; otherwise nothing. */
+function costOf(scenario: ScenarioSummary): { label: string; value: string } {
+  if (scenario.total_investment != null) return { label: "Total investment", value: formatMoney(scenario.total_investment, scenario.currency) };
+  if (scenario.annual_tuition != null && scenario.study_duration_years != null) {
+    return { label: "Tuition, full programme", value: formatMoney(scenario.annual_tuition * scenario.study_duration_years, scenario.currency) };
+  }
+  return { label: "Cost", value: "Not entered" };
+}
 
 export default function ScenariosPage() {
   const router = useRouter();
@@ -57,7 +55,6 @@ export default function ScenariosPage() {
   }, [selectedId]);
 
   const selectedScenario = scenarios.find(s => s.id === selectedId);
-  const selectedEnrich = selectedScenario ? ENRICH_DATA[scenarios.indexOf(selectedScenario) % ENRICH_DATA.length] : null;
   const filteredScenarios = scenarios.filter((scenario) =>
     `${scenario.name} ${scenario.country} ${scenario.target_role}`.toLowerCase().includes(query.trim().toLowerCase())
   );
@@ -71,7 +68,6 @@ export default function ScenariosPage() {
         <p className="dashboard-breadcrumb">Workspace <i>/</i> Saved Scenarios</p>
         <div className="dashboard-title-row">
           <h1>Your <span className="highlight-violet">saved scenarios</span></h1>
-          <span className="demo-pill">DEMO DATA</span>
         </div>
         <p>Explore, compare and refine your education options.</p>
       </header>
@@ -92,8 +88,9 @@ export default function ScenariosPage() {
           <div className="scenarios-grid">
             {filteredScenarios.map((scenario) => {
               const idx = scenarios.indexOf(scenario);
-              const enrich = ENRICH_DATA[idx % ENRICH_DATA.length];
-              const isDark = enrich.theme === "dark";
+              // Alternating card colours are decoration only; every value below comes from the API.
+              const isDark = idx % 4 === 0 || idx % 4 === 3;
+              const cost = costOf(scenario);
               const isActive = scenario.status === "active" || scenario.status === "complete";
               
               return (
@@ -105,7 +102,7 @@ export default function ScenariosPage() {
                 >
                   <div className="sc-header">
                     <div className="sc-title">
-                      <small>{scenario.country}</small>
+                      <small>{scenario.university || scenario.country}</small>
                       <strong>{scenario.name}</strong>
                     </div>
                     <div className="ws-status-pill" style={isActive ? undefined : { background: "#f4f6f8", color: "#5f6669" }}>
@@ -124,16 +121,16 @@ export default function ScenariosPage() {
                     <div className="sc-info-col">
                       <div className="sc-info-label">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                        STUDY MODE
+                        PROGRAMME
                       </div>
-                      <span className="sc-info-val">{enrich.studyMode}</span>
+                      <span className="sc-info-val">{scenario.specialization || "—"}</span>
                     </div>
                     <div className="sc-info-col">
                       <div className="sc-info-label">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
                         DEGREE / DURATION
                       </div>
-                      <span className="sc-info-val">{enrich.degree} • {enrich.duration}</span>
+                      <span className="sc-info-val">{scenario.degree || "—"} • {formatYears(scenario.study_duration_years)}</span>
                     </div>
                   </div>
 
@@ -150,11 +147,11 @@ export default function ScenariosPage() {
 
                   <div className="sc-footer">
                     <div className="sc-cost">
-                      <small>ESTIMATED TOTAL COST</small>
-                      <strong>{enrich.cost}</strong>
+                      <small>{cost.label.toUpperCase()}</small>
+                      <strong>{cost.value}</strong>
                     </div>
                     <button 
-                      className={`btn-open-prediction ${enrich.btn === 'lime' ? 'btn-lime' : 'btn-violet'}`}
+                      className={`btn-open-prediction ${isDark ? 'btn-lime' : 'btn-violet'}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         router.push(`/workspace/scenarios/${scenario.id}`);
@@ -179,22 +176,22 @@ export default function ScenariosPage() {
           <div className="wi-notice" style={{ marginTop: "32px", maxWidth: "800px" }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             <div style={{ marginLeft: "4px" }}>
-              <strong style={{ display: "block", color: "#524089", marginBottom: "4px" }}>Illustrative scenarios</strong>
-              <p>These scenarios are examples based on publicly available information and estimated costs. Actual details may vary and must be verified through official university sources.</p>
+              <strong style={{ display: "block", color: "#524089", marginBottom: "4px" }}>Where these figures come from</strong>
+              <p>Each card shows the inputs you saved and, when it exists, the latest deterministic forecast. Confirm tuition and deadlines with the university before deciding.</p>
             </div>
           </div>
         </div>
 
         {/* Side Panel */}
-        {selectedScenario && selectedEnrich && (
+        {selectedScenario && (
           <aside className="scenarios-side-panel">
             <button className="sp-close" type="button" aria-label="Close scenario details" onClick={() => setSelectedId(null)}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
 
             <div className="sp-header">
-              <small>WSiiZ • {selectedScenario.country}</small>
-              <h2>{selectedScenario.name} • {selectedEnrich.degree}</h2>
+              <small>{[selectedScenario.university, selectedScenario.country].filter(Boolean).join(" • ")}</small>
+              <h2>{[selectedScenario.name, selectedScenario.degree].filter(Boolean).join(" • ")}</h2>
               <p>Explore your saved study scenario and next steps.</p>
             </div>
 
@@ -203,28 +200,28 @@ export default function ScenariosPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 <div className="sp-fact-text">
                   <span>Duration</span>
-                  <span>{selectedEnrich.duration}</span>
+                  <span>{formatYears(selectedScenario.study_duration_years)}</span>
                 </div>
               </div>
               <div className="sp-fact">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
                 <div className="sp-fact-text">
-                  <span>Study mode</span>
-                  <span>{selectedEnrich.studyMode}</span>
+                  <span>ROI</span>
+                  <span>{selectedScenario.projection_id != null ? formatPercent(selectedScenario.roi_percent) : "No forecast yet"}</span>
                 </div>
               </div>
               <div className="sp-fact">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 <div className="sp-fact-text">
-                  <span>Total tuition</span>
-                  <span>{selectedEnrich.cost} (demo)</span>
+                  <span>{costOf(selectedScenario).label}</span>
+                  <span>{costOf(selectedScenario).value}</span>
                 </div>
               </div>
               <div className="sp-fact">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <div className="sp-fact-text">
                   <span>Target role</span>
-                  <span style={{ fontWeight: 400, color: "#5f6669" }}>Not set – added after Roadmap</span>
+                  <span>{selectedScenario.target_role || "Not set"}</span>
                 </div>
               </div>
             </div>

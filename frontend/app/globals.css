@@ -276,3 +276,15 @@ h1,h2,h3,p { margin-top:0; }.hero-copy h1 { max-width:620px; margin-bottom:70px;
 .landing-header[data-theme="light"].is-scrolled .lang-switcher-menu button { color:#171819; }
 .landing-header[data-theme="light"].is-scrolled .lang-switcher-menu button:hover { background:rgba(0,0,0,.04); }
 .landing-header[data-theme="light"].is-scrolled .lang-switcher-menu button.is-active { background:rgba(0,0,0,.08); }
+
+.desktop-nav-link { cursor:pointer; text-decoration:none; user-select:auto; transition:opacity .2s ease; }.desktop-nav-link:hover,.desktop-nav-link:focus-visible { opacity:1; }
+
+/* Sliding lime bar under the public navs (see components/useNavIndicator.ts) */
+.nav-indicator {
+  position:absolute; z-index:0; left:0; bottom:-9px; width:var(--ind-w,0); height:3px; border-radius:99px;
+  background:#b7ff2a; box-shadow:0 0 14px rgba(183,255,42,.75);
+  opacity:0; transform:translateX(var(--ind-x,0)); pointer-events:none;
+  transition:transform .38s cubic-bezier(.22,1,.36,1), width .38s cubic-bezier(.22,1,.36,1), opacity .2s ease;
+}
+[data-indicator="on"] > .nav-indicator { opacity:1; }
+@media (prefers-reduced-motion:reduce) { .nav-indicator { transition:none; } }

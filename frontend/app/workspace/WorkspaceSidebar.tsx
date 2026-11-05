@@ -11,6 +11,8 @@ export default function WorkspaceSidebar() {
 
   useEffect(() => {
     setOpen(false);
+    // Desktop scrolls inside .workspace-main, so a new page must start at its top.
+    document.querySelector(".workspace-main")?.scrollTo({ top: 0 });
   }, [pathname]);
 
   useEffect(() => {

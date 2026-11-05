@@ -84,7 +84,7 @@ def test_admin_snapshot_ingestion_and_projection_reference(client, app, monkeypa
     assert created.status_code == 201
     snapshot = created.get_json()
     assert snapshot["currency"] == "PLN"
-    assert snapshot["median_salary"] == "60000.00"
+    assert snapshot["median_salary"] == 60000.00
     assert snapshot["confidence"] == "high"
 
     duplicate = client.post("/api/market/snapshots", json=_snapshot_payload(), headers=headers)
@@ -108,13 +108,23 @@ def test_admin_snapshot_ingestion_and_projection_reference(client, app, monkeypa
             "baseline_annual_salary": "0",
             "foregone_income_percent": "0",
             "horizon_years": 5,
+            "discount_rate_percent": "5",
         },
         headers=headers,
     )
     assert projection.status_code == 201
     forecast = projection.get_json()
-    assert forecast["estimated_start_salary"] == "60000.00"
+    assert forecast["estimated_start_salary"] == 60000.00
     assert forecast["payback_months"] == 10
+    # Snapshot min / median / max -> pessimistic / base / optimistic on the same 48 000 investment.
+    outcomes = {item["scenario"]: item for item in forecast["scenario_outcomes"]}
+    assert [outcomes[key]["start_salary"] for key in ("pessimistic", "base", "optimistic")] == [
+        48000.00, 60000.00, 72000.00,
+    ]
+    assert [outcomes[key]["payback_months"] for key in ("pessimistic", "base", "optimistic")] == [12, 10, 8]
+    assert forecast["calculation_inputs"]["discount_rate_percent"] == 5.0
+    assert forecast["npv"] == outcomes["base"]["npv"]
+    assert forecast["npv"] is not None
     assert forecast["source_snapshot_refs"] == [str(snapshot["id"])]
     assert forecast["evidence"][0]["source_reference"] == f"market_snapshot:{snapshot['id']}"
 
@@ -153,7 +163,7 @@ def test_admin_snapshot_ingestion_and_projection_reference(client, app, monkeypa
     )
     assert resolved.status_code == 201
     resolved_forecast = resolved.get_json()
-    assert resolved_forecast["estimated_start_salary"] == "66000.00"
+    assert resolved_forecast["estimated_start_salary"] == 66000.00
     assert resolved_forecast["source_snapshot_refs"] == [str(newer_snapshot["id"])]
 
     explainability = client.get(
@@ -168,7 +178,7 @@ def test_admin_snapshot_ingestion_and_projection_reference(client, app, monkeypa
     assert trust["selected_salary_metric"] == "median_salary"
     assert trust["source_integrity"] == "complete"
     assert trust["source_snapshots"][0]["snapshot"]["id"] == newer_snapshot["id"]
-    assert trust["source_snapshots"][0]["selected_value"] == "66000.00"
+    assert trust["source_snapshots"][0]["selected_value"] == 66000.00
     assert trust["source_snapshots"][0]["snapshot"]["sources"][0]["url"] == (
         "https://example.gov/market/2026-q4"
     )

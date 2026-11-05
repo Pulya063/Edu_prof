@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useWorkspaceAuth } from "@/components/auth/WorkspaceAuthGuard";
 
 export default function WorkspaceNav() {
   const pathname = usePathname();
+  const { user } = useWorkspaceAuth();
 
   const isActive = (href: string, exact = true) => exact ? pathname === href : pathname.startsWith(href);
 
@@ -28,6 +30,7 @@ export default function WorkspaceNav() {
         <span className="workspace-nav-label">Compare Universities</span>
       </Link>
 
+      {user.is_admin && <>
       <Link href="/workspace/roadmap" className="ws-nav-group-parent" aria-current={isActive("/workspace/roadmap") ? "page" : undefined}>
         <NavIcon name="map" />
         <span className="workspace-nav-label">Roadmap</span>
@@ -43,6 +46,7 @@ export default function WorkspaceNav() {
           <span className="workspace-nav-label">My plan</span>
         </Link>
       </div>
+      </>}
 
       <Link href="/workspace/courses" aria-current={isActive("/workspace/courses") ? "page" : undefined}>
         <NavIcon name="search" />

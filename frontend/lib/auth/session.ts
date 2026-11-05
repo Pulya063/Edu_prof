@@ -1,16 +1,7 @@
 import { apiRequest } from "@/lib/api/client";
+import type { AuthMeResponse } from "@/lib/api/generated";
 
-export type AuthenticatedUser = {
-  id: number;
-  email: string;
-  username: string;
-  created_at: string;
-  plan: string;
-  plan_limits: { roi_calculations: number | null; roadmaps: number | null };
-  plan_features: string[];
-  usage: { roi_calculations: number; roadmaps: number };
-  calculations_remaining: number | null;
-};
+export type AuthenticatedUser = AuthMeResponse;
 
 let cachedUser: AuthenticatedUser | null = null;
 let sessionRequest: Promise<AuthenticatedUser> | null = null;

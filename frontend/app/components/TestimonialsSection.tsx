@@ -173,7 +173,7 @@ export default function TestimonialsSection() {
         <div className="testimonials-copy">
           <p className="eyebrow">07 / DECISION EXAMPLES</p>
           <h2 id="testimonials-title"><HeadlineLine><span className="violet-highlight">One</span></HeadlineLine><HeadlineLine>choice.</HeadlineLine><HeadlineLine>Clearer trade-offs.</HeadlineLine></h2>
-          <p className="testimonials-description">See how different priorities can change an education and career decision.</p>
+          <p className="testimonials-description">Three students, three priorities, three different answers. Put in yours and see where it leads.</p>
           <div className="rating-summary decision-example-note" aria-label="Three illustrative composite decision scenarios">
             <strong>03</strong>
             <div className="rating-stars" aria-hidden="true">COMPOSITE SCENARIOS</div>
@@ -195,7 +195,7 @@ export default function TestimonialsSection() {
               ))}
             </div>
           </div>
-          <button className="testimonials-cta inactive-cta" type="button" disabled aria-disabled="true">Personal stories coming soon <span aria-hidden="true"><ArrowIcon direction="next" /></span></button>
+          <a className="testimonials-cta" href="/register">Model my own decision <span aria-hidden="true"><ArrowIcon direction="next" /></span></a>
         </div>
         <div className="testimonials-stage" data-active={activeIndex} data-expanded={expandedId ?? undefined} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onWheel={handleWheel}>
           {testimonials.map((testimonial, index) => (

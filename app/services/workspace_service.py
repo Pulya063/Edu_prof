@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.exceptions import AppError
 from app.models import EducationProgram, SimulationScenario, University, User, UserRoadmap
 from app.schemas import RoadmapPreviewRequest, WorkspacePreferences, WorkspaceProfile
+from app.services.economic_data_service import COUNTRIES
+from app.services.university_catalog_service import UniversityCatalogService
+from app.services.university_profile_service import UniversityProfileService
 
 
 DEFAULT_PROFILE = WorkspaceProfile().model_dump()
@@ -36,12 +39,6 @@ RESOURCES = [
     {"id": "python-portfolio-video-search", "title": "Python portfolio project ideas", "description": "Find guided Python projects that can become portfolio case studies.", "source": "YouTube", "url": "https://www.youtube.com/results?search_query=Python+portfolio+projects", "skills": ["Python", "Portfolio", "Projects"]},
 ]
 
-ILLUSTRATIVE_UNIVERSITIES = [
-    {"id": "sample-wsiiz", "name": "WSiiZ", "country": "Poland", "city": "Rzeszów", "website": "https://wsiz.edu.pl", "description": "Practice-oriented programmes with a strong focus on IT and management.", "annual_tuition": 6000.0, "currency": "EUR", "duration_years": 3.0, "study_mode": "Full-time", "program_name": "Computer Science", "data_quality": "illustrative"},
-    {"id": "sample-uw", "name": "University of Warsaw", "country": "Poland", "city": "Warsaw", "website": "https://www.uw.edu.pl", "description": "Research-led education with a broad range of computer science programmes.", "annual_tuition": 4500.0, "currency": "EUR", "duration_years": 3.0, "study_mode": "Full-time", "program_name": "Computer Science", "data_quality": "illustrative"},
-    {"id": "sample-agh", "name": "AGH University of Krakow", "country": "Poland", "city": "Kraków", "website": "https://www.agh.edu.pl", "description": "Technical education with strong industry partnerships.", "annual_tuition": 4000.0, "currency": "EUR", "duration_years": 3.0, "study_mode": "Full-time", "program_name": "Computer Science", "data_quality": "illustrative"},
-    {"id": "sample-pwr", "name": "Wrocław University of Science and Technology", "country": "Poland", "city": "Wrocław", "website": "https://pwr.edu.pl", "description": "Technology programmes supported by modern facilities and applied research.", "annual_tuition": 4200.0, "currency": "EUR", "duration_years": 3.0, "study_mode": "Full-time", "program_name": "Computer Science", "data_quality": "illustrative"},
-]
 
 
 def _merged_workspace_data(user: User) -> dict[str, Any]:
@@ -100,7 +97,8 @@ class WorkspaceService:
     def state_for_user(self, user: User) -> dict[str, Any]:
         state = _merged_workspace_data(user)
         scenarios = self.session.scalar(select(func.count()).select_from(SimulationScenario).where(SimulationScenario.user_id == user.id)) or 0
-        roadmap = self.session.execute(select(UserRoadmap).where(UserRoadmap.user_id == user.id).order_by(desc(UserRoadmap.updated_at))).scalars().first()
+        # Roadmap is admin-only for now; other users get roadmap=None.
+        roadmap = self.session.execute(select(UserRoadmap).where(UserRoadmap.user_id == user.id).order_by(desc(UserRoadmap.updated_at))).scalars().first() if user.is_admin else None
         roadmap_data = None
         if roadmap:
             roadmap_data = {"id": roadmap.id, "target_job": roadmap.target_job, "updated_at": roadmap.updated_at.isoformat(), "plan": normalize_roadmap(roadmap.roadmap_data, roadmap.target_job)}
@@ -166,99 +164,91 @@ class WorkspaceService:
         self.session.commit()
         return next({**course, "saved": saved} for course in COURSES if course["id"] == course_id)
 
-    def universities(self, country: str, faculty: str, query: str) -> list[dict[str, Any]]:
-        statement = select(University).options(selectinload(University.programs))
+    @staticmethod
+    def _university_summary(university: University, faculty: str = "") -> dict[str, Any]:
+        programs = university.programs
+        if faculty:
+            programs = [program for program in programs if faculty.casefold() in program.name.casefold()] or programs
+        program: EducationProgram | None = programs[0] if programs else None
+        profile = university.profile.payload if university.profile else {}
+        return {
+            "id": f"db-{university.id}",
+            "name": university.name,
+            "country": university.country,
+            "city": (profile.get("facts") or {}).get("city") or university.state_province,
+            "website": university.website,
+            "description": program.description if program and program.description else profile.get("summary"),
+            "annual_tuition": float(program.tuition_cost) if program else None,
+            # Programme tuition is stored in the country's currency; the directory carries no prices.
+            "currency": COUNTRIES.get(university.country, {}).get("currency") if program else None,
+            "duration_years": float(program.duration_years) if program else None,
+            "study_mode": None,
+            "program_name": program.name if program else None,
+            "data_quality": "database" if program else "directory",
+        }
+
+    def universities(self, country: str, faculty: str, query: str, limit: int = 24) -> list[dict[str, Any]]:
+        if country:
+            UniversityCatalogService(self.session).ensure_country(country)
+        statement = select(University).options(selectinload(University.programs), selectinload(University.profile))
         if country:
             statement = statement.where(func.lower(University.country) == country.casefold())
-        if query:
-            statement = statement.where(University.name.ilike(f"%{query}%"))
-        rows = self.session.execute(statement.order_by(University.name).limit(20)).scalars().unique().all()
-        results = []
-        for university in rows:
-            programs = university.programs
-            if faculty:
-                matches = [program for program in programs if faculty.casefold() in program.name.casefold()]
-                programs = matches or programs
-            program: EducationProgram | None = programs[0] if programs else None
-            results.append({"id": f"db-{university.id}", "name": university.name, "country": university.country, "city": None, "website": university.website, "description": program.description if program and program.description else "University programme stored in the Fence data catalog.", "annual_tuition": float(program.tuition_cost) if program else None, "currency": "USD", "duration_years": float(program.duration_years) if program else None, "study_mode": "Full-time", "program_name": program.name if program else faculty or "Programme not selected", "data_quality": "database"})
-        if results:
-            return results
-        return [item for item in ILLUSTRATIVE_UNIVERSITIES if (not country or item["country"].casefold() == country.casefold()) and (not query or query.casefold() in item["name"].casefold())]
+        for word in query.split():
+            statement = statement.where(University.name.ilike(f"%{word}%"))
+        has_programs = select(EducationProgram.id).where(EducationProgram.university_id == University.id).exists()
+        rows = self.session.execute(
+            statement.order_by(has_programs.desc(), func.length(University.name), University.name).limit(limit)
+        ).scalars().unique().all()
+        return [self._university_summary(university, faculty) for university in rows]
 
-    def university_details(self, university_id: str) -> dict[str, Any]:
-        if university_id.startswith("db-"):
-            try:
-                database_id = int(university_id.removeprefix("db-"))
-            except ValueError as error:
-                raise AppError("Університет не знайдено", status_code=404) from error
-            university = self.session.execute(
-                select(University)
-                .options(
-                    selectinload(University.programs),
-                    selectinload(University.documents),
-                    selectinload(University.scholarships),
-                )
-                .where(University.id == database_id)
-            ).scalar_one_or_none()
-            if university is None:
-                raise AppError("Університет не знайдено", status_code=404)
-            primary = university.programs[0] if university.programs else None
-            return {
-                "id": university_id,
-                "name": university.name,
-                "country": university.country,
-                "city": None,
-                "website": university.website,
-                "description": primary.description if primary and primary.description else "University information stored in the Fence catalog.",
-                "annual_tuition": float(primary.tuition_cost) if primary else None,
-                "currency": "USD",
-                "duration_years": float(primary.duration_years) if primary else None,
-                "study_mode": "Full-time",
-                "program_name": primary.name if primary else "Programme not selected",
-                "data_quality": "database",
-                "programmes": [
-                    {
-                        "id": programme.id,
-                        "name": programme.name,
-                        "description": programme.description,
-                        "duration_years": float(programme.duration_years),
-                        "tuition_cost": float(programme.tuition_cost),
-                    }
-                    for programme in university.programs
-                ],
-                "documents": [
-                    {"id": document.id, "title": document.title, "subject_name": document.subject_name, "source_url": document.source_url}
-                    for document in university.documents
-                ],
-                "scholarships": [
-                    {
-                        "id": scholarship.id,
-                        "name": scholarship.name,
-                        "description": scholarship.description,
-                        "amount": float(scholarship.amount) if scholarship.amount is not None else None,
-                        "currency": scholarship.currency,
-                        "eligibility": scholarship.eligibility,
-                        "application_url": scholarship.application_url,
-                        "deadline": scholarship.deadline.isoformat() if scholarship.deadline else None,
-                    }
-                    for scholarship in university.scholarships
-                ],
-            }
-
-        illustrative = next((item for item in ILLUSTRATIVE_UNIVERSITIES if item["id"] == university_id), None)
-        if illustrative is None:
+    def university_details(self, university_id: str, refresh: bool = False) -> dict[str, Any]:
+        try:
+            database_id = int(university_id.removeprefix("db-")) if university_id.startswith("db-") else None
+        except ValueError:
+            database_id = None
+        university = None if database_id is None else self.session.execute(
+            select(University)
+            .options(
+                selectinload(University.programs),
+                selectinload(University.documents),
+                selectinload(University.scholarships),
+                selectinload(University.profile),
+            )
+            .where(University.id == database_id)
+        ).scalar_one_or_none()
+        if university is None:
             raise AppError("Університет не знайдено", status_code=404)
+        profile = UniversityProfileService(self.session).get(university, refresh=refresh)
         return {
-            **illustrative,
-            "programmes": [{
-                "id": university_id,
-                "name": illustrative["program_name"],
-                "description": illustrative["description"],
-                "duration_years": illustrative["duration_years"],
-                "tuition_cost": illustrative["annual_tuition"],
-            }],
-            "documents": [],
-            "scholarships": [],
+            **self._university_summary(university),
+            "programmes": [
+                {
+                    "id": programme.id,
+                    "name": programme.name,
+                    "description": programme.description,
+                    "duration_years": float(programme.duration_years),
+                    "tuition_cost": float(programme.tuition_cost),
+                }
+                for programme in university.programs
+            ],
+            "documents": [
+                {"id": document.id, "title": document.title, "subject_name": document.subject_name, "source_url": document.source_url}
+                for document in university.documents
+            ],
+            "scholarships": [
+                {
+                    "id": scholarship.id,
+                    "name": scholarship.name,
+                    "description": scholarship.description,
+                    "amount": float(scholarship.amount) if scholarship.amount is not None else None,
+                    "currency": scholarship.currency,
+                    "eligibility": scholarship.eligibility,
+                    "application_url": scholarship.application_url,
+                    "deadline": scholarship.deadline.isoformat() if scholarship.deadline else None,
+                }
+                for scholarship in university.scholarships
+            ],
+            "profile": profile,
         }
 
     def update_roadmap_task(self, user: User, roadmap_id: int, task_id: str, completed: bool) -> dict[str, Any]:

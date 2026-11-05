@@ -1,0 +1,62 @@
+/* Compare universities: list shrinks to the left, details open on the right; full screen on mobile. */
+.compare-layout.has-detail { display:grid; grid-template-columns:minmax(260px,360px) minmax(0,1fr); gap:16px; align-items:start; }
+.compare-layout.has-detail .university-grid { grid-template-columns:1fr; gap:10px; }
+.compare-layout.has-detail .university-card { min-height:0; padding:16px; }
+.compare-layout.has-detail .university-card h2 { font-size:17px; }
+
+.university-panel { position:sticky; top:74px; display:flex; flex-direction:column; min-width:0; max-height:calc(100svh - 90px); overflow:hidden; border:1px solid rgba(111,130,151,.22); border-radius:17px; background:#fff; animation:workspace-panel-reveal 260ms cubic-bezier(.22,1,.36,1) both; }
+.university-panel-bar { display:flex; align-items:center; gap:12px; padding:12px 14px 12px 20px; border-bottom:1px solid #dbe2e8; }
+.university-panel-bar h2 { flex:1; min-width:0; margin:0; font-family:'Manrope',sans-serif; font-size:20px; letter-spacing:-.04em; overflow-wrap:anywhere; outline:none; }
+.university-panel-full { color:#171819; font-size:12px; font-weight:800; white-space:nowrap; text-decoration:underline; text-decoration-color:var(--ws-lime); text-decoration-thickness:3px; text-underline-offset:4px; }
+.university-panel-close { display:grid; flex:none; place-items:center; width:40px; height:40px; padding:0; border:1px solid #d7dee6; border-radius:50%; background:#fff; color:#171819; font-size:24px; line-height:1; cursor:pointer; }
+.university-panel-close:hover { background:#171819; color:#fff; }
+.university-panel-back { display:none; }
+.university-panel-body { display:grid; grid-auto-rows:max-content; gap:16px; min-height:0; padding:16px; overflow-y:auto; overscroll-behavior:contain; }
+.university-panel-body .university-full-hero { grid-template-columns:1fr; padding:22px; }
+.university-panel-body .university-full-hero h2 { font-size:clamp(24px,2.4vw,32px); }
+.university-panel-body .university-full-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 0; }
+.university-panel-body .university-full-metrics div:nth-child(3) { padding-left:0; border-left:0; }
+.university-full-grid.is-compact { grid-template-columns:1fr; }
+
+/* Sidebar folds to icons while a detail panel is open (desktop only). */
+@media (min-width:821px) {
+  .workspace-rail,.workspace-main,.workspace-topbar { transition:width .25s ease,margin-left .25s ease,left .25s ease,padding .25s ease; }
+  html[data-ws-rail="collapsed"] .workspace-rail { width:76px; padding-inline:12px; }
+  html[data-ws-rail="collapsed"] .workspace-main { margin-left:76px; }
+  html[data-ws-rail="collapsed"] .workspace-topbar { left:76px; }
+  html[data-ws-rail="collapsed"] .workspace-brand { grid-template-columns:40px; margin-inline:auto; }
+  html[data-ws-rail="collapsed"] .workspace-brand b,
+  html[data-ws-rail="collapsed"] .workspace-brand small,
+  html[data-ws-rail="collapsed"] .ws-nav-group,
+  html[data-ws-rail="collapsed"] .workspace-rail-foot p { display:none; }
+  html[data-ws-rail="collapsed"] .workspace-rail nav > a { grid-template-columns:1fr; justify-items:center; padding:0; }
+  html[data-ws-rail="collapsed"] .workspace-rail .workspace-nav-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  html[data-ws-rail="collapsed"] .workspace-help-link { justify-content:center; font-size:0; }
+  html[data-ws-rail="collapsed"] .workspace-help-link span { font-size:14px; }
+}
+@media (min-width:821px) and (max-width:1100px) {
+  .compare-layout.has-detail { grid-template-columns:minmax(220px,280px) minmax(0,1fr); }
+  .compare-layout.has-detail .university-stats { grid-template-columns:1fr 1fr; }
+  .compare-layout.has-detail .university-stats > div:nth-child(3) { grid-column:1 / -1; }
+}
+
+/* Mobile: the detail takes the whole screen with a back button. */
+@media (max-width:820px) {
+  html[data-ws-detail-open="true"] { overflow:hidden; }
+  .compare-layout.has-detail { display:block; }
+  .university-panel { position:fixed; z-index:95; inset:0; max-height:none; border:0; border-radius:0; }
+  .university-panel-bar { gap:10px; padding:12px 14px; }
+  .university-panel-bar h2 { font-size:17px; }
+  .university-panel-back { display:inline-flex; flex:none; align-items:center; gap:6px; min-height:44px; padding:0 14px; border:1px solid #d7dee6; border-radius:999px; background:#fff; color:#171819; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+  .university-panel-close { display:none; }
+  .university-panel-body { padding:12px 12px 32px; }
+}
+@media (max-width:420px) {
+  .university-panel-bar { flex-wrap:wrap; }
+  .university-panel-full { margin-left:auto; }
+  .university-panel-bar h2 { flex-basis:100%; order:3; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .university-panel { animation:none; }
+  .workspace-rail,.workspace-main,.workspace-topbar { transition:none; }
+}

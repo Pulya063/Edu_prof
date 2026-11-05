@@ -11,7 +11,7 @@ from app.core.database import db
 from app.core.exceptions import AppError
 from app.core.logging_config import configure_logging, register_request_logging
 from dotenv import load_dotenv
-from app.core.config import is_production, resource_audit_enabled
+from app.core.config import auth_cookie_options, is_production, resource_audit_enabled
 
 load_dotenv()
 
@@ -27,6 +27,10 @@ def create_app() -> Flask:
         SECRET_KEY=os.getenv("SECRET_KEY"),
         SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL"),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        # Flask's session cookie only carries the short-lived Google OAuth state.
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=bool(auth_cookie_options()["secure"]),
     )
 
     db.init_app(flask_app)
@@ -44,7 +48,7 @@ def create_app() -> Flask:
     def health_check() -> tuple[dict[str, str], int]:
         return {"status": "ok"}, 200
 
-    from app.api import auth, mail, market, roi, roadmap, simulations, tuition, workspace
+    from app.api import auth, mail, market, payments, roi, roadmap, simulations, tuition, workspace
 
     flask_app.register_blueprint(auth.blueprint, url_prefix="/api/auth")
     flask_app.register_blueprint(roi.blueprint, url_prefix="/api/roi")
@@ -52,9 +56,12 @@ def create_app() -> Flask:
     flask_app.register_blueprint(simulations.blueprint, url_prefix="/api/simulations")
     flask_app.register_blueprint(market.blueprint, url_prefix="/api/market")
     flask_app.register_blueprint(tuition.blueprint, url_prefix="/api/tuition")
+    flask_app.register_blueprint(payments.blueprint, url_prefix="/api/payments")
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/roadmap")
     flask_app.register_blueprint(roadmap.blueprint, url_prefix="/api/roadmap", name="roadmap_api")
     flask_app.register_blueprint(workspace.blueprint, url_prefix="/api/workspace")
+    from app.api import ui
+    flask_app.register_blueprint(ui.blueprint, url_prefix="/ui")
     if resource_audit_enabled():
         from app.api import resource_audit
         flask_app.register_blueprint(resource_audit.blueprint)

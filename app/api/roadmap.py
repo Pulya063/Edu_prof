@@ -2,7 +2,7 @@ import logging
 from flask import Blueprint, Response, jsonify, render_template, request
 
 from app.core.database import db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import admin_required, get_current_user
 from app.models import UserRoadmap, User
 from app.schemas import RoadmapGenerateRequest, RoadmapPreviewRequest, UserRoadmapResponse
 from app.services.dreamwork_integration import DreamworkClient, DreamworkClientError
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 @blueprint.get("/")
 @get_current_user
+@admin_required
 def get_roadmap_page(user: User) -> Response | str:
     logger.info("Fetching roadmap page for user %s", user.id)
     result = db.session.execute(
@@ -35,6 +36,7 @@ def get_roadmap_page(user: User) -> Response | str:
 
 @blueprint.post("/generate")
 @get_current_user
+@admin_required
 def generate_roadmap(user: User) -> Response | str:
     logger.info("Generating roadmap for user %s", user.id)
     try:

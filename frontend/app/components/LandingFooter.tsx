@@ -1,33 +1,35 @@
+"use client";
+
 import { HeadlineLine } from "../hooks/useScrollMotion";
 
+const supportEmail = process.env.NEXT_PUBLIC_FENCE_SUPPORT_EMAIL;
+
+// Only pages that exist are linked; nothing in the footer is a placeholder.
 const footerColumns = [
   {
     title: "Product",
     links: [
-      { label: "University comparison" },
-      { label: "Education ROI" },
-      { label: "Career roadmap" },
-      { label: "Scholarship matching" },
-    ],
-  },
-  {
-    title: "Discover",
-    links: [
-      { label: "How it works" },
-      { label: "Decision examples" },
-      { label: "Career guides" },
-      { label: "FAQ" },
+      { label: "Calculation", href: "/calculation" },
+      { label: "Pricing", href: "/pricing" },
+      { label: "Create account", href: "/register" },
+      { label: "Sign in", href: "/login" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "About Fence" },
-      { label: "Pricing", href: "/plans" },
-      { label: "Contact" },
+      { label: "About Fence", href: "/about" },
+      { label: "Contact", href: "/contact" },
+      ...(supportEmail ? [{ label: "Email", href: `mailto:${supportEmail}` }] : []),
     ],
   },
-] as const;
+];
+
+const legalLinks = [
+  { label: "Privacy", href: "/legal/privacy" },
+  { label: "Terms", href: "/legal/terms" },
+  { label: "Cookies", href: "/legal/cookies" },
+];
 
 function Arrow({ up = false }: { up?: boolean }) {
   return (
@@ -37,9 +39,8 @@ function Arrow({ up = false }: { up?: boolean }) {
   );
 }
 
-function FooterLink({ label, href }: { label: string; href?: string }) {
-  if (href === "/plans") return <a className="footer-link" href={href}>{label}</a>;
-  return <span className="footer-link footer-link--inactive" aria-disabled="true">{label}<small>soon</small></span>;
+function FooterLink({ label, href }: { label: string; href: string }) {
+  return <a className="footer-link" href={href}>{label}</a>;
 }
 
 export default function LandingFooter() {
@@ -50,8 +51,8 @@ export default function LandingFooter() {
       <span className="footer-texture" aria-hidden="true" />
       <div className="footer-boundary" aria-hidden="true" />
       <div className="footer-ready-wrap">
-        <a className="footer-ready-card" href="/plans">
-          <span><strong>See the plans.</strong><small>Preview simple pricing for clearer decisions.</small></span>
+        <a className="footer-ready-card" href="/pricing">
+          <span><strong>See the plans.</strong><small>Simple pricing, billed securely through Stripe.</small></span>
           <i className="footer-ready-orb" aria-hidden="true" />
           <b aria-hidden="true"><Arrow /></b>
         </a>
@@ -64,10 +65,9 @@ export default function LandingFooter() {
         </section>
         <div className="footer-navigation" aria-label="Footer navigation">
           {footerColumns.map((column) => <nav className="footer-column" aria-labelledby={`footer-${column.title.toLowerCase()}`} key={column.title}><h3 id={`footer-${column.title.toLowerCase()}`}>{column.title}</h3><ul>{column.links.map((link) => <li key={link.label}><FooterLink {...link} /></li>)}</ul></nav>)}
-          <nav className="footer-column" aria-labelledby="footer-connect"><h3 id="footer-connect">Connect</h3><ul>{["Instagram", "LinkedIn", "Email"].map((label) => <li key={label}><FooterLink label={label} /></li>)}</ul></nav>
         </div>
       </div>
-      <div className="footer-legal"><p>© 2026 Fence. Education-to-career decision planning.</p><div className="footer-legal-actions">{["Privacy", "Terms", "Cookies"].map((label) => <span className="footer-link footer-link--inactive" aria-disabled="true" key={label}>{label}<small>draft</small></span>)}<button className="footer-back-to-top" type="button" aria-label="Back to top" onClick={backToTop}><Arrow up /></button></div></div>
+      <div className="footer-legal"><p>© 2026 Fence. Education-to-career decision planning.</p><div className="footer-legal-actions">{legalLinks.map((link) => <FooterLink key={link.href} {...link} />)}<button className="footer-back-to-top" type="button" aria-label="Back to top" onClick={backToTop}><Arrow up /></button></div></div>
     </footer>
   );
 }

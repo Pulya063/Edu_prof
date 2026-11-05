@@ -31,8 +31,13 @@ def test_analyze_trial_abbreviated_result(mock_market, db_session):
     
     assert result["education"]["specialization"] == "Computer Science"
     assert result["education"]["total_investment"]["min"] == 40000.0
-    assert result["roi"]["payback_months"]["min"] > 0
-    assert result["roi"]["first_year_roi_percent"]["min"] > 0
+    # Same engine as simulations: 40 000 / (48 000 / 12) = 10 months; year 1 = (48 000 - 40 000) / 40 000.
+    # ROI over the 10-year preview horizon = (480 000 - 40 000) / 40 000 = 1 100 %.
+    assert result["preview"] == "rough"
+    assert result["methodology_version"] == "scenario-projection-v5"
+    assert result["roi"]["payback_months"]["min"] == 10
+    assert result["roi"]["first_year_roi_percent"]["min"] == 20.0
+    assert result["roi"]["roi_percent"]["min"] == 1100.0
 
 def test_trial_endpoint(mock_market, client):
     response = client.post(
@@ -86,7 +91,7 @@ def test_projection_history_stays_owner_scoped(db_session):
         )
         scenario.revisions = [revision]
         revision.projections = [SimulationProjection(
-            methodology_version="scenario-projection-v2",
+            methodology_version="scenario-projection-v5",
             input_fingerprint=f"{user.id:064d}",
             currency="PLN",
             salary_basis="gross_annual",

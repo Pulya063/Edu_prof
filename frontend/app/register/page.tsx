@@ -4,24 +4,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { clearSessionCache } from "@/lib/auth/session";
+import GoogleAuthButton from "../components/GoogleAuthButton";
+import { readApiError } from "@/lib/api/client";
 import "../styles/auth.css";
 
-type ApiError = {
-  detail?: string | Array<{ msg?: string }>;
-};
+import AuthBrandArt from "../components/AuthBrandArt";
+type RegisterField = "email" | "password" | "confirm";
+type RegisterErrors = Partial<Record<RegisterField, string>>;
 
-async function parseError(res: Response): Promise<string> {
-  try {
-    const body = (await res.json()) as ApiError;
-    if (typeof body.detail === "string") return body.detail;
-    const msg = body.detail?.find((d) => d.msg)?.msg;
-    if (msg) return msg.replace(/^Value error,\s*/i, "");
-  } catch {
-    /* ignore */
-  }
-  if (res.status === 409) return "An account with this email already exists. Sign in instead.";
-  if (res.status === 422) return "Please check the form — some fields are invalid.";
-  return "Could not create your account right now. Try again in a moment.";
+async function parseError(res: Response): Promise<{ message: string; fields: RegisterErrors }> {
+  if (res.status === 409) return { message: "", fields: { email: "An account with this email already exists. Sign in instead." } };
+  if (res.status === 429) return { message: "Too many attempts. Wait a moment before trying again.", fields: {} };
+  const error = await readApiError(res, "Could not create your account right now. Try again in a moment.");
+  const fields: RegisterErrors = {};
+  if (error.fieldErrors.email) fields.email = "Enter a valid email address.";
+  if (error.fieldErrors.password) fields.password = error.fieldErrors.password;
+  return { message: Object.keys(fields).length ? "" : error.message, fields };
 }
 
 function validatePassword(p: string): string | null {
@@ -39,14 +37,19 @@ export default function RegisterPage() {
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<RegisterErrors>({});
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
 
+    const localErrors: RegisterErrors = {};
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) localErrors.email = "Enter a valid email address.";
     const pwError = validatePassword(password);
-    if (pwError) { setError(pwError); return; }
-    if (password !== confirm) { setError("Passwords do not match."); return; }
+    if (pwError) localErrors.password = pwError;
+    else if (password !== confirm) localErrors.confirm = "Passwords do not match.";
+    if (Object.keys(localErrors).length) { setFieldErrors(localErrors); return; }
 
     setBusy(true);
     try {
@@ -58,7 +61,9 @@ export default function RegisterPage() {
       });
 
       if (!res.ok) {
-        setError(await parseError(res));
+        const failure = await parseError(res);
+        setFieldErrors(failure.fields);
+        setError(failure.message);
         return;
       }
 
@@ -97,6 +102,7 @@ export default function RegisterPage() {
           </span>
         </div>
 
+        <AuthBrandArt />
         <p className="auth-brand-footer">Education today. A brighter tomorrow.</p>
       </div>
 
@@ -118,6 +124,8 @@ export default function RegisterPage() {
             <label htmlFor="reg-email">Email</label>
             <input
               id="reg-email"
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? "reg-email-error" : undefined}
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
@@ -126,12 +134,15 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={busy}
             />
+            {fieldErrors.email && <span className="auth-field-error" id="reg-email-error" role="alert">{fieldErrors.email}</span>}
           </div>
 
           <div className="auth-field">
             <label htmlFor="reg-password">Password</label>
             <input
               id="reg-password"
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={fieldErrors.password ? "reg-password-error" : undefined}
               type="password"
               autoComplete="new-password"
               placeholder="At least 8 characters"
@@ -140,6 +151,7 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={busy}
             />
+            {fieldErrors.password && <span className="auth-field-error" id="reg-password-error" role="alert">{fieldErrors.password}</span>}
             <span className="auth-field-hint">
               Minimum 8 characters · uppercase · lowercase · digit
             </span>
@@ -149,6 +161,8 @@ export default function RegisterPage() {
             <label htmlFor="reg-confirm">Confirm password</label>
             <input
               id="reg-confirm"
+              aria-invalid={Boolean(fieldErrors.confirm)}
+              aria-describedby={fieldErrors.confirm ? "reg-confirm-error" : undefined}
               type="password"
               autoComplete="new-password"
               placeholder="Repeat your password"
@@ -157,6 +171,7 @@ export default function RegisterPage() {
               onChange={(e) => setConfirm(e.target.value)}
               disabled={busy}
             />
+            {fieldErrors.confirm && <span className="auth-field-error" id="reg-confirm-error" role="alert">{fieldErrors.confirm}</span>}
           </div>
 
           <button className="auth-submit" type="submit" disabled={busy}>
@@ -168,6 +183,10 @@ export default function RegisterPage() {
             Deterministic calculation · no AI-generated financial values
           </p>
         </form>
+
+        <div className="auth-divider" style={{ marginTop: 28 }}>or</div>
+
+        <GoogleAuthButton label="Sign up with Google" />
 
         <div className="auth-divider" style={{ marginTop: 28 }}>already have an account?</div>
 

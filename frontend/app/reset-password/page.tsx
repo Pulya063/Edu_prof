@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import "../styles/auth.css";
 
+import AuthBrandArt from "../components/AuthBrandArt";
 type ApiError = { detail?: string | Array<{ msg?: string }> };
 type Step = "request" | "sent" | "reset" | "complete";
 
@@ -126,6 +127,7 @@ export default function ResetPasswordPage() {
           <h1>Return to<br /><em>your plan.</em></h1>
           <span>A short-lived, one-time link keeps password recovery private and controlled.</span>
         </div>
+        <AuthBrandArt />
         <p className="auth-brand-footer">Education today. A brighter tomorrow.</p>
       </div>
 

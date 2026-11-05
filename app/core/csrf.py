@@ -20,6 +20,8 @@ _EXEMPT_ENDPOINTS = {
     "auth.password_reset",
     "auth.login_google",
     "auth.auth_google_callback",
+    # Stripe signs webhooks itself; it never carries our cookies.
+    "payments.stripe_webhook",
 }
 
 

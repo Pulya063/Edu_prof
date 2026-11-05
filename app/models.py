@@ -67,7 +67,17 @@ class University(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     country: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
     website: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Directory import (university-domains-list): where the row came from and its official domains.
+    source: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    domains: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
+    state_province: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
+    profile: Mapped["UniversityProfile | None"] = relationship(
+        back_populates="university",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
     programs: Mapped[list["EducationProgram"]] = relationship(
         back_populates="university",
         cascade="all, delete-orphan",
@@ -84,6 +94,42 @@ class University(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
         passive_deletes=True,
     )
     motivation_letters: Mapped[list["MotivationLetter"]] = relationship(back_populates="university")
+
+
+class UniversityProfile(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """Cached public profile collected from Wikidata, Wikipedia, news feeds and the official site."""
+
+    __tablename__ = "university_profiles"
+    repr_fields = ("id", "university_id", "status")
+
+    university_id: Mapped[int] = mapped_column(
+        ForeignKey("universities.id", ondelete="CASCADE"), unique=True, index=True, nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    university: Mapped[University] = relationship(back_populates="profile")
+
+
+class EconomicIndicator(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """One official macro data point (inflation, exchange rate) with its source."""
+
+    __tablename__ = "economic_indicators"
+    __table_args__ = (
+        UniqueConstraint("country", "indicator", "period", "unit", name="uq_economic_indicator_point"),
+    )
+    repr_fields = ("id", "country", "indicator", "period")
+
+    country: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
+    # cpi_inflation (unit "percent") or fx_rate (unit "UAH per EUR" etc.).
+    indicator: Mapped[str] = mapped_column(String(40), nullable=False)
+    period: Mapped[date] = mapped_column(Date, nullable=False)
+    value: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
+    unit: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class UniversityDocument(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
@@ -279,9 +325,16 @@ class SimulationProjection(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     payback_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     payback_from_enrollment_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     break_even_reached: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # scenario-projection-v5: NULL when the user chose no target payback period.
+    target_payback_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payback_within_target: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    payback_target_gap_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     horizon_years: Mapped[int] = mapped_column(Integer, nullable=False)
     cumulative_incremental_earnings: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
     roi_percent: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    # scenario-projection-v3: NULL NPV means no discount rate was given.
+    npv: Mapped[Decimal | None] = mapped_column(Numeric(20, 2), nullable=True)
+    scenario_outcomes: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     revision: Mapped[SimulationRevision] = relationship(back_populates="projections")
     inputs: Mapped["ProjectionInput"] = relationship(
         back_populates="projection", uselist=False, cascade="all, delete-orphan"
@@ -349,6 +402,13 @@ class ProjectionInput(db.Model):
     incremental_living_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     employment_income_during_study: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     horizon_years: Mapped[int] = mapped_column(Integer, nullable=False)
+    discount_rate_percent: Mapped[Decimal | None] = mapped_column(Numeric(7, 3), nullable=True)
+    inflation_percent: Mapped[Decimal | None] = mapped_column(Numeric(7, 3), nullable=True)
+    job_search_months: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    employment_probability_percent: Mapped[Decimal] = mapped_column(
+        Numeric(7, 3), nullable=False, default=Decimal("100"), server_default="100"
+    )
+    target_payback_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
     market_snapshot_id: Mapped[int | None] = mapped_column(
         ForeignKey("market_snapshots.id", ondelete="RESTRICT"), nullable=True
     )
@@ -370,6 +430,11 @@ class ProjectionInput(db.Model):
             "incremental_living_cost": self.incremental_living_cost,
             "employment_income_during_study": self.employment_income_during_study,
             "horizon_years": self.horizon_years,
+            "discount_rate_percent": self.discount_rate_percent,
+            "inflation_percent": self.inflation_percent,
+            "job_search_months": self.job_search_months,
+            "employment_probability_percent": self.employment_probability_percent,
+            "target_payback_years": self.target_payback_years,
         }
 
 
@@ -613,3 +678,34 @@ class TuitionSnapshot(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
         String(20), nullable=False, default="validated", server_default="validated"
     )
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class Payment(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """Stripe Checkout attempt; the plan changes only after a verified webhook marks it paid."""
+
+    __tablename__ = "payments"
+    repr_fields = ("id", "user_id", "plan", "status")
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    checkout_session_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    plan: Mapped[str] = mapped_column(String(20), nullable=False)
+    billing_cycle: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    # Minor currency units (cents), as Stripe reports them; expected comes from server config.
+    amount_expected: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class StripeEvent(db.Model):
+    """Processed Stripe webhook events, keyed by event id for idempotency."""
+
+    __tablename__ = "stripe_events"
+
+    event_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

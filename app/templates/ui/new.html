@@ -1,0 +1,54 @@
+{% extends "ui/base.html" %}
+{% block title %}Новий сценарій{% endblock %}
+{% block content %}
+<div class="head"><div><p class="eyebrow">Новий розрахунок</p><h1>Сценарій навчання</h1></div></div>
+<form class="stack" data-new-scenario>
+  <fieldset class="card">
+    <legend>1 · Освіта</legend>
+    <div class="grid">
+      <label class="span2">Назва сценарію<input name="name" required minlength="2" placeholder="CS у Варшаві"></label>
+      <label>Університет<input name="university" required minlength="2" placeholder="Warsaw University of Technology"></label>
+      <label>Спеціальність<input name="specialization" required minlength="2" placeholder="Computer Science"></label>
+      <label>Країна<input name="country" required value="Poland"></label>
+      <label>Ступінь<select name="degree"><option>Bachelor</option><option>Master</option><option>PhD</option><option>Certificate</option></select></label>
+      <label>Валюта<select name="currency"><option>PLN</option><option>EUR</option><option>USD</option><option>GBP</option><option>UAH</option></select></label>
+      <label>Ціна навчання за рік<input name="annual_tuition" type="number" min="0" step="0.01" required value="12000"></label>
+      <label>Тривалість, років<input name="study_duration_years" type="number" min="0.5" max="12" step="0.5" required value="4"></label>
+      <label>Досвід, років<input name="experience_years" type="number" min="0" max="60" step="0.5" value="0"></label>
+    </div>
+  </fieldset>
+  <fieldset class="card">
+    <legend>2 · Кар'єра й зарплата</legend>
+    <div class="grid">
+      <label>Цільова роль<input name="career_target" required minlength="2" placeholder="Backend Developer"></label>
+      <label>Стартова зарплата (річна, брутто)<input name="annual_start_salary" type="number" min="1" step="0.01" required value="90000"></label>
+      <label>Ріст зарплати, %/рік<input name="annual_salary_growth_percent" type="number" min="0" max="50" step="0.1" value="5"></label>
+      <label>Поточна зарплата без навчання<input name="baseline_annual_salary" type="number" min="0" step="0.01" value="0"></label>
+      <label>Ріст поточної, %/рік<input name="baseline_salary_growth_percent" type="number" min="0" max="50" step="0.1" value="0"></label>
+      <label>Втрачаєш доходу під час навчання, %<input name="foregone_income_percent" type="number" min="0" max="100" step="1" value="100"></label>
+      <label>Горизонт, років<input name="horizon_years" type="number" min="1" max="30" step="1" value="10"></label>
+      <label>Навички (через кому)<input name="existing_skills" placeholder="Python, SQL"></label>
+    </div>
+  </fieldset>
+  <fieldset class="card">
+    <legend>3 · Джерело зарплати <span class="muted">(обов'язкове для прогнозу)</span></legend>
+    <div class="grid">
+      <label>Назва джерела<input name="source_name" required minlength="2" placeholder="GUS / Just Join IT / NoFluffJobs"></label>
+      <label>Посилання або ID<input name="source_reference" required minlength="2" placeholder="https://…"></label>
+      <label>Рівень<select name="seniority"><option value="entry">entry</option><option value="junior">junior</option><option value="mid">mid</option></select></label>
+      <label>Довіра<select name="confidence"><option value="medium">medium</option><option value="high">high</option><option value="low">low</option></select></label>
+    </div>
+  </fieldset>
+  <details class="card">
+    <summary>Додаткові витрати й гранти (за весь період)</summary>
+    <div class="grid">
+      <label>Обов'язкові збори<input name="mandatory_fees" type="number" min="0" step="0.01" value="0"></label>
+      <label>Курси / додаткова освіта<input name="additional_education_cost" type="number" min="0" step="0.01" value="0"></label>
+      <label>Додаткові витрати на життя<input name="incremental_living_cost" type="number" min="0" step="0.01" value="0"></label>
+      <label>Стипендії й гранти<input name="scholarships_and_grants" type="number" min="0" step="0.01" value="0"></label>
+      <label>Дохід під час навчання<input name="employment_income_during_study" type="number" min="0" step="0.01" value="0"></label>
+    </div>
+  </details>
+  <button class="btn btn-lime btn-lg" type="submit">Порахувати</button>
+</form>
+{% endblock %}

@@ -2,10 +2,10 @@
 
 export interface Translations {
   nav: {
-    platform: string;
-    howItWorks: string;
-    opportunities: string;
-    calculator: string;
+    calculation: string;
+    about: string;
+    pricing: string;
+    contact: string;
   };
   header: {
     signIn: string;
@@ -21,6 +21,8 @@ export interface Translations {
     infoCardExpand: string;
     tagRoi: string;
     tagCareer: string;
+    ctaPrimary: string;
+    ctaSecondary: string;
   };
   cta: {
     explorePaths: string;
@@ -34,10 +36,10 @@ export interface Translations {
 export const translations: Record<Lang, Translations> = {
   en: {
     nav: {
-      platform: "Platform",
-      howItWorks: "How it works",
-      opportunities: "Opportunities",
-      calculator: "Calculator",
+      calculation: "Calculation",
+      about: "About",
+      pricing: "Pricing",
+      contact: "Contact",
     },
     header: {
       signIn: "Log in",
@@ -45,14 +47,16 @@ export const translations: Record<Lang, Translations> = {
       pricing: "View pricing ↗",
     },
     hero: {
-      eyebrow: "EDUCATION, CAREER, AND ROI — IN ONE VIEW",
-      h1Line1: "See where your",
-      h1Line2: "education",
-      h1Line3: "can take you.",
-      infoCardP: "Compare the cost,\ncareer outcome, and next move.",
-      infoCardExpand: "Model tuition, scholarships, salary assumptions, and payback before you commit to a path.",
-      tagRoi: "Cost and payback",
-      tagCareer: "Career direction",
+      eyebrow: "FOR STUDENTS, PARENTS AND CAREER CHANGERS",
+      h1Line1: "Know when your",
+      h1Line2: "degree",
+      h1Line3: "pays you back.",
+      infoCardP: "Tuition plus the salary you give up,\nagainst what the job market really pays.",
+      infoCardExpand: "Real salaries for your country, your university's tuition and your own assumptions, turned into payback, ROI and a plan.",
+      tagRoi: "Payback in months",
+      tagCareer: "Live salary data",
+      ctaPrimary: "Calculate my payback",
+      ctaSecondary: "See how we calculate",
     },
     cta: {
       explorePaths: "Explore their paths",
@@ -65,10 +69,10 @@ export const translations: Record<Lang, Translations> = {
 
   uk: {
     nav: {
-      platform: "Платформа",
-      howItWorks: "Як це працює",
-      opportunities: "Можливості",
-      calculator: "Калькулятор",
+      calculation: "Калькуляція",
+      about: "Про нас",
+      pricing: "Тарифи",
+      contact: "Контакти",
     },
     header: {
       signIn: "Увійти",
@@ -76,14 +80,16 @@ export const translations: Record<Lang, Translations> = {
       pricing: "Переглянути ціни ↗",
     },
     hero: {
-      eyebrow: "ОСВІТА, КАР’ЄРА ТА ROI — В ОДНОМУ ОГЛЯДІ",
-      h1Line1: "Дізнайся, куди",
-      h1Line2: "освіта",
-      h1Line3: "може привести.",
-      infoCardP: "Порівняй вартість,\nкар’єрний результат і наступний крок.",
-      infoCardExpand: "Змоделюй вартість навчання, стипендії, припущення щодо зарплати та строк окупності, перш ніж обрати шлях.",
-      tagRoi: "Вартість і окупність",
-      tagCareer: "Кар’єрний напрям",
+      eyebrow: "ДЛЯ АБІТУРІЄНТІВ, БАТЬКІВ І ТИХ, ХТО ЗМІНЮЄ КАР’ЄРУ",
+      h1Line1: "Дізнайся, коли",
+      h1Line2: "диплом",
+      h1Line3: "окупиться.",
+      infoCardP: "Навчання плюс зарплата, яку ти не заробиш,\nпроти того, скільки реально платить ринок.",
+      infoCardExpand: "Реальні зарплати у твоїй країні, вартість навчання та твої припущення перетворюються на окупність, ROI і план дій.",
+      tagRoi: "Окупність у місяцях",
+      tagCareer: "Живі дані зарплат",
+      ctaPrimary: "Порахувати окупність",
+      ctaSecondary: "Як ми рахуємо",
     },
     cta: {
       explorePaths: "Дослідити шляхи",
@@ -96,10 +102,10 @@ export const translations: Record<Lang, Translations> = {
 
   pl: {
     nav: {
-      platform: "Platforma",
-      howItWorks: "Jak to działa",
-      opportunities: "Możliwości",
-      calculator: "Kalkulator",
+      calculation: "Kalkulacja",
+      about: "O nas",
+      pricing: "Cennik",
+      contact: "Kontakt",
     },
     header: {
       signIn: 'Zaloguj się',
@@ -107,14 +113,16 @@ export const translations: Record<Lang, Translations> = {
       pricing: 'Zobacz ceny ↗',
     },
     hero: {
-      eyebrow: "EDUKACJA, KARIERA I ROI — W JEDNYM WIDOKU",
-      h1Line1: "Zobacz, dokąd może",
-      h1Line2: "zaprowadzić",
-      h1Line3: "Cię edukacja.",
-      infoCardP: "Porównaj koszt,\nwynik kariery i kolejny krok.",
-      infoCardExpand: "Modeluj czesne, stypendia, założenia płacowe i czas zwrotu, zanim wybierzesz ścieżkę.",
-      tagRoi: "Koszt i zwrot",
-      tagCareer: "Kierunek kariery",
+      eyebrow: "DLA MATURZYSTÓW, RODZICÓW I OSÓB ZMIENIAJĄCYCH ZAWÓD",
+      h1Line1: "Sprawdź, kiedy",
+      h1Line2: "dyplom",
+      h1Line3: "się zwróci.",
+      infoCardP: "Czesne plus pensja, z której rezygnujesz,\nwobec tego, ile naprawdę płaci rynek.",
+      infoCardExpand: "Prawdziwe pensje w Twoim kraju, czesne uczelni i Twoje założenia zamienione w czas zwrotu, ROI i plan działania.",
+      tagRoi: "Zwrot w miesiącach",
+      tagCareer: "Aktualne dane płacowe",
+      ctaPrimary: "Policz mój zwrot",
+      ctaSecondary: "Jak liczymy",
     },
     cta: {
       explorePaths: "Odkryj ścieżki",

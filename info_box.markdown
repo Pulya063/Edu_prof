@@ -32,7 +32,7 @@ Education
 - Workspace overview, scenario creation/list/detail, profile, compare, roadmap dashboard/simulation/plan, course search і settings підключені до Flask API. Новий `/api/workspace` namespace зберігає профіль, preferences, saved courses і task progress; університети читаються з БД із явно позначеним illustrative fallback, а Career insights отримує searchable/filterable каталог через `/api/workspace/resources`. Зовнішні provider/OAuth connections не імітуються і залишаються недоступними, доки інтеграції не налаштовано.
 - Landing page містить локальну client-side симуляцію та hardcoded university/career/scholarship/roadmap data. Вона не викликає Flask ROI API; authenticated workspace використовує simulation contracts для створення сценарію, deterministic projection і read-only overview.
 - Landing localization зберігається як UTF-8 для English, Ukrainian і Polish; перемикання мови оновлює `html[lang]` до `en`, `uk-UA` або `pl-PL`, а Ukrainian використовує Unicode-consistent Manrope stack без змішаних fallback glyphs.
-- `/payment` і legal content залишаються placeholders.
+- `/payment` — **Implemented but unverified**: вибір плану → Stripe hosted Checkout → `/payment/success` (поллінг статусу з нашого API) або `/payment/cancel`. Без Stripe-ключів кнопка disabled із поясненням. Legal content залишається placeholder.
 - Jinja/HTMX не є основним frontend. Flask templates зберігаються лише як legacy/local diagnostic surface.
 - Візуальна основа: editorial composition, `#171819`, white, lime `#B7FF2A`, violet `#D7C7FF`, сильна типографіка та purposeful motion.
 
@@ -48,12 +48,19 @@ Education
   - tuition: `POST /api/tuition/snapshots` для normalized admin ingestion, `POST /api/tuition/snapshots/refresh/college-scorecard` для background refresh за UNITID, authenticated list/get та `POST /api/tuition/snapshots/resolve` для deterministic source resolution;
   - roadmap: `/roadmap/`, `/roadmap/generate` та дубльований `/api/roadmap/*` namespace;
   - workspace: `GET /api/workspace`, `PATCH /api/workspace/profile`, `PATCH /api/workspace/preferences`, `GET /api/workspace/universities`, `GET /api/workspace/universities/<id>`, `GET /api/workspace/courses`, `GET /api/workspace/resources`, save/unsave course, roadmap preview і task completion;
+  - payments: public `GET /api/payments/plans`, authenticated `POST /api/payments/checkout` і `GET /api/payments/sessions/<id>`, `POST /api/payments/webhook` (підпис `STRIPE_WEBHOOK_SECRET`, ідемпотентність через `stripe_events`; план користувача змінюється лише з вебхука). Ціни — тільки Stripe Price ID із env; сума з клієнта ігнорується;
   - mail: `/api/mail/university-letter`;
   - health: `/health`.
 - Основні models: `User`, `University`, `UniversityDocument`, `UniversityScholarship`, legacy `TuitionPrice`, `TuitionSnapshot`, `EducationProgram`, `SalaryStatistic`, `CareerForecast`, `CareerAnalysis` та його normalized children, `ROICalculation`, `UserRoadmap`, `SimulationScenario`, `SimulationRevision`, `SimulationProjection`, `MarketSnapshot`, `Partner`, `MotivationLetter`.
 - `CareerAnalysis`, його `CareerROI` child і legacy `ROICalculation` збережені для історії; нові фінансові результати створюються лише через `SimulationProjection`.
 - Roadmap зберігає оригінальний payload і normalized Fence plan із фазами та tasks; task completion оновлюється через authenticated workspace endpoint. Skill evidence і feedback loop ще не реалізовані.
 - Phase 0 не змінював database schema. Phase 1 додає окремі versioned simulation scenarios без зміни legacy ROI/roadmap tables.
+
+## Current: API contract frontend ↔ backend
+
+- **Verified (tests + tsc, 2026-10-29)**: `frontend/lib/api/generated.ts` генерується з Pydantic-схем (`uv run --no-sync python -m app.scripts.generate_ts_types`); `tests/test_api_types_generated.py` падає, якщо файл застарів. Гроші/ROI/відсотки (`ApiDecimal` у `app/schemas.py`) рахуються як `Decimal`, а в JSON ідуть числом; фронт нічого не парсить, лише форматує (`frontend/lib/api/decimal.ts`) і надсилає числа. Дати — `IsoDateTime`.
+- `/api/auth/me`, `/api/auth/providers` і `user`/`roadmap` у `/api/workspace` тепер серіалізуються через Pydantic-моделі з тією самою формою. `roadmap.plan`, `connections` і `suggested_adjustments` поки залишаються вільними dict на бекенді й типізуються вручну на фронті.
+- 422 від Pydantic перетворюються на повідомлення біля полів (`ApiRequestError.fieldErrors`) у конструкторі сценарію та на `/register`; інші сторінки отримують повідомлення з назвою поля.
 
 ## Current: calculations, data and AI
 
@@ -71,7 +78,8 @@ Education
 - Sensitive auth endpoints мають Redis-backed rate limits із test-memory backend і fail-open logging при storage outage.
 - Google OAuth ініціалізується під час Flask startup і повертає контрольований `503`, якщо credentials відсутні.
 - `/resources` і `/api/resources` реєструються лише через `ENABLE_RESOURCE_AUDIT=true` у non-production; `/health` залишається мінімальним.
-- `OAUTH_SUCCESS_URL` за потреби задає точний frontend redirect після Google callback; fallback — корінь `FRONTEND_URL`.
+- `OAUTH_SUCCESS_URL` за потреби задає точний frontend redirect після Google callback; fallback — `FRONTEND_URL/workspace/overview`. Безпечний `?next=` (лише `/workspace/*` або `/payment*`) має пріоритет.
+- **Implemented but unverified** (2026-10-29): Google callback іде через frontend origin (`FRONTEND_URL/api/auth/callback/google`, якщо `OAUTH_REDIRECT_URI` не задано); вимагає `email_verified=true`, email порівнюється без урахування регістру, неактивні акаунти відхиляються; скасування/помилка Google/проблема зі state повертають на `/login?oauth_error=<reason>` замість 500. `GET /api/auth/providers` повідомляє фронту, чи налаштовано Google; кнопки на `/login` і `/register` disabled із поясненням, коли ключів немає.
 - Targeted Phase 0 tests і офіційний backend suite з каталогу `tests/` пройшли в канонічному checkout 2026-09-30.
 
 ## Verified: Phase 1 simulation foundation
@@ -100,6 +108,15 @@ Education
 - Employment during study не є обов'язковим припущенням: незаповнене поле дорівнює нулю і доступне лише в розгорнутому detailed analysis.
 - Від'ємна різниця між target і baseline salary більше не обрізається до нуля, тому слабші роки зменшують cumulative earnings та не завищують ROI.
 - Нові колонки додає additive Alembic revision `b6c7d8e9f0a1`; локальна development БД оновлена до цього єдиного head 2026-10-02.
+
+## Calculation Foundation v3 (`scenario-projection-v3`, 2026-11-02)
+
+- Зарплата в рік t після випуску = стартова × (1 + g)^(t−1); baseline рахується так само зі своїм g.
+- Сценарії `pessimistic / base / optimistic` беруть стартову зарплату з market snapshot `salary_min / median_salary / salary_max` при тих самих витратах, рості й baseline. Без snapshot (зарплата введена вручну) є лише `base`. Головні поля прогнозу (ROI, payback) — це `base`.
+- NPV опційний: лише коли передано `discount_rate_percent` (0–30). NPV = −інвестиція + Σ приріст_t / (1 + r)^(тривалість_навчання + t); витрати вважаються на старті навчання. Без ставки NPV = null, ставка ніколи не підставляється.
+- Окупність рахується як `remaining × 12 / incremental` з округленням угору; раніше ділення на неточне `incremental / 12` давало зайвий місяць на рівних числах (6,0000…01 → 7).
+- `POST /api/roi/trial` рахується тим самим движком і позначений `preview: "rough"`: зарплата з датасету, без baseline, росту і сценаріїв, горизонт 10 років.
+- Additive Alembic revision `b2d3e4f5a6c7`: `simulation_projections.npv`, `simulation_projections.scenario_outcomes`, `projection_inputs.discount_rate_percent`. До БД ще не застосовано.
 - Focused simulation/market tests: 4 passed; TypeScript `--noEmit` пройшов 2026-10-02. Повний backend suite і browser QA не запускалися.
 
 ## Verified: Phase 3 market snapshot foundation

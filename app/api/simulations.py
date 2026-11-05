@@ -4,6 +4,7 @@ from app.core.database import db
 from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas import (
+    RecentCalculationSummary,
     SimulationCreateRequest,
     SimulationOverviewResponse,
     SimulationRevisionCreateRequest,
@@ -11,12 +12,61 @@ from app.schemas import (
     SimulationProjectionExplainabilityResponse,
     SimulationProjectionResponse,
     SimulationScenarioResponse,
+    SimulationScenarioListItem,
     SimulationScenarioSummary,
 )
 from app.services.simulation_service import SimulationService
 from app.services.simulation_projection_service import SimulationProjectionService
 
 blueprint = Blueprint("simulations", __name__)
+
+RECENT_CALCULATIONS_LIMIT = 5
+
+
+def _list_item(scenario, projection) -> SimulationScenarioListItem:
+    """Поля беруться з поточної ревізії й збереженого прогнозу, нічого не домальовується."""
+    revision = next((item for item in scenario.revisions if item.revision_number == scenario.current_revision_number), None)
+    assumptions = revision.assumptions if revision else {}
+    # Validate rather than copy so stored JSON strings ("12000.00") become Decimals.
+    item = SimulationScenarioListItem.model_validate({
+        **SimulationScenarioSummary.model_validate(scenario).model_dump(),
+        **{key: assumptions.get(key) for key in ("university", "specialization", "degree", "study_duration_years", "annual_tuition")},
+    })
+    if projection is None:
+        return item
+    return item.model_copy(update={
+        "projection_id": projection.id,
+        "currency": projection.currency,
+        "total_investment": projection.total_investment,
+        "roi_percent": projection.roi_percent,
+        "payback_months": projection.payback_months,
+    })
+
+
+def _recent_calculation(scenario, projection) -> RecentCalculationSummary:
+    """Числа беруться лише зі збереженого детермінованого прогнозу; без нього поля порожні."""
+    summary = RecentCalculationSummary(
+        scenario_id=scenario.id,
+        name=scenario.name,
+        status=scenario.status,
+        target_role=scenario.target_role,
+        country=scenario.country,
+        currency=scenario.currency,
+        revision_number=scenario.current_revision_number,
+        updated_at=scenario.updated_at,
+    )
+    if projection is None:
+        return summary
+    return summary.model_copy(update={
+        "projection_id": projection.id,
+        "methodology_version": projection.methodology_version,
+        "currency": projection.currency,
+        "total_investment": projection.total_investment,
+        "roi_percent": projection.roi_percent,
+        "payback_months": projection.payback_months,
+        "break_even_reached": projection.break_even_reached,
+        "horizon_years": projection.horizon_years,
+    })
 
 
 @blueprint.post("")
@@ -33,8 +83,8 @@ def create_simulation(user: User) -> tuple[Response, int]:
 @get_current_user
 def list_simulations(user: User) -> Response:
     scenarios = SimulationService(db.session).list_for_user(user.id)
-    response = [SimulationScenarioSummary.model_validate(item).model_dump(mode="json") for item in scenarios]
-    return jsonify(response)
+    projections = SimulationProjectionService(db.session).latest_for_current_revisions(user.id, [item.id for item in scenarios])
+    return jsonify([_list_item(item, projections.get(item.id)).model_dump(mode="json") for item in scenarios])
 
 
 @blueprint.get("/overview")
@@ -47,15 +97,21 @@ def get_simulation_overview(user: User) -> Response:
         response = SimulationOverviewResponse(status="empty")
         return jsonify(response.model_dump(mode="json"))
 
-    scenario = simulation_service.get(user.id, scenarios[0].id)
     projection_service = SimulationProjectionService(db.session)
+    recent_scenarios = scenarios[:RECENT_CALCULATIONS_LIMIT]
+    latest = projection_service.latest_for_current_revisions(user.id, [item.id for item in recent_scenarios])
+    recent = [_recent_calculation(item, latest.get(item.id)) for item in recent_scenarios]
+
+    scenario = simulation_service.get(user.id, scenarios[0].id)
     projections = projection_service.list_for_revision(
         user.id,
         scenario.id,
         scenario.current_revision_number,
     )
     if not projections:
-        response = SimulationOverviewResponse(status="scenario_only", scenario=scenario)
+        response = SimulationOverviewResponse(
+            status="scenario_only", scenario=scenario, recent_calculations=recent
+        )
         return jsonify(response.model_dump(mode="json"))
 
     projection = projections[0]
@@ -70,6 +126,7 @@ def get_simulation_overview(user: User) -> Response:
         scenario=scenario,
         projection=projection,
         explainability=explainability,
+        recent_calculations=recent,
     )
     return jsonify(response.model_dump(mode="json"))
 

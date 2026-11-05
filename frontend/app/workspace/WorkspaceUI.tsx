@@ -5,7 +5,7 @@ type IconName =
   | "arrow" | "book" | "briefcase" | "check" | "clock" | "code"
   | "database" | "document" | "globe" | "graduation" | "info" | "laptop"
   | "map" | "pin" | "search" | "settings" | "spark" | "target" | "tasks"
-  | "user" | "video";
+  | "user" | "video" | "wallet" | "star" | "trophy" | "bell" | "play" | "image";
 
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -28,6 +28,12 @@ export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   if (name === "spark") return <svg {...common}><path d="m12 2 1.7 5.3L19 9l-5.3 1.7L12 16l-1.7-5.3L5 9l5.3-1.7L12 2ZM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"/></svg>;
   if (name === "target") return <svg {...common}><circle cx="11" cy="13" r="8"/><circle cx="11" cy="13" r="4"/><path d="m14 10 7-7M17 3h4v4"/></svg>;
   if (name === "tasks") return <svg {...common}><path d="m4 6 2 2 3-4M11 6h9M4 13l2 2 3-4M11 13h9M4 20l2 2 3-4M11 20h9"/></svg>;
+  if (name === "wallet") return <svg {...common}><path d="M3 7a2 2 0 0 1 2-2h13v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 13.5h2"/></svg>;
+  if (name === "star") return <svg {...common}><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>;
+  if (name === "trophy") return <svg {...common}><path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6"/></svg>;
+  if (name === "bell") return <svg {...common}><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2ZM10 21h4"/></svg>;
+  if (name === "play") return <svg {...common}><rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3V9Z"/></svg>;
+  if (name === "image") return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>;
   if (name === "user") return <svg {...common}><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.5 3.6-8 8-8s8 3.5 8 8"/></svg>;
   return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3V9Z"/></svg>;
 }
@@ -38,6 +44,7 @@ export function WorkspacePageHeader({
   title,
   highlight,
   description,
+  demo = false,
   children,
 }: {
   section: string;
@@ -45,6 +52,8 @@ export function WorkspacePageHeader({
   title: string;
   highlight?: string;
   description: string;
+  /** Show the "Demo data" badge; pass true only when the page shows illustrative records. */
+  demo?: boolean;
   children?: ReactNode;
 }) {
   const parts = highlight ? title.split(highlight) : [title];
@@ -69,7 +78,7 @@ export function WorkspacePageHeader({
           </h1>
           <p>{description}</p>
         </div>
-        <span className="sketch-demo-badge">Demo data</span>
+        {demo && <span className="sketch-demo-badge">Demo data</span>}
       </div>
       {children}
     </header>

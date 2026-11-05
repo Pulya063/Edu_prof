@@ -1,10 +1,13 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, PlainSerializer, field_validator, model_validator
 
 T = TypeVar("T")
+
+# Money, salaries and percentages: exact Decimal for the arithmetic, a plain JSON number on the wire.
+ApiDecimal = Annotated[Decimal, PlainSerializer(float, return_type=float, when_used="json")]
 
 
 class RegisterSchema(BaseModel):
@@ -65,16 +68,16 @@ class ROICalculationRequest(BaseModel):
 
     university: str = Field(min_length=2, max_length=255)
     faculty: str = Field(min_length=2, max_length=255)
-    annual_tuition: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    study_years: Decimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
+    annual_tuition: ApiDecimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
+    study_years: ApiDecimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
 
 
 class TrialROIRequest(ROICalculationRequest):
     """Four-field input accepted by the anonymous trial endpoint."""
     university: str = Field(default="Demo University", min_length=2, max_length=255)
     faculty: str = Field(default="Computer Science", min_length=2, max_length=255)
-    annual_tuition: Decimal = Field(default=Decimal("15000.00"), gt=Decimal("0"), max_digits=14, decimal_places=2)
-    study_years: Decimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
+    annual_tuition: ApiDecimal = Field(default=Decimal("15000.00"), gt=Decimal("0"), max_digits=14, decimal_places=2)
+    study_years: ApiDecimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
 
 
 class TrialMinimumMoney(BaseModel):
@@ -86,7 +89,8 @@ class TrialMinimumMoney(BaseModel):
 class TrialMinimumMonths(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    min: int = Field(ge=1)
+    # None: no payback inside the preview horizon.
+    min: int | None = Field(default=None, ge=1)
 
 
 class TrialMinimumPercent(BaseModel):
@@ -116,6 +120,10 @@ class TrialROIResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    preview: Literal["rough"] = "rough"
+    methodology_version: str
+    horizon_years: int
+    note: str
     education: TrialEducationResponse
     roi: TrialROIResultResponse
 
@@ -130,6 +138,37 @@ class APIResponse(BaseModel, Generic[T]):
 
 
 
+
+
+class AuthPlanLimits(BaseModel):
+    roi_calculations: int | None
+    roadmaps: int | None
+
+
+class AuthUsage(BaseModel):
+    roi_calculations: int
+    roadmaps: int
+
+
+class AuthMeResponse(BaseModel):
+    id: int
+    email: str
+    username: str
+    created_at: datetime
+    plan: str
+    plan_limits: AuthPlanLimits
+    plan_features: list[str]
+    usage: AuthUsage
+    calculations_remaining: int | None
+    is_admin: bool = False
+
+
+class AuthProviderStatus(BaseModel):
+    configured: bool
+
+
+class AuthProvidersResponse(BaseModel):
+    google: AuthProviderStatus
 
 
 class PasswordResetRequestSchema(BaseModel):
@@ -163,14 +202,14 @@ class SimulationAssumptions(BaseModel):
     degree: str = Field(min_length=2, max_length=255)
     currency: str = Field(default="USD", min_length=3, max_length=3)
     # None означає вибір snapshot; 0 є явною вартістю безкоштовного навчання.
-    annual_tuition: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
-    study_duration_years: Decimal = Field(gt=Decimal("0"), le=Decimal("12"), decimal_places=1)
+    annual_tuition: ApiDecimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
+    study_duration_years: ApiDecimal = Field(gt=Decimal("0"), le=Decimal("12"), decimal_places=1)
     career_target: str = Field(min_length=2, max_length=255)
     existing_skills: list[str] = Field(default_factory=list, max_length=100)
     additional_education: list[str] = Field(default_factory=list, max_length=50)
     courses: list[str] = Field(default_factory=list, max_length=100)
     certifications: list[str] = Field(default_factory=list, max_length=100)
-    experience_years: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("60"), decimal_places=1)
+    experience_years: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("60"), decimal_places=1)
 
     @field_validator("currency")
     @classmethod
@@ -289,6 +328,19 @@ class SimulationScenarioSummary(BaseModel):
     updated_at: datetime
 
 
+class SimulationScenarioListItem(SimulationScenarioSummary):
+    """Рядок списку: умови поточної ревізії та числа останнього прогнозу; без прогнозу числа порожні."""
+    university: str | None = None
+    specialization: str | None = None
+    degree: str | None = None
+    study_duration_years: ApiDecimal | None = None
+    annual_tuition: ApiDecimal | None = None
+    projection_id: int | None = None
+    total_investment: ApiDecimal | None = None
+    roi_percent: ApiDecimal | None = None
+    payback_months: int | None = None
+
+
 class SimulationScenarioResponse(SimulationScenarioSummary):
     """Сценарій разом з історією його умов, а не лише поточними значеннями."""
     revisions: list[SimulationRevisionResponse]
@@ -306,6 +358,7 @@ class ProjectionEvidence(BaseModel):
         "mandatory_fees",
         "scholarships",
         "study_income",
+        "inflation",
     ]
     source_name: str = Field(min_length=2, max_length=255)
     source_reference: str = Field(min_length=2, max_length=1000)
@@ -345,17 +398,17 @@ class SimulationProjectionRequest(BaseModel):
 
     market_snapshot_id: int | None = Field(default=None, ge=1)
     market_snapshot_selection: MarketSnapshotSelection | None = None
-    annual_start_salary: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=14, decimal_places=2)
-    baseline_annual_salary: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
-    annual_salary_growth_percent: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
-    baseline_salary_growth_percent: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
-    foregone_income_percent: Decimal = Field(default=Decimal("100"), ge=Decimal("0"), le=Decimal("100"))
+    annual_start_salary: ApiDecimal | None = Field(default=None, gt=Decimal("0"), max_digits=14, decimal_places=2)
+    baseline_annual_salary: ApiDecimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    annual_salary_growth_percent: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
+    baseline_salary_growth_percent: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("50"))
+    foregone_income_percent: ApiDecimal = Field(default=Decimal("100"), ge=Decimal("0"), le=Decimal("100"))
     # Додаткові витрати та гранти — суми за весь період навчання, не річні платежі.
-    mandatory_fees: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
-    scholarships_and_grants: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
-    additional_education_cost: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
-    incremental_living_cost: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
-    employment_income_during_study: Decimal | None = Field(
+    mandatory_fees: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
+    scholarships_and_grants: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
+    additional_education_cost: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
+    incremental_living_cost: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), max_digits=14, decimal_places=2)
+    employment_income_during_study: ApiDecimal | None = Field(
         default=None,
         ge=Decimal("0"),
         max_digits=14,
@@ -363,6 +416,14 @@ class SimulationProjectionRequest(BaseModel):
         description="Optional total gross income earned during the full study period.",
     )
     horizon_years: int = Field(default=10, ge=1, le=30)
+    # Optional: without a discount rate NPV is not calculated (null), never guessed.
+    discount_rate_percent: ApiDecimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("30"))
+    # v4 realism inputs. Inflation turns nominal growth into today's money; without it results stay nominal.
+    inflation_percent: ApiDecimal | None = Field(default=None, ge=Decimal("-10"), le=Decimal("100"))
+    job_search_months: int = Field(default=0, ge=0, le=24)
+    employment_probability_percent: ApiDecimal = Field(default=Decimal("100"), ge=Decimal("1"), le=Decimal("100"))
+    # v5: optional "should pay back within N years after graduation" target; must fit inside the horizon.
+    target_payback_years: int | None = Field(default=None, ge=1, le=30)
     evidence: list[ProjectionEvidence] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
@@ -380,31 +441,33 @@ class SimulationProjectionRequest(BaseModel):
                 "Вкажіть рівно одне джерело зарплати: market_snapshot_id, "
                 "market_snapshot_selection або annual_start_salary"
             )
+        if self.target_payback_years is not None and self.target_payback_years > self.horizon_years:
+            raise ValueError("Термін окупності не може перевищувати горизонт прогнозу")
         return self
 
 
 class SalaryTrajectoryPoint(BaseModel):
     """Рік після навчання: дохід цільового шляху мінус альтернативний дохід."""
     year: int
-    target_salary: Decimal
-    baseline_salary: Decimal
-    incremental_earnings: Decimal
-    cumulative_incremental_earnings: Decimal
+    target_salary: ApiDecimal
+    baseline_salary: ApiDecimal
+    incremental_earnings: ApiDecimal
+    cumulative_incremental_earnings: ApiDecimal
 
 
 class ProjectionCostBreakdown(BaseModel):
     """Detailed v2 breakdown; fields stay optional for readable v1 history."""
 
-    tuition: Decimal | None = None
-    mandatory_fees: Decimal | None = None
-    additional_education: Decimal | None = None
-    incremental_living_cost: Decimal | None = None
-    scholarships_and_grants: Decimal | None = None
-    gross_direct_cost: Decimal | None = None
-    net_direct_cost: Decimal | None = None
-    baseline_income_during_study: Decimal | None = None
-    employment_income_during_study: Decimal | None = None
-    opportunity_cost: Decimal | None = None
+    tuition: ApiDecimal | None = None
+    mandatory_fees: ApiDecimal | None = None
+    additional_education: ApiDecimal | None = None
+    incremental_living_cost: ApiDecimal | None = None
+    scholarships_and_grants: ApiDecimal | None = None
+    gross_direct_cost: ApiDecimal | None = None
+    net_direct_cost: ApiDecimal | None = None
+    baseline_income_during_study: ApiDecimal | None = None
+    employment_income_during_study: ApiDecimal | None = None
+    opportunity_cost: ApiDecimal | None = None
 
 
 class ProjectionAIReviewResponse(BaseModel):
@@ -414,7 +477,7 @@ class ProjectionAIReviewResponse(BaseModel):
 
     status: Literal["pending", "running", "completed", "failed", "not_configured"]
     provider_model: str | None = None
-    confidence_score: Decimal | None = None
+    confidence_score: ApiDecimal | None = None
     ai_risk_score: int | None = None
     calculation_consistent: bool | None = None
     prediction_summary: str | None = None
@@ -424,6 +487,38 @@ class ProjectionAIReviewResponse(BaseModel):
     suggested_adjustments: list[dict] = Field(default_factory=list)
     error_message: str | None = None
     completed_at: datetime | None = None
+
+
+class ProjectionCalculationInputs(BaseModel):
+    """Збережені входи розрахунку. Порожні для старих проєкцій без рядка projection_inputs."""
+    market_snapshot_id: int | None = None
+    annual_start_salary: ApiDecimal | None = None
+    baseline_annual_salary: ApiDecimal | None = None
+    annual_salary_growth_percent: ApiDecimal | None = None
+    baseline_salary_growth_percent: ApiDecimal | None = None
+    foregone_income_percent: ApiDecimal | None = None
+    mandatory_fees: ApiDecimal | None = None
+    scholarships_and_grants: ApiDecimal | None = None
+    additional_education_cost: ApiDecimal | None = None
+    incremental_living_cost: ApiDecimal | None = None
+    employment_income_during_study: ApiDecimal | None = None
+    horizon_years: int | None = None
+    discount_rate_percent: ApiDecimal | None = None
+    inflation_percent: ApiDecimal | None = None
+    job_search_months: int | None = None
+    employment_probability_percent: ApiDecimal | None = None
+    target_payback_years: int | None = None
+
+
+class ProjectionScenarioOutcome(BaseModel):
+    """v3: one start-salary scenario on the same costs, growth and baseline."""
+    scenario: Literal["pessimistic", "base", "optimistic"]
+    start_salary: ApiDecimal
+    cumulative_incremental_earnings: ApiDecimal
+    roi_percent: ApiDecimal | None
+    payback_months: int | None
+    break_even_reached: bool
+    npv: ApiDecimal | None = None
 
 
 class SimulationProjectionResponse(BaseModel):
@@ -436,20 +531,27 @@ class SimulationProjectionResponse(BaseModel):
     input_fingerprint: str
     currency: str
     salary_basis: str
-    total_direct_cost: Decimal
-    opportunity_cost: Decimal
-    total_investment: Decimal
-    estimated_start_salary: Decimal
-    calculation_inputs: dict
+    total_direct_cost: ApiDecimal
+    opportunity_cost: ApiDecimal
+    total_investment: ApiDecimal
+    estimated_start_salary: ApiDecimal
+    calculation_inputs: ProjectionCalculationInputs
     cost_breakdown: ProjectionCostBreakdown
     # None: окупності немає в межах горизонту; 0: інвестиція дорівнює нулю.
     # Перший показник рахується після випуску, другий — від початку навчання.
     payback_months: int | None
     payback_from_enrollment_months: int | None
     break_even_reached: bool
+    # v5: null when no target was chosen; the gap is payback minus the target in months (negative = early).
+    target_payback_years: int | None = None
+    payback_within_target: bool | None = None
+    payback_target_gap_months: int | None = None
     horizon_years: int
-    cumulative_incremental_earnings: Decimal
-    roi_percent: Decimal | None
+    cumulative_incremental_earnings: ApiDecimal
+    roi_percent: ApiDecimal | None
+    # v3 only: null without a discount rate; empty scenario list for older projections.
+    npv: ApiDecimal | None = None
+    scenario_outcomes: list[ProjectionScenarioOutcome] = Field(default_factory=list)
     salary_trajectory: list[SalaryTrajectoryPoint]
     evidence: list[ProjectionEvidence]
     source_snapshot_refs: list[str]
@@ -482,11 +584,11 @@ class MarketSnapshotCreateRequest(BaseModel):
     seniority: str = Field(min_length=2, max_length=120)
     snapshot_date: date
     currency: str = Field(min_length=3, max_length=3)
-    salary_min: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
-    median_salary: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    salary_max: Decimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
+    salary_min: ApiDecimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    median_salary: ApiDecimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
+    salary_max: ApiDecimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
     vacancy_count: int | None = Field(default=None, ge=0)
-    demand_index: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
+    demand_index: ApiDecimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
     sources: list[MarketSnapshotSource] = Field(min_length=1, max_length=20)
     acquired_at: datetime
     sample_size: int | None = Field(default=None, ge=1)
@@ -534,11 +636,11 @@ class MarketSnapshotResponse(BaseModel):
     snapshot_date: date
     currency: str
     salary_basis: str
-    salary_min: Decimal
-    median_salary: Decimal
-    salary_max: Decimal
+    salary_min: ApiDecimal
+    median_salary: ApiDecimal
+    salary_max: ApiDecimal
     vacancy_count: int | None
-    demand_index: Decimal | None
+    demand_index: ApiDecimal | None
     sources: list[MarketSnapshotSource]
     acquired_at: datetime
     sample_size: int | None
@@ -581,10 +683,10 @@ class TuitionSnapshotCreateRequest(BaseModel):
     academic_year: str = Field(min_length=4, max_length=20)
     snapshot_date: date
     currency: str = Field(min_length=3, max_length=3)
-    annual_tuition_min: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
-    annual_tuition: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
-    annual_tuition_max: Decimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
-    mandatory_fees: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
+    annual_tuition_min: ApiDecimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    annual_tuition: ApiDecimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    annual_tuition_max: ApiDecimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    mandatory_fees: ApiDecimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
     sources: list[TuitionSnapshotSource] = Field(min_length=1, max_length=20)
     acquired_at: datetime
     confidence: Literal["low", "medium", "high"]
@@ -646,10 +748,10 @@ class TuitionSnapshotResponse(BaseModel):
     academic_year: str
     snapshot_date: date
     currency: str
-    annual_tuition_min: Decimal
-    annual_tuition: Decimal
-    annual_tuition_max: Decimal
-    mandatory_fees: Decimal | None
+    annual_tuition_min: ApiDecimal
+    annual_tuition: ApiDecimal
+    annual_tuition_max: ApiDecimal
+    mandatory_fees: ApiDecimal | None
     sources: list[TuitionSnapshotSource]
     acquired_at: datetime
     confidence: str
@@ -663,7 +765,7 @@ class ProjectionSnapshotProvenance(BaseModel):
     snapshot: MarketSnapshotResponse
     age_days: int = Field(ge=0)
     selected_metric: Literal["median_salary"] = "median_salary"
-    selected_value: Decimal
+    selected_value: ApiDecimal
 
 
 class SimulationProjectionExplainabilityResponse(BaseModel):
@@ -676,12 +778,31 @@ class SimulationProjectionExplainabilityResponse(BaseModel):
     currency: str
     salary_source_kind: Literal["market_snapshot", "manual_evidence"]
     selected_salary_metric: Literal["median_salary", "annual_start_salary"]
-    estimated_start_salary: Decimal
+    estimated_start_salary: ApiDecimal
     source_snapshots: list[ProjectionSnapshotProvenance]
     source_integrity: Literal["complete", "missing"]
     missing_source_snapshot_refs: list[str]
     evidence: list[ProjectionEvidence]
     unverified_assumptions: list[str]
+
+
+class RecentCalculationSummary(BaseModel):
+    """Рядок дашборду: сценарій і підсумок його останнього прогнозу поточної ревізії, якщо він є."""
+    scenario_id: int
+    name: str
+    status: str
+    target_role: str
+    country: str
+    currency: str
+    revision_number: int
+    updated_at: datetime
+    projection_id: int | None = None
+    methodology_version: str | None = None
+    total_investment: ApiDecimal | None = None
+    roi_percent: ApiDecimal | None = None
+    payback_months: int | None = None
+    break_even_reached: bool | None = None
+    horizon_years: int | None = None
 
 
 class SimulationOverviewResponse(BaseModel):
@@ -690,6 +811,7 @@ class SimulationOverviewResponse(BaseModel):
     scenario: SimulationScenarioResponse | None = None
     projection: SimulationProjectionResponse | None = None
     explainability: SimulationProjectionExplainabilityResponse | None = None
+    recent_calculations: list[RecentCalculationSummary] = Field(default_factory=list)
 
 
 class RoadmapGenerateRequest(BaseModel):
@@ -733,13 +855,29 @@ class WorkspaceProfileUpdate(BaseModel):
     profile: WorkspaceProfile
 
 
+class WorkspaceUser(BaseModel):
+    id: int
+    username: str
+    email: str
+    plan: str
+    scenario_count: int
+
+
+class WorkspaceRoadmapSummary(BaseModel):
+    id: int
+    target_job: str
+    updated_at: datetime
+    # Normalized Fence plan; its shape is produced by plan normalization, not yet a schema.
+    plan: dict[str, Any]
+
+
 class WorkspaceStateResponse(BaseModel):
-    user: dict[str, Any]
+    user: WorkspaceUser
     profile: WorkspaceProfile
     preferences: WorkspacePreferences
     connections: dict[str, dict[str, Any]]
     saved_course_ids: list[str]
-    roadmap: dict[str, Any] | None
+    roadmap: WorkspaceRoadmapSummary | None
 
 
 class WorkspaceCourseResponse(BaseModel):
@@ -771,19 +909,132 @@ class WorkspaceUniversityResponse(BaseModel):
     country: str
     city: str | None = None
     website: str | None = None
-    description: str
+    description: str | None = None
     annual_tuition: float | None = None
-    currency: str = "EUR"
+    currency: str | None = None
     duration_years: float | None = None
-    study_mode: str = "Full-time"
-    program_name: str
-    data_quality: Literal["database", "illustrative"]
+    study_mode: str | None = None
+    program_name: str | None = None
+    # "directory": name, country and website from the open university directory; nothing else is known yet.
+    data_quality: Literal["database", "directory", "illustrative"]
+
+
+class UniversityProfileLink(BaseModel):
+    title: str
+    url: str
+
+
+class UniversityProfileOfficialPage(UniversityProfileLink):
+    kind: Literal["admissions", "scholarships", "fees", "sport", "faculties", "international", "news"]
+
+
+class UniversityProfileMention(BaseModel):
+    """A sentence or list item copied from an official page, never rewritten."""
+    text: str
+    source_url: str
+
+
+class UniversityProfileTuitionMention(UniversityProfileMention):
+    """Amount parsed deterministically from an official fees page; verify before relying on it."""
+    amount: ApiDecimal
+    currency: str
+    period: Literal["year", "semester", "month", "unknown"]
+
+
+class UniversityProfileNewsItem(BaseModel):
+    title: str
+    url: str
+    published_at: datetime | None = None
+    source: str | None = None
+
+
+class UniversityProfileImage(BaseModel):
+    title: str
+    url: str
+    thumb_url: str
+    source_url: str
+
+
+class UniversityProfileFacts(BaseModel):
+    founded: str | None = None
+    students: int | None = None
+    staff: int | None = None
+    city: str | None = None
+    logo_url: str | None = None
+    image_url: str | None = None
+
+
+class UniversityProfileResponse(BaseModel):
+    status: Literal["ready", "partial", "unavailable"]
+    fetched_at: datetime | None = None
+    summary: str | None = None
+    summary_source_url: str | None = None
+    wikidata_url: str | None = None
+    facts: UniversityProfileFacts = Field(default_factory=UniversityProfileFacts)
+    faculties: list[str] = Field(default_factory=list)
+    official_pages: list[UniversityProfileOfficialPage] = Field(default_factory=list)
+    admission_documents: list[UniversityProfileMention] = Field(default_factory=list)
+    scholarship_mentions: list[UniversityProfileMention] = Field(default_factory=list)
+    tuition_mentions: list[UniversityProfileTuitionMention] = Field(default_factory=list)
+    sport_mentions: list[UniversityProfileMention] = Field(default_factory=list)
+    news: list[UniversityProfileNewsItem] = Field(default_factory=list)
+    videos: list[UniversityProfileNewsItem] = Field(default_factory=list)
+    gallery: list[UniversityProfileImage] = Field(default_factory=list)
+    sources: list[UniversityProfileLink] = Field(default_factory=list)
+    unavailable_sources: list[str] = Field(default_factory=list)
 
 
 class WorkspaceUniversityDetailsResponse(WorkspaceUniversityResponse):
     programmes: list[dict[str, Any]] = Field(default_factory=list)
     documents: list[dict[str, Any]] = Field(default_factory=list)
     scholarships: list[dict[str, Any]] = Field(default_factory=list)
+    profile: UniversityProfileResponse | None = None
+
+
+class EconomicPoint(BaseModel):
+    period: date
+    value: ApiDecimal
+
+
+class EconomicSeries(BaseModel):
+    indicator: str
+    unit: str
+    source_name: str
+    source_url: str
+    acquired_at: datetime
+    points: list[EconomicPoint]
+
+
+class CountryEconomicsResponse(BaseModel):
+    """Official macro data and the deterministic defaults derived from it."""
+    country: str
+    currency: str | None
+    latest_inflation_percent: ApiDecimal | None
+    latest_inflation_year: int | None
+    # Median of the last five annual CPI values: the suggested default for projections.
+    suggested_inflation_percent: ApiDecimal | None
+    inflation_window: str | None
+    # Average yearly change of the local currency against EUR over the last five years; positive = devaluation.
+    devaluation_vs_eur_percent: ApiDecimal | None
+    baseline_monthly_wage: ApiDecimal | None = None
+    baseline_wage_kind: Literal["minimum_wage", "median_vacancy_wage"] | None = None
+    baseline_wage_period: date | None = None
+    baseline_wage_source_name: str | None = None
+    baseline_wage_source_url: str | None = None
+    series: list[EconomicSeries]
+
+
+class MarketNewsItem(BaseModel):
+    title: str
+    url: str
+    published_at: datetime | None = None
+    source: str | None = None
+
+
+class MarketNewsResponse(BaseModel):
+    query: str
+    feed_url: str
+    items: list[MarketNewsItem]
 
 
 class RoadmapPreviewRequest(BaseModel):
@@ -799,3 +1050,50 @@ class RoadmapTaskUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     completed: bool
+
+
+PaymentPlanId = Literal["pro", "business", "enterprise"]
+BillingCycle = Literal["monthly", "yearly"]
+
+
+class CheckoutRequest(BaseModel):
+    # Unknown fields such as a client-sent amount are ignored: prices come from server config only.
+    model_config = ConfigDict(extra="ignore")
+
+    plan: PaymentPlanId
+    cycle: BillingCycle
+
+
+class CheckoutResponse(BaseModel):
+    checkout_url: str
+    session_id: str
+
+
+class PaymentPlanOption(BaseModel):
+    plan: PaymentPlanId
+    plan_name: str
+    cycle: BillingCycle
+    amount: int
+    currency: str
+    available: bool
+
+
+class PaymentPlansResponse(BaseModel):
+    configured: bool
+    publishable_key: str | None
+    current_plan: str | None
+    options: list[PaymentPlanOption]
+
+
+class PaymentStatusResponse(BaseModel):
+    session_id: str
+    plan: PaymentPlanId
+    plan_name: str
+    billing_cycle: BillingCycle
+    status: Literal["pending", "paid", "failed", "expired", "canceled"]
+    amount_expected: int
+    amount_total: int | None
+    currency: str
+    paid_at: datetime | None
+    created_at: datetime
+    current_plan: str

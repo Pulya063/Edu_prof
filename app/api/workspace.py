@@ -1,7 +1,7 @@
 from flask import Blueprint, Response, jsonify, request
 
 from app.core.database import db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import admin_required, get_current_user
 from app.models import User
 from app.schemas import (
     RoadmapPreviewRequest,
@@ -53,7 +53,8 @@ def list_universities(user: User) -> Response:
 @blueprint.get("/universities/<string:university_id>")
 @get_current_user
 def get_university(university_id: str, user: User) -> Response:
-    result = WorkspaceService(db.session).university_details(university_id)
+    refresh = request.args.get("refresh") == "1" and user.is_admin
+    result = WorkspaceService(db.session).university_details(university_id, refresh=refresh)
     response = WorkspaceUniversityDetailsResponse.model_validate(result)
     return jsonify(response.model_dump(mode="json"))
 
@@ -90,6 +91,7 @@ def unsave_course(course_id: str, user: User) -> Response:
 
 @blueprint.post("/roadmap/preview")
 @get_current_user
+@admin_required
 def roadmap_preview(user: User) -> Response:
     payload = RoadmapPreviewRequest.model_validate(request.get_json(silent=True) or {})
     return jsonify(preview_roadmap(payload))
@@ -97,6 +99,7 @@ def roadmap_preview(user: User) -> Response:
 
 @blueprint.patch("/roadmaps/<int:roadmap_id>/tasks/<string:task_id>")
 @get_current_user
+@admin_required
 def update_roadmap_task(roadmap_id: int, task_id: str, user: User) -> Response:
     payload = RoadmapTaskUpdate.model_validate(request.get_json(silent=True) or {})
     return jsonify(WorkspaceService(db.session).update_roadmap_task(user, roadmap_id, task_id, payload.completed))

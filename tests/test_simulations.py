@@ -145,13 +145,17 @@ def test_simulation_scenario_revision_flow(client, monkeypatch):
     )
     assert projection.status_code == 201
     forecast = projection.get_json()
-    assert forecast["methodology_version"] == "scenario-projection-v2"
+    assert forecast["methodology_version"] == "scenario-projection-v5"
+    # Manual salary: only the base scenario exists, and NPV stays null without a discount rate.
+    assert [item["scenario"] for item in forecast["scenario_outcomes"]] == ["base"]
+    assert forecast["scenario_outcomes"][0]["roi_percent"] == forecast["roi_percent"]
+    assert forecast["npv"] is None
     assert forecast["payback_months"] == 38
     assert forecast["payback_from_enrollment_months"] == 86
-    assert forecast["total_investment"] == "94000.00"
-    assert forecast["calculation_inputs"]["annual_start_salary"] == "50000.00"
-    assert forecast["cost_breakdown"]["tuition"] == "48000.00"
-    assert forecast["unverified_assumptions"] == ["annual_tuition"]
+    assert forecast["total_investment"] == 94000.00
+    assert forecast["calculation_inputs"]["annual_start_salary"] == 50000.00
+    assert forecast["cost_breakdown"]["tuition"] == 48000.00
+    assert forecast["unverified_assumptions"] == ["annual_tuition", "inflation_not_applied"]
     assert forecast["ai_review"]["status"] == "not_configured"
 
     explainability = client.get(
@@ -174,6 +178,13 @@ def test_simulation_scenario_revision_flow(client, monkeypatch):
     assert overview_data["scenario"]["id"] == scenario["id"]
     assert overview_data["projection"]["id"] == forecast["id"]
     assert overview_data["explainability"]["calculation_type"] == "deterministic"
+    recent = overview_data["recent_calculations"]
+    assert [item["scenario_id"] for item in recent] == [scenario["id"]]
+    assert recent[0]["projection_id"] == forecast["id"]
+    assert recent[0]["revision_number"] == 2
+    assert recent[0]["roi_percent"] == forecast["roi_percent"]
+    assert recent[0]["payback_months"] == forecast["payback_months"]
+    assert recent[0]["total_investment"] == forecast["total_investment"]
 
     reviewed = client.post(
         f"/api/simulations/{scenario['id']}/revisions/2/projections/"
@@ -200,7 +211,14 @@ def test_simulation_scenario_revision_flow(client, monkeypatch):
 
     listed = client.get("/api/simulations")
     assert listed.status_code == 200
-    assert listed.get_json()[0]["id"] == scenario["id"]
+    [row] = listed.get_json()
+    assert row["id"] == scenario["id"]
+    # List rows carry the current revision's inputs and the stored forecast numbers, nothing else.
+    assert row["projection_id"] == forecast["id"]
+    assert row["roi_percent"] == forecast["roi_percent"]
+    assert row["total_investment"] == forecast["total_investment"]
+    assert row["payback_months"] == forecast["payback_months"]
+    assert isinstance(row["study_duration_years"], float)
 
     invalid = client.post(
         "/api/simulations",
@@ -208,3 +226,41 @@ def test_simulation_scenario_revision_flow(client, monkeypatch):
         headers=headers,
     )
     assert invalid.status_code == 422
+
+
+def test_overview_lists_recent_calculations_without_inventing_numbers(client, monkeypatch):
+    redis_store = {}
+    fake_redis = MagicMock()
+    fake_redis.setex.side_effect = lambda key, ttl, value: redis_store.__setitem__(key, value)
+    fake_redis.get.side_effect = redis_store.get
+    fake_redis.getdel.side_effect = lambda key: redis_store.pop(key, None)
+    fake_redis.delete.side_effect = lambda key: redis_store.pop(key, None)
+    monkeypatch.setattr("app.core.redis_client.get_redis", lambda: fake_redis)
+
+    client.post("/api/auth/register", json={"email": "recent@example.com", "password": "Passw0rd!"})
+    headers = {"X-CSRF-Token": client.get_cookie("csrf_token").value}
+
+    empty = client.get("/api/simulations/overview").get_json()
+    assert empty["status"] == "empty"
+    assert empty["recent_calculations"] == []
+
+    created = client.post(
+        "/api/simulations",
+        json={"name": "Draft path", "assumptions": _assumptions()},
+        headers=headers,
+    ).get_json()
+
+    overview = client.get("/api/simulations/overview").get_json()
+    assert overview["status"] == "scenario_only"
+    [item] = overview["recent_calculations"]
+    assert item["scenario_id"] == created["id"]
+    assert item["projection_id"] is None
+    assert item["roi_percent"] is None
+    assert item["payback_months"] is None
+
+    [row] = client.get("/api/simulations").get_json()
+    assert row["degree"] == _assumptions()["degree"]
+    assert row["university"] == _assumptions()["university"]
+    assert row["projection_id"] is None
+    assert row["total_investment"] is None
+    assert row["roi_percent"] is None

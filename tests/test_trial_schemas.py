@@ -14,6 +14,14 @@ VALID_TRIAL_REQUEST = {
 }
 
 
+TRIAL_META = {
+    "preview": "rough",
+    "methodology_version": "scenario-projection-v3",
+    "horizon_years": 10,
+    "note": "Rough preview.",
+}
+
+
 def test_trial_request_validates_input() -> None:
     payload = TrialROIRequest.model_validate(VALID_TRIAL_REQUEST)
 
@@ -29,6 +37,7 @@ def test_trial_request_rejects_unknown_fields() -> None:
 def test_trial_response_validates_output() -> None:
     response = TrialROIResponse.model_validate(
         {
+            **TRIAL_META,
             "education": {
                 "specialization": "Computer Science",
                 "total_investment": {"min": 20000.0},
@@ -66,6 +75,7 @@ def test_trial_response_rejects_invalid_payback() -> None:
 @patch("app.api.roi.ROIService.analyze_trial")
 def test_trial_endpoint_validates_request_and_response(mock_analyze, client) -> None:
     mock_analyze.return_value = {
+        **TRIAL_META,
         "education": {
             "specialization": "Computer Science",
             "total_investment": {"min": 20000.0},
