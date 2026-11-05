@@ -3,8 +3,9 @@ import SitePage from "../components/SitePage";
 import { PaybackPlayground, SiteHeroArt } from "../components/SiteInteractive";
 
 export const metadata: Metadata = {
-  title: "Calculation",
+  title: "How the Education ROI and Payback Calculation Works",
   description: "How Fence calculates education cost, opportunity cost, payback and ROI: deterministic formulas, stored inputs and labelled sources.",
+  alternates: { canonical: "/calculation" },
 };
 
 const steps = [

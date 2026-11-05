@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import SitePage from "../../components/SitePage";
 
@@ -9,6 +10,12 @@ const documents = {
 
 export function generateStaticParams() {
   return Object.keys(documents).map((document) => ({ document }));
+}
+
+export function generateMetadata({ params }: { params: { document: string } }): Metadata {
+  const document = documents[params.document as keyof typeof documents];
+  // Drafts stay out of search results until reviewed legal copy replaces them.
+  return { title: document?.title ?? "Legal", robots: { index: false, follow: true }, alternates: { canonical: `/legal/${params.document}` } };
 }
 
 export default function LegalDocumentPage({ params }: { params: { document: string } }) {

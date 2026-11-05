@@ -11,7 +11,7 @@ export default function MacbookDisplay() {
 
   return (
     <div ref={frameRef} className="macbook-composite" style={{ "--macbook-canvas-scale": scale } as CSSProperties}>
-      <Image className="macbook-composite-art" src="/fence-macbook-hero-transparent.webp" alt="" width={1536} height={1024} priority sizes="(max-width: 900px) 93vw, 780px" />
+      <Image className="macbook-composite-art" src="/fence-macbook-hero-transparent.webp" alt="Fence dashboard on a laptop showing education ROI, payback and outcomes by programme" width={1536} height={1024} priority sizes="(max-width: 900px) 93vw, 780px" />
     </div>
   );
 }

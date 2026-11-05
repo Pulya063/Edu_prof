@@ -4,7 +4,8 @@ import { ContactTopics, SiteHeroArt } from "../components/SiteInteractive";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Contact Fence about your account, billing, data corrections or partnerships.",
+  description: "Contact Fence about your account, billing, salary or tuition data corrections, or using Fence with your school.",
+  alternates: { canonical: "/contact" },
 };
 
 const supportEmail = process.env.NEXT_PUBLIC_FENCE_SUPPORT_EMAIL;

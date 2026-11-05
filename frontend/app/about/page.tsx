@@ -3,8 +3,9 @@ import SitePage from "../components/SitePage";
 import { ProductTabs, SiteHeroArt } from "../components/SiteInteractive";
 
 export const metadata: Metadata = {
-  title: "About",
+  title: "About — Education Cost and Career Decisions",
   description: "Fence helps students and career changers compare the cost and likely return of an education path before they commit.",
+  alternates: { canonical: "/about" },
 };
 
 const principles = [

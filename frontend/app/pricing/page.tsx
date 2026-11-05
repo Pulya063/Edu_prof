@@ -3,24 +3,10 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import "../styles/plans.css";
+import { PLANS as plans, PRICING_FAQ } from "./plans";
 
 type BillingCycle = "monthly" | "yearly";
-type Plan = {
-  id: string;
-  name: string;
-  description: string;
-  priceMonthly: string;
-  priceYearly: string;
-  featuresLabel: string;
-  features: string[];
-  badge?: string;
-};
 
-const plans: Plan[] = [
-  { id: "pro", name: "Pro", description: "For one person comparing education and career paths", priceMonthly: "$4.99", priceYearly: "$3.99", featuresLabel: "INCLUDES", features: ["Education ROI scenarios", "Saved comparisons", "Personal career roadmap"] },
-  { id: "business", name: "Plus", description: "For deeper comparisons across more options", priceMonthly: "$9.99", priceYearly: "$7.99", badge: "RECOMMENDED", featuresLabel: "EVERYTHING IN PRO, PLUS", features: ["Advanced scenario comparison", "Scholarship matching", "Skills-gap insights", "Extended roadmap planning"] },
-  { id: "enterprise", name: "Teams", description: "For schools, advisors, and education teams", priceMonthly: "$39.99", priceYearly: "$31.99", featuresLabel: "EVERYTHING IN PLUS, PLUS", features: ["Shared scenario library", "Team workspaces", "Advisor-ready summaries"] },
-];
 
 export default function PlansPage() {
   const [cycle, setCycle] = useState<BillingCycle>("yearly");
@@ -39,6 +25,12 @@ export default function PlansPage() {
         <a className="plan-select" href={`/payment?plan=${plan.id}&cycle=${cycle}`}>Choose {plan.name} <span aria-hidden="true">→</span></a>
         <div className="plan-rule" /><p className="plan-features-label">{plan.featuresLabel}</p><ul>{plan.features.map((feature) => <li key={feature}><Check size={15} aria-hidden="true" />{feature}</li>)}</ul>
       </article>)}
+    </section>
+    <section className="plans-faq" aria-labelledby="plans-faq-title">
+      <h2 id="plans-faq-title">Questions before you choose</h2>
+      <div className="plans-faq-list">
+        {PRICING_FAQ.map(([question, answer]) => <details className="plans-faq-item" key={question}><summary>{question}</summary><p>{answer}</p></details>)}
+      </div>
     </section>
   </main>;
 }

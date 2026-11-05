@@ -149,3 +149,16 @@
 .plan-select { border-width:2px; box-shadow:0 3px 0 var(--fence-ink); }
 .plan-select:active { box-shadow:none; transform:translateY(2px); }
 .billing-toggle { border:2px solid var(--fence-ink); }
+
+/* Pricing FAQ: outlined accordion */
+.plans-faq { position:relative; z-index:2; max-width:1260px; margin:70px auto 0; }
+.plans-faq h2 { margin:0 0 22px; font-family:'Manrope'; font-size:clamp(32px,4vw,52px); font-weight:800; line-height:.95; letter-spacing:-.07em; }
+.plans-faq-list { display:grid; gap:12px; }
+.plans-faq-item { border:2px solid var(--fence-ink); border-radius:20px; background:var(--fence-white); box-shadow:0 4px 0 var(--fence-ink); }
+.plans-faq-item[open] { background:#d7c7ff; }
+.plans-faq-item summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 22px; font-size:16px; font-weight:800; cursor:pointer; list-style:none; }
+.plans-faq-item summary::-webkit-details-marker { display:none; }
+.plans-faq-item summary::after { content:"+"; display:grid; place-items:center; flex:0 0 auto; width:30px; height:30px; border:2px solid var(--fence-ink); border-radius:50%; background:var(--fence-lime); font-size:18px; transition:transform .2s ease; }
+.plans-faq-item[open] summary::after { transform:rotate(45deg); }
+.plans-faq-item p { margin:0; padding:0 22px 20px; font-size:15px; line-height:1.5; }
+@media (prefers-reduced-motion:reduce) { .plans-faq-item summary::after { transition:none; } }

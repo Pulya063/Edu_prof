@@ -4,10 +4,12 @@ import "./styles/footer.css";
 import "./styles/final-pass.css";
 import "./styles/responsive.css";
 import { LanguageProvider } from "./context/LanguageContext";
+import { SITE_URL } from "./utils/site";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Fence — Education ROI and Career Decision Platform",
+    default: "Fence — Education ROI Calculator for Poland & Ukraine",
     template: "%s | Fence",
   },
   description: "Compare education costs, salary assumptions, payback periods, career paths, scholarships, and skills gaps before choosing your next move.",
@@ -27,9 +29,12 @@ export const metadata: Metadata = {
     siteName: "Fence",
     title: "Fence — Compare Education Cost, Career Outcomes, and ROI",
     description: "Model education costs and career outcomes in one connected decision view.",
+    url: "/",
+    locale: "en_US",
+    alternateLocale: ["uk_UA", "pl_PL"],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Fence — Education ROI and Career Decisions",
     description: "Compare the cost, career outcome, and next steps behind an education path.",
   },
