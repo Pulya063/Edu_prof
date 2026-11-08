@@ -1010,7 +1010,7 @@ transition:none !important;
   border-radius:12px;
   background:#fff;
   color:#171819;
-  font-family:'DM Sans',sans-serif;
+  font-family:var(--font-dmsans),sans-serif;
   font-size:13px;
   font-weight:700;
   letter-spacing:-.015em;

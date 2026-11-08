@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import SitePage from "../components/SitePage";
-import { PaybackPlayground, SiteHeroArt } from "../components/SiteInteractive";
+import { SiteHeroArt } from "../components/SiteInteractive";
+import TrialCalculator from "../components/TrialCalculator";
 
 export const metadata: Metadata = {
   title: "How the Education ROI and Payback Calculation Works",
@@ -47,8 +48,8 @@ export default function CalculationPage() {
       art={<SiteHeroArt items={[["Direct cost", "tuition × years"], ["Given up", "salary while studying"], ["Payback", "month by month"]]} />}
     >
       <section className="site-section site-section--play" aria-labelledby="play-title">
-        <h2 id="play-title" className="site-section-title">Try it yourself</h2>
-        <PaybackPlayground />
+        <h2 id="play-title" className="site-section-title">Try it on real salary data</h2>
+        <TrialCalculator />
       </section>
 
       <section className="site-section" aria-labelledby="steps-title">
@@ -85,7 +86,7 @@ export default function CalculationPage() {
       <section className="site-cta" aria-labelledby="cta-title">
         <h2 id="cta-title">Run it on your own plan.</h2>
         <div className="site-cta-actions">
-          <a className="site-button site-button--lime" href="/register">Calculate my plan <span aria-hidden="true">→</span></a>
+          <a className="site-button site-button--lime" href="/try">Calculate my plan <span aria-hidden="true">→</span></a>
           <a className="site-button site-button--ghost" href="/pricing">See pricing</a>
         </div>
       </section>

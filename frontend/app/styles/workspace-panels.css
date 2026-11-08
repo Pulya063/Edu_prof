@@ -80,7 +80,7 @@
 .sketch-breadcrumb { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0 0 28px; color:#53698c; font-size:13px; }
 .sketch-breadcrumb i { opacity:.45; font-style:normal; }
 .sketch-heading-row { display:flex; align-items:center; justify-content:space-between; gap:32px; }
-.sketch-heading-row h1 { margin:0; font-family:'Manrope',sans-serif; font-size:clamp(42px,4.4vw,64px); font-weight:800; line-height:.98; letter-spacing:-.065em; }
+.sketch-heading-row h1 { margin:0; font-family:var(--font-manrope),sans-serif; font-size:clamp(42px,4.4vw,64px); font-weight:800; line-height:.98; letter-spacing:-.065em; }
 .sketch-heading-row h1 span { position:relative; z-index:0; display:inline-block; padding-inline:.06em; }
 .sketch-heading-row h1 span::before { content:""; position:absolute; z-index:-1; inset:57% 0 4%; border-radius:50%; background:var(--ws-violet); transform:rotate(-2deg); }
 .sketch-heading-row > div > p { margin:12px 0 0; color:#62718b; font-size:clamp(16px,1.7vw,22px); line-height:1.35; }
@@ -96,7 +96,7 @@
 .sketch-btn-violet { border-color:#dfd4ff; background:#e6dcff; }
 .sketch-chip { display:inline-flex; align-items:center; min-height:31px; padding:0 14px; border-radius:999px; background:#eef1f4; color:#17213a; font-size:12px; }
 .sketch-chip.is-active { background:#e0d4ff; }
-.sketch-section-title { margin:0; font-family:'Manrope',sans-serif; font-size:26px; line-height:1; letter-spacing:-.045em; }
+.sketch-section-title { margin:0; font-family:var(--font-manrope),sans-serif; font-size:26px; line-height:1; letter-spacing:-.045em; }
 .sketch-muted { color:#647491; }
 .sketch-row { display:flex; align-items:center; gap:12px; }
 
@@ -113,9 +113,9 @@
 .university-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .university-card { display:flex; flex-direction:column; min-height:220px; padding:20px; }
 .university-card.is-featured { background:#141819; color:#fff; }
-.university-card h2 { margin:0; font-family:'Manrope',sans-serif; font-size:20px; line-height:1.08; letter-spacing:-.04em; }
+.university-card h2 { margin:0; font-family:var(--font-manrope),sans-serif; font-size:20px; line-height:1.08; letter-spacing:-.04em; }
 .university-brand { display:flex; align-items:flex-start; gap:12px; }
-.university-mark { display:grid; place-items:center; flex:0 0 auto; width:52px; height:52px; border-radius:14px; background:#edf1f4; color:#171819; font-family:'Manrope',sans-serif; font-size:18px; font-weight:800; }
+.university-mark { display:grid; place-items:center; flex:0 0 auto; width:52px; height:52px; border-radius:14px; background:#edf1f4; color:#171819; font-family:var(--font-manrope),sans-serif; font-size:18px; font-weight:800; }
 .is-featured .university-mark { background:#fff; }
 .university-card .location { display:flex; align-items:center; gap:5px; margin:6px 0 0; color:#677897; font-size:11px; }
 .is-featured .location { color:#d7dde1; }
@@ -153,7 +153,7 @@
 .roadmap-dashboard-grid { display:grid; grid-template-columns:440px minmax(0,1fr); gap:16px; }
 .faculty-card { min-height:357px; padding:38px 28px 24px; }
 .faculty-card small { font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
-.faculty-card h2 { margin:15px 0 4px; font-family:'Manrope',sans-serif; font-size:38px; letter-spacing:-.055em; }
+.faculty-card h2 { margin:15px 0 4px; font-family:var(--font-manrope),sans-serif; font-size:38px; letter-spacing:-.055em; }
 .faculty-card > p { margin:0; font-size:18px; }
 .faculty-copy { max-width:360px; margin-top:23px !important; padding-top:20px; border-top:1px solid rgba(255,255,255,.35); font-size:14px !important; line-height:1.5; }
 .faculty-meta { position:absolute; right:0; bottom:0; left:0; display:grid; grid-template-columns:repeat(3,1fr); padding:14px 24px; border-top:1px solid rgba(255,255,255,.12); }
@@ -170,7 +170,7 @@
 .empty-roadmap li::before { content:"✓"; display:grid; place-items:center; width:24px; height:24px; border-radius:50%; background:#627086; color:#fff; font-size:12px; }
 .roadmap-main { display:grid; grid-template-rows:auto auto auto; gap:14px; }
 .learning-plan-card { min-height:235px; padding:25px; }
-.learning-plan-card h2 { margin:9px 0 6px; font-family:'Manrope',sans-serif; font-size:34px; letter-spacing:-.05em; }
+.learning-plan-card h2 { margin:9px 0 6px; font-family:var(--font-manrope),sans-serif; font-size:34px; letter-spacing:-.05em; }
 .learning-plan-card p { margin:0 0 12px; color:#d7dce0; }
 .learning-stats { display:grid; grid-template-columns:repeat(3,1fr); margin-top:15px; padding-top:14px; border-top:1px solid rgba(255,255,255,.22); }
 .learning-stats div { display:flex; align-items:center; gap:12px; min-height:50px; padding-inline:14px; border-left:1px solid rgba(255,255,255,.22); }
@@ -211,7 +211,7 @@
 .estimate-numbers { display:grid; grid-template-columns:1fr 1fr 1fr; margin:34px 0 22px; }
 .estimate-numbers div { padding-inline:28px; border-left:1px solid rgba(255,255,255,.18); }
 .estimate-numbers div:first-child { padding-left:0; border-left:0; }
-.estimate-numbers strong { display:block; font-family:'Manrope',sans-serif; font-size:45px; line-height:.9; }
+.estimate-numbers strong { display:block; font-family:var(--font-manrope),sans-serif; font-size:45px; line-height:.9; }
 .estimate-numbers span { display:block; margin-top:8px; font-size:16px; }
 .estimate-card > p { max-width:620px; color:#d7dce0; font-size:13px; line-height:1.5; }
 .skills-bars { display:grid; gap:17px; margin-top:22px; }
@@ -390,7 +390,7 @@
 .university-back { display:inline-flex; margin:-12px 0 18px; color:#53698b; font-size:13px; font-weight:700; text-decoration:none; }
 .university-back:hover { color:#171819; }
 .university-full-hero { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:22px; padding:30px; }
-.university-full-hero h2 { margin:16px 0 8px; font-family:'Manrope',sans-serif; font-size:clamp(28px,3vw,44px); letter-spacing:-.05em; }
+.university-full-hero h2 { margin:16px 0 8px; font-family:var(--font-manrope),sans-serif; font-size:clamp(28px,3vw,44px); letter-spacing:-.05em; }
 .university-full-hero p { max-width:720px; margin:0; color:#cbd2d7; line-height:1.55; }
 .university-full-hero > .sketch-btn { align-self:start; }
 .university-full-metrics { grid-column:1/-1; display:grid; grid-template-columns:repeat(4,1fr); margin-top:12px; padding-top:20px; border-top:1px solid rgba(255,255,255,.18); }
@@ -417,7 +417,7 @@
 /* Saved scenario calculation */
 .calculation-hero { padding:30px; }
 .calculation-hero-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
-.calculation-hero h2 { margin:14px 0 5px; font-family:'Manrope',sans-serif; font-size:clamp(30px,3vw,44px); letter-spacing:-.05em; }
+.calculation-hero h2 { margin:14px 0 5px; font-family:var(--font-manrope),sans-serif; font-size:clamp(30px,3vw,44px); letter-spacing:-.05em; }
 .calculation-hero-heading p { margin:0; color:#cbd2d7; }
 .calculation-confidence { flex:0 0 auto; padding:9px 14px; border-radius:999px; background:var(--ws-lime); color:#172000; font-size:11px; font-weight:800; text-transform:uppercase; }
 .calculation-confidence.is-review { background:#e7dcff; color:#44326f; }
@@ -426,7 +426,7 @@
 .calculation-kpis > div:first-child { padding-left:0; border-left:0; }
 .calculation-kpis span,.calculation-kpis strong,.calculation-kpis small { display:block; }
 .calculation-kpis span { color:#aeb8c0; font-size:11px; }
-.calculation-kpis strong { margin:8px 0 4px; font-family:'Manrope',sans-serif; font-size:clamp(22px,2.2vw,32px); letter-spacing:-.04em; overflow-wrap:anywhere; }
+.calculation-kpis strong { margin:8px 0 4px; font-family:var(--font-manrope),sans-serif; font-size:clamp(22px,2.2vw,32px); letter-spacing:-.04em; overflow-wrap:anywhere; }
 .calculation-kpis small { color:#c9d0d5; font-size:10px; line-height:1.35; }
 .calculation-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
 .calculation-panel { padding:24px; }
@@ -591,7 +591,7 @@
 .scenario-outcome.is-pessimistic { background:#f7f7f3; }
 .scenario-outcome.is-optimistic { background:#f4f0ff; }
 .scenario-outcome header { display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
-.scenario-outcome header strong { font-family:'Manrope',sans-serif; font-size:16px; letter-spacing:-.02em; }
+.scenario-outcome header strong { font-family:var(--font-manrope),sans-serif; font-size:16px; letter-spacing:-.02em; }
 .scenario-outcome header span { color:#637493; font-size:11px; }
 .scenario-outcome dl { display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; margin:14px 0 0; }
 .scenario-outcome dt { color:#637493; font-size:10px; }

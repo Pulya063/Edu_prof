@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 export type HeaderTheme = "light" | "dark";
 
@@ -70,6 +70,27 @@ export function updatePointerUnderline(event: ReactPointerEvent<HTMLElement>) {
   target.style.setProperty("--pointer-x", `${event.clientX - bounds.left}px`);
 }
 
+/** What reveals on the landing, by motion type. Earlier groups win when elements nest. */
+const REVEAL_GROUPS: ReadonlyArray<readonly [string, string]> = [
+  // The line (not its clipped inner span) is observed: clip-path hides the shifted span from IntersectionObserver.
+  ["line", ".headline-line"],
+  ["card", ".macbook-device, .iphone-device, .bento-card, .info-card, .calculator-device-frame, .university-card, .factor-card, .salary-core, .roadmap-card, .scholarship-card, .testimonial-card, .decision-route, .footer-ready-card"],
+  ["up", ".eyebrow, .feature-label, .section-index, .scholarship-crest, .hero-actions > a, .feature-description, .testimonials-description, .final-head > p, .comparison-method, .lime-button, .dark-pill-button, .forecast-cta, .testimonials-cta, .factor-proof > b, .roadmap-metrics > b, .carousel-controls, .testimonials-controls, .footer-wordmark, .footer-brand > p, .footer-column, .footer-legal"],
+];
+
+function markRevealTargets(page: HTMLElement) {
+  const marked: HTMLElement[] = [];
+  REVEAL_GROUPS.forEach(([kind, selector]) => {
+    page.querySelectorAll<HTMLElement>(selector).forEach((element) => {
+      // One reveal per visual unit: skip anything inside, or wrapping, an element already marked.
+      if (element.parentElement?.closest("[data-reveal]") || element.querySelector("[data-reveal]")) return;
+      element.dataset.reveal = kind;
+      marked.push(element);
+    });
+  });
+  return marked;
+}
+
 export function useReducedMotion() {
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -122,7 +143,7 @@ export function useLandingMotion({ pageRef, navigationTargets, onThemeChange, on
     const footerCard = footer?.querySelector<HTMLElement>(".footer-ready-card");
     let frame = 0;
 
-    const update = (reveal = true) => {
+    const update = (_reveal = true) => {
       frame = 0;
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
@@ -137,10 +158,6 @@ export function useLandingMotion({ pageRef, navigationTargets, onThemeChange, on
         section,
         rect: section.getBoundingClientRect(),
         triggerRect: section === footer && footerCard ? footerCard.getBoundingClientRect() : null,
-      }));
-      const deviceFrameRects = deviceFrames.map(({ section, frame: deviceFrame }) => ({
-        section,
-        rect: deviceFrame.getBoundingClientRect(),
       }));
       const heroExit = Math.max(0, Math.min(1, -(heroRect?.top ?? 0) / Math.max(1, (hero?.offsetHeight ?? viewportHeight) * .72)));
       const testimonialsProgress = Math.max(0, Math.min(1, (viewportHeight * .88 - testimonialsTop) / (viewportHeight * 1.08)));
@@ -174,29 +191,10 @@ export function useLandingMotion({ pageRef, navigationTargets, onThemeChange, on
       // Devices use one symmetric visibility state for motion in and out.
       // The measurements are refreshed by the shared scroll/resize RAF path,
       // including ResizeObserver, visualViewport and orientation changes.
-      deviceFrameRects.forEach(({ section, rect }) => {
-        const isDeviceVisible = rect.top < viewportHeight * .94 && rect.bottom > viewportHeight * .06;
-        section.classList.toggle("is-device-visible", reducedMotion || isDeviceVisible);
-      });
-
       const scrolled = window.scrollY > 16;
       if (scrolled !== scrolledRef.current) {
         scrolledRef.current = scrolled;
         optionsRef.current.onScrolledChange(scrolled);
-      }
-
-      if (reveal) {
-        // The observer owns reveals for main sections; keep only hero/footer on
-        // the custom guide line so the same class is never toggled by two systems.
-        sectionRects.forEach(({ section, rect, triggerRect }) => {
-          if (section !== hero && section !== footer) return;
-          const revealLine = section === footer ? viewportHeight * .75 : viewportHeight * .5;
-          const activeRect = triggerRect ?? rect;
-          const isInView = section === footer
-            ? activeRect.top < revealLine && rect.bottom > 0
-            : activeRect.top < revealLine && activeRect.bottom > revealLine;
-          section.classList.toggle("is-visible", isInView);
-        });
       }
 
       const anchor = (headerRect?.bottom ?? (viewportWidth < 900 ? 76 : 92)) + 16;
@@ -218,37 +216,33 @@ export function useLandingMotion({ pageRef, navigationTargets, onThemeChange, on
     const scheduleUpdate = () => {
       if (!frame) frame = requestAnimationFrame(() => update());
     };
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach((entry) => {
-        // Footer uses the scroll-sampled 25%-from-bottom guide line above; the
-        // shared observer root margin is intentionally kept for main sections.
-        if (["hero", "footer"].includes((entry.target as HTMLElement).id)) return;
-        entry.target.classList.toggle("is-visible", entry.isIntersecting);
-      }),
-      // FIX: -30% instead of -50% so sections animate in sooner on scroll
-      { threshold: .08, rootMargin: "0px 0px -30% 0px" },
-    );
-
-    // FIX: Set is-visible (with reveal=true) BEFORE adding js-ready.
-    // Old order was: update(false) → js-ready → RAF update(true), which caused
-    // one frame where hero elements were opacity:0 with no animation yet.
-    // Now: update(true) sets hero/footer visibility → pre-mark any other section
-    // already in viewport → THEN js-ready — zero flash guaranteed.
+    // Every section keeps its "visible" state so the legacy section-level hide rules never
+    // apply; individual elements reveal through the observer below instead, symmetrically
+    // on the way in and out, in both scroll directions.
+    sections.forEach((section) => section.classList.add("is-visible"));
+    deviceFrames.forEach(({ section }) => section.classList.add("is-device-visible"));
     update(true);
     page.dataset.reducedMotion = String(reducedMotion);
 
-    // Pre-mark non-hero/footer sections that are already in the viewport so
-    // js-ready doesn't hide them for even one frame before the observer fires.
-    const vh = window.innerHeight;
-    sections.forEach((section) => {
-      if (section === hero || section === footer) return;
-      const rect = section.getBoundingClientRect();
-      // Section is meaningfully visible: top above 70% of viewport
-      if (rect.top < vh * 0.7 && rect.bottom > vh * 0.1) {
-        section.classList.add("is-visible");
-      }
-      observer.observe(section);
-    });
+    const revealTargets = reducedMotion ? [] : markRevealTargets(page);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entering = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top || a.boundingClientRect.left - b.boundingClientRect.left);
+        entering.forEach((entry, index) => {
+          const target = entry.target as HTMLElement;
+          target.style.setProperty("--reveal-delay", `${Math.min(index, 6) * 70}ms`);
+          target.classList.add("is-in");
+        });
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) return;
+          const target = entry.target as HTMLElement;
+          target.style.setProperty("--reveal-delay", "0ms");
+          target.classList.remove("is-in");
+        });
+      },
+      { threshold: 0, rootMargin: "-4% 0px -10% 0px" },
+    );
+    revealTargets.forEach((target) => observer.observe(target));
 
     page.classList.add("js-ready");
 

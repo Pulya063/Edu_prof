@@ -54,16 +54,8 @@ def test_google_oauth_unconfigured_returns_503(secure_client):
     assert secure_client.get("/api/auth/login/google").status_code == 503
 
 
-def test_resource_audit_is_opt_in(monkeypatch):
+def test_resource_audit_is_removed(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
-    monkeypatch.delenv("ENABLE_RESOURCE_AUDIT", raising=False)
+    monkeypatch.setenv("ENABLE_RESOURCE_AUDIT", "true")
     app = create_app()
     assert "/api/resources" not in {rule.rule for rule in app.url_map.iter_rules()}
-
-    monkeypatch.setenv("ENABLE_RESOURCE_AUDIT", "true")
-    dev_app = create_app()
-    assert "/api/resources" in {rule.rule for rule in dev_app.url_map.iter_rules()}
-
-    monkeypatch.setenv("APP_ENV", "production")
-    prod_app = create_app()
-    assert "/api/resources" not in {rule.rule for rule in prod_app.url_map.iter_rules()}

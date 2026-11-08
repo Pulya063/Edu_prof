@@ -20,6 +20,8 @@ _EXEMPT_ENDPOINTS = {
     "auth.password_reset",
     "auth.login_google",
     "auth.auth_google_callback",
+    # Anonymous, read-only trial calculation: no account state is read or changed.
+    "roi.trial_projection_preview",
     # Stripe signs webhooks itself; it never carries our cookies.
     "payments.stripe_webhook",
 }

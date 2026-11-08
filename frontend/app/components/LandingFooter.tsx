@@ -2,6 +2,7 @@
 
 import { HeadlineLine } from "../hooks/useScrollMotion";
 
+import Link from "next/link";
 const supportEmail = process.env.NEXT_PUBLIC_FENCE_SUPPORT_EMAIL;
 
 // Only pages that exist are linked; nothing in the footer is a placeholder.
@@ -40,7 +41,7 @@ function Arrow({ up = false }: { up?: boolean }) {
 }
 
 function FooterLink({ label, href }: { label: string; href: string }) {
-  return <a className="footer-link" href={href}>{label}</a>;
+  return href.startsWith("/") ? <Link className="footer-link" href={href}>{label}</Link> : <a className="footer-link" href={href}>{label}</a>;
 }
 
 export default function LandingFooter() {
@@ -51,11 +52,11 @@ export default function LandingFooter() {
       <span className="footer-texture" aria-hidden="true" />
       <div className="footer-boundary" aria-hidden="true" />
       <div className="footer-ready-wrap">
-        <a className="footer-ready-card" href="/pricing">
+        <Link className="footer-ready-card" href="/pricing">
           <span><strong>See the plans.</strong><small>Simple pricing, billed securely through Stripe.</small></span>
           <i className="footer-ready-orb" aria-hidden="true" />
           <b aria-hidden="true"><Arrow /></b>
-        </a>
+        </Link>
       </div>
       <div className="footer-shell">
         <section className="footer-brand" aria-labelledby="footer-title">

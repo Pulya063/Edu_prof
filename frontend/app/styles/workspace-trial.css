@@ -1,0 +1,151 @@
+/* Workspace in the trial-calculator style (styles/trial.css): pill buttons with a lime glow, chunky
+   28px cards with a 6px ink shadow, colour-blocked stat tiles, full-colour verdict banners, white
+   ink-outlined inputs and a short entrance motion. Loaded after lively.css, so it refines that layer. */
+.workspace-shell { --tw-ink:#171819; --tw-paper:#f7f7f3; --tw-lime:#b7ff2a; --tw-violet:#d7c7ff; --tw-violet-deep:#8f78d6; --tw-lime-deep:#6e9a12; }
+
+/* ---------- Cards ---------- */
+.workspace-shell .sketch-card,
+.workspace-shell .ov-card,
+.workspace-shell .sc-card,
+.workspace-shell .widget,
+.workspace-shell .forecast-input-panel,
+.workspace-shell .forecast-preview,
+.workspace-shell .scenarios-side-panel { border-radius:28px; box-shadow:0 6px 0 var(--tw-ink); }
+.workspace-shell .sketch-card,
+.workspace-shell .ov-card,
+.workspace-shell .sc-card,
+.workspace-shell .widget,
+.workspace-shell .cc-card { animation:tw-in .45s cubic-bezier(.22,1,.36,1) both; }
+.workspace-shell :is(.sketch-card,.ov-card,.sc-card,.widget,.cc-card):nth-child(2) { animation-delay:.05s; }
+.workspace-shell :is(.sketch-card,.ov-card,.sc-card,.widget,.cc-card):nth-child(3) { animation-delay:.1s; }
+.workspace-shell :is(.sketch-card,.ov-card,.sc-card,.widget,.cc-card):nth-child(n+4) { animation-delay:.15s; }
+
+/* ---------- Buttons: pills that lift with a lime glow ---------- */
+.workspace-shell :is(.sketch-btn,.btn-new-scenario,.btn-open-prediction,.btn-sp-full,.btn-edit-profile,.btn-plan-options,.btn-upload,.btn-create,.ov-button,.settings-row button,.settings-link-button,.forecast-action button) {
+  border-radius:999px; transition:transform .14s ease, box-shadow .14s ease, background-color .2s ease;
+}
+.workspace-shell :is(.sketch-btn,.btn-new-scenario,.btn-open-prediction,.btn-sp-full,.btn-edit-profile,.btn-plan-options,.btn-create,.ov-button,.settings-link-button,.forecast-action button):hover:not(:disabled) {
+  transform:translateY(-2px); box-shadow:0 7px 0 var(--tw-ink);
+}
+.workspace-shell :is(.sketch-btn-primary,.btn-new-scenario,.btn-create,.forecast-action button):hover:not(:disabled) {
+  box-shadow:0 7px 0 var(--tw-ink), 0 12px 28px rgba(183,255,42,.5);
+}
+.workspace-shell :is(.sketch-btn,.btn-new-scenario,.btn-open-prediction,.btn-create,.ov-button,.forecast-action button):active:not(:disabled) { transform:translateY(3px); box-shadow:0 1px 0 var(--tw-ink); }
+.workspace-shell .forecast-action button { min-height:56px; }
+
+/* ---------- Chips ---------- */
+.workspace-shell :is(.sketch-chip,.ov-pill,.skill-tag,.career-target-tag,.resume-step-pill) { border-width:2px; }
+.workspace-shell button.sketch-chip { min-height:40px; padding:0 14px; cursor:pointer; transition:transform .14s ease, box-shadow .14s ease, background-color .2s ease; }
+.workspace-shell button.sketch-chip:hover { transform:translateY(-2px); box-shadow:0 3px 0 var(--tw-ink); }
+.workspace-shell :is(.sketch-chip.is-active,[aria-pressed="true"].sketch-chip) { background:var(--tw-lime); box-shadow:0 3px 0 var(--tw-ink); }
+
+/* ---------- Inputs: white, ink outline, the same focus ring as the trial form ---------- */
+.workspace-shell :is(.scenario-field input,.scenario-field select,.sketch-field,.scenarios-search,.pi-select,.pi-textarea,.settings-row select,.university-search input) {
+  min-height:46px; border:2px solid var(--tw-ink); border-radius:14px; background:#fff; color:var(--tw-ink);
+}
+.workspace-shell .pi-textarea { min-height:110px; }
+.workspace-shell :is(.scenario-field input,.scenario-field select,.pi-select,.pi-textarea,.settings-row select,.university-search input):focus,
+.workspace-shell .scenarios-search:focus-within { outline:3px solid var(--tw-ink); outline-offset:2px; border-color:var(--tw-ink); box-shadow:none; background:#fff; }
+.workspace-shell .scenario-field input[aria-invalid="true"] { border-color:#c0392b; }
+.workspace-shell input[type="range"] { accent-color:var(--tw-ink); }
+.workspace-shell input[type="checkbox"],
+.workspace-shell input[type="radio"] { accent-color:var(--tw-lime-deep); }
+
+/* ---------- Status notices ---------- */
+.workspace-shell :is(.workspace-status,.wi-notice) { padding:18px 20px; border-radius:18px; box-shadow:0 4px 0 var(--tw-ink); font-size:15px; font-weight:600; }
+.workspace-shell .workspace-status.is-error { background:#fff; color:#a52a1d; }
+
+/* ---------- Full calculation: colour-blocked tiles and verdict, like the trial result ---------- */
+.workspace-shell .calculation-hero .calculation-kpis > div { display:flex; flex-direction:column; gap:4px; border:2px solid var(--tw-ink) !important; border-radius:18px; color:var(--tw-ink); box-shadow:0 4px 0 rgba(0,0,0,.55); animation:tw-in .4s cubic-bezier(.22,1,.36,1) both; }
+.workspace-shell .calculation-hero .calculation-kpis > div:nth-child(1) { background:var(--tw-paper); }
+.workspace-shell .calculation-hero .calculation-kpis > div:nth-child(2) { background:var(--tw-lime); animation-delay:.05s; }
+.workspace-shell .calculation-hero .calculation-kpis > div:nth-child(3) { background:var(--tw-violet); animation-delay:.1s; }
+.workspace-shell .calculation-hero .calculation-kpis > div:nth-child(4) { background:#fff; animation-delay:.15s; }
+.workspace-shell .calculation-hero .calculation-kpis span { color:var(--tw-ink); font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; opacity:.7; }
+.workspace-shell .calculation-hero .calculation-kpis strong { color:var(--tw-ink); font-size:clamp(20px,1.9vw,30px); }
+.workspace-shell .calculation-hero .calculation-kpis small { color:var(--tw-ink); opacity:.75; }
+.workspace-shell .payback-verdict { border-radius:18px; font-weight:700; animation:tw-in .35s cubic-bezier(.22,1,.36,1) both; }
+.workspace-shell .payback-verdict.is-met { background:var(--tw-lime); }
+.workspace-shell .payback-verdict.is-missed { background:var(--tw-violet); }
+.workspace-shell .payback-verdict-badge { background:#fff !important; }
+.workspace-shell .scenario-outcome { border-radius:18px; background:#fff; }
+.workspace-shell .scenario-outcome.is-base { background:var(--tw-lime); }
+.workspace-shell .calculation-lines .is-total { margin-top:6px; padding:12px 14px; border:2px solid var(--tw-ink); border-radius:14px; background:var(--tw-lime); }
+.workspace-shell .calculation-evidence article { border:2px solid var(--tw-ink); border-radius:16px; background:var(--tw-paper); }
+.workspace-shell .calculation-panel-heading > svg,
+.workspace-shell .calculation-panel-heading > .icon { flex:none; padding:8px; border:2px solid var(--tw-ink); border-radius:14px; background:var(--tw-violet); box-sizing:content-box; }
+
+/* ---------- Charts on the full calculation (CalculationCharts.tsx) ---------- */
+.cc-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:14px; scroll-margin-top:90px; }
+.cc-card { position:relative; display:grid; align-content:start; gap:14px; min-width:0; margin:0; padding:clamp(18px,2.4vw,24px); border:2px solid #171819; border-radius:28px; background:#fff; color:#171819; box-shadow:0 6px 0 #171819; }
+.cc-card--dark { background:#171819; color:#f7f7f3; box-shadow:0 6px 0 #d7c7ff; }
+.cc-wide { grid-column:1 / -1; }
+.cc-card figcaption { display:grid; gap:4px; }
+.cc-card figcaption strong { font-family:var(--font-manrope),sans-serif; font-size:clamp(19px,1.8vw,24px); font-weight:800; letter-spacing:-.04em; }
+.cc-card figcaption span { font-size:13px; line-height:1.45; opacity:.75; }
+.cc-plot { position:relative; min-width:0; overflow:hidden; }
+.cc-plot svg { display:block; overflow:visible; }
+.cc-plot .cc-gridline { stroke:rgba(247,247,243,.12); stroke-width:1; }
+.cc-plot .cc-zero { stroke:rgba(247,247,243,.55); stroke-width:1.5; }
+.cc-axis { fill:#a9adb3; font-size:11px; font-weight:600; }
+.cc-line { fill:none; stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
+.cc-line--lime { stroke:#b7ff2a; }
+.cc-line--violet { stroke:#d7c7ff; }
+.cc-line--dashed { stroke-dasharray:6 5; }
+.cc-dot { fill:#b7ff2a; stroke:#171819; stroke-width:2; transition:r .15s ease; }
+.cc-dot--violet { fill:#d7c7ff; }
+.cc-cross { stroke:rgba(247,247,243,.45); stroke-width:1; stroke-dasharray:3 3; }
+.cc-target { stroke:#d7c7ff; stroke-width:1.5; stroke-dasharray:4 4; }
+.cc-note { fill:#d7c7ff; font-size:11px; font-weight:800; letter-spacing:.04em; }
+.cc-note--strong { fill:#b7ff2a; font-size:12px; paint-order:stroke; stroke:#171819; stroke-width:5px; stroke-linejoin:round; }
+.cc-payback circle { fill:#171819; stroke:#b7ff2a; stroke-width:3; }
+.cc-end { font-size:12px; font-weight:800; }
+.cc-end--lime { fill:#b7ff2a; } .cc-end--violet { fill:#d7c7ff; }
+.cc-hit { fill:transparent; cursor:crosshair; }
+.cc-tip { position:absolute; top:6px; display:grid; gap:2px; min-width:150px; padding:9px 12px; border:2px solid #171819; border-radius:14px; background:#f7f7f3; color:#171819; font-size:12px; line-height:1.35; box-shadow:0 3px 0 #b7ff2a; transform:translateX(-50%); pointer-events:none; }
+.cc-tip b { font-size:12px; font-weight:800; }
+.cc-legend { display:flex; flex-wrap:wrap; gap:14px; margin:0; padding:0; list-style:none; font-size:12px; font-weight:700; }
+.cc-legend li { display:inline-flex; align-items:center; gap:7px; }
+.cc-legend i { display:inline-block; width:22px; height:0; border-top:3px solid; }
+.cc-legend i.is-lime { border-color:#b7ff2a; } .cc-legend i.is-violet { border-color:#d7c7ff; } .cc-legend i.is-dashed { border-top-style:dashed; }
+
+.cc-stack { display:flex; gap:2px; height:44px; padding:3px; border:2px solid #171819; border-radius:14px; background:#fff; }
+.cc-stack i { min-width:6px; border-radius:4px; transition:opacity .2s ease; }
+.cc-stack i.is-dim { opacity:.3; }
+.is-ink { background:#171819; } .is-violet-deep { background:#8f78d6; } .is-lime-deep { background:#6e9a12; }
+.cc-card .is-violet { background:#d7c7ff; } .cc-card .is-lime { background:#b7ff2a; }
+.cc-mix { display:grid; gap:6px; margin:0; padding:0; list-style:none; }
+.cc-mix li { display:grid; grid-template-columns:14px minmax(0,1fr) auto 44px; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; font-size:13px; transition:background-color .15s ease; }
+.cc-mix li.is-on { background:#f7f7f3; }
+.cc-mix i { width:14px; height:14px; border:1.5px solid #171819; border-radius:4px; }
+.cc-mix b { font-weight:800; white-space:nowrap; }
+.cc-mix em { color:#5e6469; font-style:normal; font-weight:700; text-align:right; }
+
+.cc-bars { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
+.cc-bars li { display:grid; grid-template-columns:110px minmax(0,1fr) 92px; align-items:center; gap:12px; }
+.cc-bars li > span,.cc-bars li > b { display:grid; gap:1px; font-size:14px; font-weight:800; }
+.cc-bars li > b { text-align:right; white-space:nowrap; }
+.cc-bars small { color:#5e6469; font-size:11px; font-weight:600; }
+.cc-bar-track { height:30px; padding:3px; border:2px solid #171819; border-radius:999px; background:#f7f7f3; }
+.cc-bar-track i { display:block; height:100%; border-radius:999px; background:#171819; animation:tw-grow .6s cubic-bezier(.22,1,.36,1) both; transform-origin:left; }
+.cc-bars li.is-base .cc-bar-track i { background:#b7ff2a; box-shadow:inset 0 0 0 2px #171819; }
+.cc-bars li.is-never .cc-bar-track i { background:repeating-linear-gradient(135deg,#d7c7ff 0 6px,#fff 6px 11px); box-shadow:inset 0 0 0 2px #8f78d6; }
+
+@keyframes tw-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+@keyframes tw-grow { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+
+@media (max-width:1000px) { .cc-grid { grid-template-columns:1fr; } }
+@media (max-width:620px) {
+  .workspace-shell :is(.sketch-card,.ov-card,.sc-card,.widget,.forecast-input-panel,.forecast-preview) { border-radius:22px; }
+  .cc-card { border-radius:22px; }
+  .cc-bars li { grid-template-columns:1fr auto; }
+  .cc-bars li .cc-bar-track { grid-column:1 / -1; grid-row:2; }
+  .cc-mix li { grid-template-columns:14px minmax(0,1fr) auto; }
+  .cc-mix em { display:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .workspace-shell :is(.sketch-card,.ov-card,.sc-card,.widget,.cc-card,.payback-verdict),
+  .workspace-shell .calculation-hero .calculation-kpis > div,
+  .cc-bar-track i { animation:none; }
+  .workspace-shell :is(.sketch-btn,.btn-new-scenario,.btn-create,.ov-button,button.sketch-chip):hover { transform:none; }
+}

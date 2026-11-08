@@ -11,7 +11,7 @@ from app.core.database import db
 from app.core.exceptions import AppError
 from app.core.logging_config import configure_logging, register_request_logging
 from dotenv import load_dotenv
-from app.core.config import auth_cookie_options, is_production, resource_audit_enabled
+from app.core.config import auth_cookie_options, is_production
 
 load_dotenv()
 
@@ -57,14 +57,8 @@ def create_app() -> Flask:
     flask_app.register_blueprint(market.blueprint, url_prefix="/api/market")
     flask_app.register_blueprint(tuition.blueprint, url_prefix="/api/tuition")
     flask_app.register_blueprint(payments.blueprint, url_prefix="/api/payments")
-    flask_app.register_blueprint(roadmap.blueprint, url_prefix="/roadmap")
-    flask_app.register_blueprint(roadmap.blueprint, url_prefix="/api/roadmap", name="roadmap_api")
+    flask_app.register_blueprint(roadmap.blueprint, url_prefix="/api/roadmap")
     flask_app.register_blueprint(workspace.blueprint, url_prefix="/api/workspace")
-    from app.api import ui
-    flask_app.register_blueprint(ui.blueprint, url_prefix="/ui")
-    if resource_audit_enabled():
-        from app.api import resource_audit
-        flask_app.register_blueprint(resource_audit.blueprint)
 
     @flask_app.before_request
     def protect_cookie_mutations() -> None:
@@ -78,10 +72,6 @@ def create_app() -> Flask:
         g.user = None
         g.new_tokens = None  # filled when silent refresh occurs
         g.clear_auth_cookies = False
-
-        if request.path == "/api/resources" or request.path == "/resources":
-            logger.info("Public endpoint accessed: %s", request.path)
-            return
 
         access_token = request.cookies.get("access_token")
         if access_token:

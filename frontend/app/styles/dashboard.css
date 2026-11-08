@@ -24,7 +24,7 @@
   margin-bottom: 8px;
 }
 .dashboard-title-row h1 {
-  font-family: 'Manrope', sans-serif;
+  font-family: var(--font-manrope), sans-serif;
   font-size: clamp(38px, 4.4vw, 58px);
   font-weight: 800;
   letter-spacing: -0.03em;

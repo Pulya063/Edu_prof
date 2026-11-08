@@ -27,7 +27,7 @@
 .landing-page #hero::before,
 .landing-page #hero::after { content:""; position:absolute; z-index:-1; border-radius:50%; pointer-events:none; }
 .landing-page #hero::before { top:-140px; right:-120px; width:560px; height:560px; background:radial-gradient(circle, rgba(215,199,255,.75) 0 45%, transparent 70%); }
-.landing-page #hero::after { bottom:-160px; left:-120px; width:420px; height:420px; background:radial-gradient(circle, rgba(183,255,42,.35) 0 40%, transparent 70%); }
+.landing-page #hero::after { bottom:0; left:-120px; width:420px; height:420px; background:radial-gradient(circle, rgba(183,255,42,.35) 0 40%, transparent 70%); }
 
 .landing-page #hero .hero-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:6px 0 28px; }
 .hero-button {
@@ -118,6 +118,92 @@
 .landing-page .dark-pill-button:active,
 .landing-page .forecast-cta:active,
 .landing-page .testimonials-cta:active { transform:translateY(3px) !important; box-shadow:none; }
+
+/* ---------- Calculator screen on the iPad ----------
+   The same outlined, pressable language as the workspace, sized for the small projected screen:
+   ink outlines, offset shadows, paper fields, lime progress and a violet badge. */
+.landing-page .calculator-section .calculator-main { --scr-ink:#171819; --scr-shadow:0 2px 0 var(--scr-ink); color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-main h3 { font-family:var(--font-manrope),sans-serif; font-weight:800; letter-spacing:-.05em; }
+.landing-page .calculator-section .calculator-breadcrumb { padding:4px 8px; border:1.5px solid var(--scr-ink); border-radius:999px; background:#d7c7ff; color:var(--scr-ink); font-weight:800; letter-spacing:.04em; white-space:nowrap; }
+.landing-page .calculator-section .calculator-form label { font-weight:800; color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-form select { border:1.5px solid var(--scr-ink) !important; border-radius:12px !important; background:#fff !important; color:var(--scr-ink); font-weight:700; box-shadow:var(--scr-shadow) !important; }
+.landing-page .calculator-section .calculator-form select:hover { background:#f2edff !important; }
+.landing-page .calculator-section .calculator-form select:focus-visible { box-shadow:var(--scr-shadow), 0 0 0 3px #d7c7ff !important; }
+.landing-page .calculator-section .calculator-field--range output { border:1.5px solid var(--scr-ink); background:#b7ff2a; font-weight:800; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-webkit-slider-runnable-track { height:8px; border:1.5px solid var(--scr-ink); box-sizing:content-box; background:linear-gradient(90deg,#b7ff2a,#b7ff2a) no-repeat, #fff; background-size:var(--range-progress,50%) 100%; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-moz-range-track { height:8px; border:1.5px solid var(--scr-ink); background:#fff; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-moz-range-progress { height:8px; background:#b7ff2a; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-webkit-slider-thumb { width:18px; height:18px; margin-top:-6.5px; border:2px solid var(--scr-ink); background:#fff; box-shadow:var(--scr-shadow); }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-moz-range-thumb { width:14px; height:14px; border:2px solid var(--scr-ink); background:#fff; box-shadow:var(--scr-shadow); }
+.landing-page .calculator-section .calculator-field--range input[type="range"]:hover::-webkit-slider-thumb,
+.landing-page .calculator-section .calculator-field--range input[type="range"]:focus-visible::-webkit-slider-thumb { background:#b7ff2a; }
+.landing-page .calculator-section .calculate-button { border:1.5px solid var(--scr-ink) !important; border-radius:999px !important; background:#b7ff2a !important; color:var(--scr-ink) !important; font-weight:800; box-shadow:0 3px 0 var(--scr-ink) !important; transition:transform .15s ease, box-shadow .15s ease !important; }
+.landing-page .calculator-section .calculate-button:hover { transform:translateY(-1px); box-shadow:0 4px 0 var(--scr-ink) !important; }
+.landing-page .calculator-section .calculate-button:active { transform:translateY(2px); box-shadow:0 1px 0 var(--scr-ink) !important; }
+.landing-page .calculator-section .calculator-board.ipad-device .calculator-results article { border:1.5px solid var(--scr-ink) !important; border-radius:16px !important; box-shadow:var(--scr-shadow) !important; color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-results .roi-result { background:#b7ff2a !important; }
+.landing-page .calculator-section .calculator-results .payback-result { background:#d7c7ff !important; }
+.landing-page .calculator-section .calculator-results .salary-result { background:#fff !important; }
+.landing-page .calculator-section .calculator-results strong { font-family:var(--font-manrope),sans-serif; font-weight:800; letter-spacing:-.04em; color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-results span,
+.landing-page .calculator-section .calculator-results small { color:var(--scr-ink); opacity:.78; }
+.landing-page .calculator-section .calculator-results span { font-weight:800; opacity:1; }
+/* The header badge keeps its own height instead of stretching to the title block. */
+.landing-page .calculator-section .calculator-main header { align-items:flex-start; }
+.landing-page .calculator-section .calculator-breadcrumb { align-self:flex-start; height:auto; line-height:1.3; }
+/* Decorative glow and dot sat on top of the figures; the coloured cards carry the accent now. */
+.landing-page .calculator-section .calculator-results .blur-orb { display:none !important; }
+.landing-page .calculator-section .calculator-results .salary-result > b { width:14px !important; height:14px !important; top:12px !important; right:12px !important; left:auto !important; bottom:auto !important; border:1.5px solid var(--scr-ink); border-radius:50%; background:#b7ff2a !important; }
+/* On phones the projected screen is tiny: one results column keeps "14 months" on one line, and the
+   badge is dropped so it does not become a full-width strip under the title. */
+@media (max-width:600px) {
+  .landing-page .calculator-section .calculator-board.ipad-device .calculator-results { grid-template-columns:minmax(0, 1fr) !important; }
+  .landing-page .calculator-section .calculator-board.ipad-device .calculator-results .roi-result { grid-column:auto; }
+  .landing-page .calculator-section .calculator-breadcrumb { display:none; }
+}
+@media (prefers-reduced-motion:reduce) { .landing-page .calculator-section .calculate-button { transition:none !important; } }
+
+/* ---------- Hero order in one column ----------
+   Below 1100px the hero stacks. Read top to bottom: copy and the two buttons, then the device
+   preview, then the black info card (the phone layout already did this from 720px down). */
+@media (max-width: 1100px) {
+  .landing-page #hero .hero-content { display:grid !important; grid-template-columns:minmax(0, 1fr) !important; }
+  .landing-page #hero .hero-copy { display:contents !important; }
+  .landing-page #hero .hero-copy > .eyebrow { grid-row:1; }
+  .landing-page #hero .hero-copy > h1 { grid-row:2; }
+  .landing-page #hero .hero-actions { grid-row:3; margin-bottom:34px; }
+  .landing-page #hero .dashboard-stage { grid-row:4; margin-bottom:34px; }
+  .landing-page #hero .info-card { grid-row:5; width:min(100%, 460px); margin:0 auto 42px; }
+}
+
+/* ---------- Seams between chapters ----------
+   A dark chapter after a light one (and the reverse) used to start with a hard elliptical arc. Instead,
+   each chapter now opens in the colour of the chapter above and eases into its own over a tall band,
+   with a smoothstep ramp so neither edge of the blend shows. */
+.landing-page .comparison-section::before,
+.landing-page .testimonials-section::before,
+.landing-page .roadmap-section::before {
+  inset:0 0 auto 0 !important; left:0 !important; top:0 !important; width:100% !important;
+  height:clamp(120px, 12vw, 190px) !important; clip-path:none !important; z-index:0 !important;
+}
+.landing-page .comparison-section::before,
+.landing-page .testimonials-section::before {
+  background:linear-gradient(180deg,
+    rgba(231,233,237,1) 0%, rgba(231,233,237,0.97) 10%, rgba(231,233,237,0.9) 20%, rgba(231,233,237,0.78) 30%, rgba(231,233,237,0.65) 40%, rgba(231,233,237,0.5) 50%,
+    rgba(231,233,237,0.35) 60%, rgba(231,233,237,0.22) 70%, rgba(231,233,237,0.1) 80%, rgba(231,233,237,0.03) 90%, rgba(231,233,237,0) 100%) !important;
+}
+.landing-page .roadmap-section::before {
+  background:linear-gradient(180deg,
+    rgba(23,24,25,1) 0%, rgba(23,24,25,0.97) 10%, rgba(23,24,25,0.9) 20%, rgba(23,24,25,0.78) 30%, rgba(23,24,25,0.65) 40%, rgba(23,24,25,0.5) 50%,
+    rgba(23,24,25,0.35) 60%, rgba(23,24,25,0.22) 70%, rgba(23,24,25,0.1) 80%, rgba(23,24,25,0.03) 90%, rgba(23,24,25,0) 100%) !important;
+}
+/* Content sits above the blend band. */
+.landing-page .comparison-section > .feature-shell,
+.landing-page .roadmap-section > .feature-shell,
+.landing-page .testimonials-section > .testimonials-inner { position:relative; z-index:1; }
+/* Testimonials no longer stack above the page-wide contour lines, so the lines run on into the
+   final chapter instead of starting abruptly at its top edge. */
+.landing-page .testimonials-section { z-index:auto !important; }
 
 @media (prefers-reduced-motion:reduce) {
   .nav-indicator,.hero-button,.hero-button span { transition:none; }

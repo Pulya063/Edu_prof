@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
+import { DM_Sans, Manrope } from "next/font/google";
 import "./globals.css";
 import "./styles/footer.css";
 import "./styles/final-pass.css";
 import "./styles/responsive.css";
 import { LanguageProvider } from "./context/LanguageContext";
 import { SITE_URL } from "./utils/site";
+
+// Self-hosted at build time: hashed files under /_next/static, cached immutably, no render-blocking
+// request to Google. CSS uses the variables (var(--font-manrope), var(--font-dmsans)).
+const manrope = Manrope({ subsets: ["latin", "latin-ext", "cyrillic"], weight: ["400", "500", "600", "700", "800"], display: "swap", variable: "--font-manrope" });
+const dmSans = DM_Sans({ subsets: ["latin", "latin-ext"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-dmsans" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -46,12 +52,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${manrope.variable} ${dmSans.variable}`}>
       <head>
         <meta charSet="utf-8" />
-        {/* Preconnect to Google Fonts to eliminate DNS + TLS latency */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
         <LanguageProvider>{children}</LanguageProvider>

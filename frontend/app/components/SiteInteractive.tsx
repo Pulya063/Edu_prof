@@ -1,11 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-/* Small interactive pieces for the public sub-pages. Every number here is computed by the
-   formulas below from the visitor's own slider values; nothing is fetched or generated. */
-
-const money = (value: number) => Math.round(value).toLocaleString("en-US").replace(/,/g, " ");
+/* Small interactive pieces for the public sub-pages. The figures in them are fixed examples;
+   real calculations live in TrialCalculator, which calls the server engine. */
 
 /** Hero decoration for sub-pages: three outlined, colour-blocked cards that drift. */
 export function SiteHeroArt({ items }: { items: ReadonlyArray<readonly [string, string]> }) {
@@ -75,72 +73,6 @@ export function ProductTabs() {
           {"rows" in product && <small className="pp-progress">Example, PLN, today&rsquo;s money</small>}
           {"bars" in product && <small className="pp-progress">Example 10-year return index</small>}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Slider({ label, value, min, max, step, suffix, onChange }: { label: string; value: number; min: number; max: number; step: number; suffix: string; onChange: (value: number) => void }) {
-  return (
-    <label className="pg-slider">
-      <span className="pg-slider-head"><span>{label}</span><b>{money(value)} {suffix}</b></span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))}
-        style={{ "--fill": `${((value - min) / (max - min)) * 100}%` } as React.CSSProperties} />
-    </label>
-  );
-}
-
-/** A pocket version of the Fence model: today's money, no salary growth, 100% of work given up. */
-export function PaybackPlayground() {
-  const [tuition, setTuition] = useState(8000);
-  const [years, setYears] = useState(4);
-  const [baseline, setBaseline] = useState(4800);
-  const [target, setTarget] = useState(9400);
-  const [search, setSearch] = useState(3);
-
-  const result = useMemo(() => {
-    const direct = tuition * years;
-    const opportunity = baseline * 12 * years;
-    const investment = direct + opportunity;
-    const gain = target - baseline;
-    let cumulative = 0;
-    let payback: number | null = null;
-    const yearly: number[] = [];
-    for (let month = 1; month <= 120; month += 1) {
-      cumulative += month <= search ? -baseline : gain;
-      if (payback === null && cumulative >= investment) payback = month;
-      if (month % 12 === 0) yearly.push(cumulative);
-    }
-    const roi = investment > 0 ? ((cumulative - investment) / investment) * 100 : 0;
-    return { direct, opportunity, investment, payback, roi, yearly };
-  }, [tuition, years, baseline, target, search]);
-
-  const scale = Math.max(result.investment, ...result.yearly, 1);
-  return (
-    <div className="playground">
-      <div className="pg-controls">
-        <Slider label="Tuition per year" value={tuition} min={0} max={40000} step={1000} suffix="PLN" onChange={setTuition} />
-        <Slider label="Study years" value={years} min={1} max={6} step={1} suffix="yrs" onChange={setYears} />
-        <Slider label="Monthly pay without the degree" value={baseline} min={0} max={12000} step={100} suffix="PLN" onChange={setBaseline} />
-        <Slider label="Monthly pay after graduating" value={target} min={1000} max={25000} step={100} suffix="PLN" onChange={setTarget} />
-        <Slider label="Months to find the first job" value={search} min={0} max={12} step={1} suffix="mo" onChange={setSearch} />
-      </div>
-      <div className="pg-result" aria-live="polite">
-        <div className="pg-stats">
-          <div className="pg-stat pg-stat--paper"><small>Investment</small><b>{money(result.investment)}</b><span>{money(result.direct)} direct + {money(result.opportunity)} given up</span></div>
-          <div className="pg-stat pg-stat--lime"><small>Payback after graduating</small><b>{result.payback === null ? "10y+" : `${result.payback} mo`}</b><span>{result.payback === null ? "not within 10 years" : `≈ ${(result.payback / 12).toFixed(1)} years`}</span></div>
-          <div className="pg-stat pg-stat--violet"><small>10-year ROI</small><b>{result.roi >= 0 ? "+" : ""}{result.roi.toFixed(0)}%</b><span>gain vs. investment</span></div>
-        </div>
-        <div className="pg-chart" role="img" aria-label="Cumulative gain for each of the 10 years after graduating, against the investment line">
-          <span className="pg-chart-plot"><span className="pg-chart-line" style={{ bottom: `${(result.investment / scale) * 100}%` }}><em>investment</em></span></span>
-          {result.yearly.map((value, index) => (
-            <span key={index} className={`pg-col ${value >= result.investment ? "is-paid" : ""}`}>
-              <i style={{ height: `${Math.max(0, value / scale) * 100}%` }} />
-              <small>{index + 1}</small>
-            </span>
-          ))}
-        </div>
-        <p className="pg-note">Illustration in today&rsquo;s money with no salary growth. Your real calculation adds growth, inflation, job-search time, employment probability and live salary data.</p>
       </div>
     </div>
   );

@@ -49,7 +49,7 @@ export default function AboutPage() {
       <section className="site-cta" aria-labelledby="cta-title">
         <h2 id="cta-title">Your first scenario is <span className="site-mark">one click away.</span></h2>
         <div className="site-cta-actions">
-          <a className="site-button site-button--lime" href="/register">Create my calculation <span aria-hidden="true">→</span></a>
+          <a className="site-button site-button--lime" href="/try">Try a calculation <span aria-hidden="true">→</span></a>
           <a className="site-button site-button--ghost" href="/calculation">How it is calculated</a>
         </div>
       </section>

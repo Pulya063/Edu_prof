@@ -82,7 +82,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.core.celery_app worker --loglevel=info
+    # The default is one child per CPU; recycling returns memory that pandas tasks leave behind.
+    command: celery -A app.core.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=50
 
 volumes:
   postgres_data:

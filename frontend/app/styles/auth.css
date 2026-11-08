@@ -68,7 +68,7 @@
 }
 .auth-brand-body > h1 {
   margin:0 0 20px;
-  font-family:'Manrope', sans-serif;
+  font-family:var(--font-manrope), sans-serif;
   font-size:clamp(48px, 5.5vw, 78px);
   font-weight:800;
   line-height:.88;
@@ -120,7 +120,7 @@
 }
 .auth-form-header h2 {
   margin:0;
-  font-family:'Manrope', sans-serif;
+  font-family:var(--font-manrope), sans-serif;
   font-size:clamp(32px, 3.5vw, 46px);
   font-weight:800;
   line-height:.94;
@@ -365,11 +365,11 @@
 .aba-grid { position:absolute; inset:6% 0 0 12%; background-image:radial-gradient(rgba(248,248,244,.22) 1.4px, transparent 1.6px); background-size:22px 22px; border-radius:30px; mask-image:radial-gradient(circle at 60% 45%, #000 40%, transparent 75%); }
 .aba-ring { position:absolute; top:2%; right:4%; display:grid; place-items:center; width:42%; aspect-ratio:1; border-radius:50%; background:conic-gradient(#b7ff2a 0 68%, rgba(248,248,244,.14) 68% 100%); animation:aba-spin-in 1.4s cubic-bezier(.22,1,.36,1) both; }
 .aba-ring::before { content:""; position:absolute; inset:14%; border-radius:50%; background:#171819; }
-.aba-ring b { position:relative; font-family:'Manrope',sans-serif; font-size:clamp(26px,2.6vw,38px); font-weight:800; letter-spacing:-.06em; text-align:center; line-height:1; }
+.aba-ring b { position:relative; font-family:var(--font-manrope),sans-serif; font-size:clamp(26px,2.6vw,38px); font-weight:800; letter-spacing:-.06em; text-align:center; line-height:1; }
 .aba-ring small { display:block; margin-top:4px; color:#898d91; font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
 .aba-card { position:absolute; display:flex; flex-direction:column; gap:4px; padding:16px 18px; border:2px solid #f8f8f4; border-radius:22px; color:#171819; animation:aba-float 6s ease-in-out infinite; }
 .aba-card small { font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; opacity:.7; }
-.aba-card b { font-family:'Manrope',sans-serif; font-size:clamp(24px,2.4vw,34px); font-weight:800; letter-spacing:-.06em; line-height:1; }
+.aba-card b { font-family:var(--font-manrope),sans-serif; font-size:clamp(24px,2.4vw,34px); font-weight:800; letter-spacing:-.06em; line-height:1; }
 .aba-card--lime { top:34%; left:0; width:58%; background:#b7ff2a; box-shadow:0 5px 0 #d7c7ff; transform:rotate(-4deg); }
 .aba-card--violet { top:66%; right:2%; width:44%; background:#d7c7ff; box-shadow:0 5px 0 #b7ff2a; transform:rotate(5deg); animation-delay:-2s; }
 .aba-card--paper { bottom:0; left:10%; width:46%; background:#f8f8f4; box-shadow:0 5px 0 #b7ff2a; transform:rotate(-2deg); animation-delay:-4s; }

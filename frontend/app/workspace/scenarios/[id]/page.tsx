@@ -9,6 +9,7 @@ import { formatMoney, formatPercent } from "@/lib/api/decimal";
 import type { SimulationProjectionResponse, SimulationScenarioResponse } from "@/lib/api/generated";
 import { useWorkspaceAuth } from "@/components/auth/WorkspaceAuthGuard";
 import SectionNav, { type SectionLink } from "./SectionNav";
+import CalculationCharts from "./CalculationCharts";
 
 type Scenario = SimulationScenarioResponse;
 type Projection = SimulationProjectionResponse;
@@ -44,6 +45,7 @@ const scenarioSources: Record<string, string> = { pessimistic: "Market minimum",
 
 const calculationSections: SectionLink[] = [
   { id: "summary", label: "Summary" },
+  { id: "charts", label: "Charts" },
   { id: "scenarios", label: "Scenarios" },
   { id: "investment", label: "Investment" },
   { id: "assumptions", label: "Assumptions" },
@@ -170,6 +172,7 @@ export default function CalculationDetailsPage() {
     {projection ? <>
       <SectionNav sections={calculationSections} />
       <section id="summary" className="sketch-card sketch-card-dark calculation-hero"><Topography/><div className="calculation-hero-heading"><div><span className="sketch-chip is-active">Saved calculation</span><h2>Education investment forecast</h2><p>{scenario.target_role} · {projection.horizon_years}-year horizon · {projection.methodology_version}</p></div><span className={`calculation-confidence ${projection.unverified_assumptions.length ? "is-review" : ""}`}>{projection.unverified_assumptions.length ? "Review assumptions" : "Evidence attached"}</span></div><div className="calculation-kpis"><div><span>Total investment</span><strong>{money(projection.total_investment)}</strong><small>Direct cost + opportunity cost</small></div><div><span>Starting salary</span><strong>{money(projection.estimated_start_salary)}</strong><small>{projection.salary_basis.replaceAll("_", " ")}</small></div><div><span>Payback period</span><strong>{months(projection.payback_months)}</strong><small>{projection.break_even_reached ? "Break-even reached in horizon" : "Outside selected horizon"}</small></div><div><span>ROI</span><strong>{formatPercent(projection.roi_percent, "—")}</strong><small>{money(projection.cumulative_incremental_earnings)} cumulative gain</small></div></div>{projection.target_payback_years != null ? <PaybackVerdict projection={projection}/> : null}</section>
+      <CalculationCharts projection={projection} money={money} />
       <section id="scenarios" className="sketch-card calculation-panel calculation-scenarios"><div className="calculation-panel-heading"><Icon name="tasks"/><div><h2>Scenarios</h2><p>The same costs and growth with the market minimum, median and maximum start salary.</p></div></div>
         {projection.scenario_outcomes.length ? <>
           <div className="scenario-outcomes">{projection.scenario_outcomes.map((item) => <article key={item.scenario} className={`scenario-outcome is-${item.scenario}`}>

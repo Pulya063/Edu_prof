@@ -397,6 +397,65 @@ export type SimulationScenarioSummary = {
   updated_at: IsoDateTime;
 };
 
+export type TrialProjectionOption = {
+  country: string;
+  currency: string;
+  career_target: string;
+  median_salary: number;
+  seniority: string;
+  salary_source: "listings" | "official";
+};
+
+export type TrialProjectionResponse = {
+  preview: "trial";
+  methodology_version: string;
+  country: string;
+  career_target: string;
+  university: string | null;
+  currency: string;
+  study_years: number;
+  annual_tuition: number;
+  total_direct_cost: number;
+  opportunity_cost: number;
+  total_investment: number;
+  estimated_start_salary: number;
+  baseline_annual_salary: number;
+  inflation_percent: number | null;
+  job_search_months: number;
+  horizon_years: number;
+  roi_percent: number | null;
+  payback_months: number | null;
+  payback_from_enrollment_months: number | null;
+  target_payback_years: number | null;
+  payback_within_target: boolean | null;
+  payback_target_gap_months: number | null;
+  scenarios: TrialProjectionScenario[];
+  trajectory: TrialProjectionYear[];
+  sources: TrialProjectionSource[];
+};
+
+export type TrialProjectionScenario = {
+  scenario: "pessimistic" | "base" | "optimistic";
+  start_salary: number;
+  roi_percent: number | null;
+  payback_months: number | null;
+};
+
+export type TrialProjectionSource = {
+  metric: string;
+  source_name: string;
+  source_reference: string | null;
+  sample_size: number | null;
+  confidence: string | null;
+};
+
+export type TrialProjectionYear = {
+  year: number;
+  target_salary: number;
+  baseline_salary: number;
+  cumulative_incremental_earnings: number;
+};
+
 export type TuitionSnapshotResponse = {
   id: number;
   scope: string;
@@ -702,6 +761,17 @@ export type SimulationProjectionRequest = {
   employment_probability_percent?: number;
   target_payback_years?: number | null;
   evidence?: ProjectionEvidenceInput[];
+};
+
+/** Anonymous trial calculation: the full engine on stored PL/UA data, nothing is saved. */
+export type TrialProjectionRequest = {
+  country: "Poland" | "Ukraine";
+  career_target: string;
+  university?: string | null;
+  study_years?: number;
+  annual_tuition?: number;
+  job_search_months?: number;
+  target_payback_years?: number | null;
 };
 
 /** Пошук збереженої ціни: точність, давність і довіра; без live API викликів. */

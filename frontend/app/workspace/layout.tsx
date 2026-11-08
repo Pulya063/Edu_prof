@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "../styles/workspace.css";
 import "../styles/workspace-panels.css";
 import "../styles/lively.css";
+import "../styles/workspace-trial.css";
 import AvatarDropdown from "./AvatarDropdown";
 import WorkspaceAuthGuard from "@/components/auth/WorkspaceAuthGuard";
 import WorkspaceSidebar from "./WorkspaceSidebar";

@@ -1,0 +1,48 @@
+/* One reveal system for the landing (see markRevealTargets in hooks/useScrollMotion.tsx).
+   Elements fade and rise in when they enter the viewport and fade out when they leave it,
+   in both scroll directions. Uses `translate`/`opacity` so existing `transform`s (hover lifts,
+   scroll depth, orbit positions) keep composing. #landing outranks final-pass.css. */
+#landing.js-ready [data-reveal] {
+  opacity:0 !important;
+  translate:0 34px !important;
+  animation:none !important;
+  transition:
+    opacity .55s ease var(--reveal-delay,0ms),
+    translate .75s cubic-bezier(.22,1,.36,1) var(--reveal-delay,0ms),
+    transform .36s cubic-bezier(.22,1,.36,1),
+    box-shadow .2s ease,
+    background-color .2s ease !important;
+}
+#landing.js-ready [data-reveal="card"] { translate:0 46px !important; scale:.97; }
+/* Headline lines stay put (they are the clip mask); the words inside slide up through them. */
+#landing.js-ready [data-reveal="line"] { opacity:1 !important; translate:none !important; }
+#landing.js-ready [data-reveal="line"] > span {
+  opacity:0 !important; translate:0 105% !important;
+  transition:opacity .45s ease var(--reveal-delay,0ms), translate .8s cubic-bezier(.22,1,.36,1) var(--reveal-delay,0ms) !important;
+}
+#landing.js-ready [data-reveal="line"].is-in > span { opacity:1 !important; translate:0 0 !important; }
+#landing.js-ready [data-reveal="line"]:not(.is-in) > span { transition-duration:.25s, .3s !important; }
+
+#landing.js-ready [data-reveal].is-in { opacity:1 !important; translate:0 0 !important; scale:1; }
+
+/* Leaving is quicker than arriving, so nothing lingers half-faded over the next block. */
+#landing.js-ready [data-reveal]:not(.is-in) {
+  transition-duration:.28s, .32s, .36s, .2s, .2s !important;
+}
+
+/* The hero's floating group used to fade as a whole; its parts reveal on their own now. */
+#landing.js-ready .hero-section .dashboard-float-group {
+  visibility:visible !important; opacity:1 !important; filter:none !important; transform:none !important; pointer-events:auto !important;
+}
+
+/* Legacy section-level entrance timings are not used any more (sections stay "visible"). */
+#landing.js-ready .headline-line > span { transform:none !important; }
+
+/* Keep stacked content from colliding: CTAs and the info card take their own row height. */
+#landing #hero .hero-actions { position:relative; z-index:3; }
+#landing #hero .info-card { position:relative; z-index:2; }
+
+@media (prefers-reduced-motion:reduce) {
+  #landing [data-reveal],#landing [data-reveal] > span { opacity:1 !important; translate:none !important; scale:1 !important; transition:none !important; }
+}
+#landing[data-reduced-motion="true"] [data-reveal],#landing[data-reduced-motion="true"] [data-reveal] > span { opacity:1 !important; translate:none !important; scale:1 !important; }

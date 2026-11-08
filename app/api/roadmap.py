@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, Response, jsonify, render_template, request
+from flask import Blueprint, Response, jsonify, request
 
 from app.core.database import db
 from app.core.dependencies import admin_required, get_current_user
@@ -25,13 +25,10 @@ def get_roadmap_page(user: User) -> Response | str:
     )
     latest_roadmap = result.scalars().first()
     
-    if request.headers.get("Accept") == "application/json":
-        if latest_roadmap:
-            response_model = UserRoadmapResponse.model_validate(latest_roadmap)
-            return jsonify({"success": True, "data": response_model.model_dump(mode="json")})
-        return jsonify({"success": True, "data": None})
-        
-    return render_template("roadmap.html", roadmap=latest_roadmap)
+    if latest_roadmap:
+        response_model = UserRoadmapResponse.model_validate(latest_roadmap)
+        return jsonify({"success": True, "data": response_model.model_dump(mode="json")})
+    return jsonify({"success": True, "data": None})
 
 
 @blueprint.post("/generate")
@@ -78,9 +75,6 @@ def generate_roadmap(user: User) -> Response | str:
         db.session.add(user_roadmap)
         db.session.commit()
         
-        if request.headers.get("HX-Request") == "true":
-            return render_template("partials/roadmap_timeline.html", roadmap=user_roadmap)
-            
         response_model = UserRoadmapResponse.model_validate(user_roadmap)
         return jsonify({"success": True, "data": response_model.model_dump(mode="json")})
 

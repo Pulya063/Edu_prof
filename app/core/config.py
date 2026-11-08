@@ -12,10 +12,6 @@ def env_flag(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def resource_audit_enabled() -> bool:
-    return not is_production() and env_flag("ENABLE_RESOURCE_AUDIT")
-
-
 def auth_cookie_options() -> dict[str, object]:
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3221")
     secure = is_production() or frontend_url.startswith("https://")

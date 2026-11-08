@@ -61,73 +61,6 @@ class TokenPairResponse(BaseModel):
 
 
 
-class ROICalculationRequest(BaseModel):
-    """Legacy anonymous trial inputs; versioned simulations use SimulationCreateRequest."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    university: str = Field(min_length=2, max_length=255)
-    faculty: str = Field(min_length=2, max_length=255)
-    annual_tuition: ApiDecimal = Field(gt=Decimal("0"), max_digits=14, decimal_places=2)
-    study_years: ApiDecimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
-
-
-class TrialROIRequest(ROICalculationRequest):
-    """Four-field input accepted by the anonymous trial endpoint."""
-    university: str = Field(default="Demo University", min_length=2, max_length=255)
-    faculty: str = Field(default="Computer Science", min_length=2, max_length=255)
-    annual_tuition: ApiDecimal = Field(default=Decimal("15000.00"), gt=Decimal("0"), max_digits=14, decimal_places=2)
-    study_years: ApiDecimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("12"), decimal_places=1)
-
-
-class TrialMinimumMoney(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    min: float = Field(ge=0, allow_inf_nan=False)
-
-
-class TrialMinimumMonths(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    # None: no payback inside the preview horizon.
-    min: int | None = Field(default=None, ge=1)
-
-
-class TrialMinimumPercent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    min: float = Field(allow_inf_nan=False)
-
-
-class TrialEducationResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    specialization: str = Field(min_length=2, max_length=500)
-    total_investment: TrialMinimumMoney
-    total_education_cost: TrialMinimumMoney
-
-
-class TrialROIResultResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    payback_months: TrialMinimumMonths
-    first_year_roi_percent: TrialMinimumPercent
-    roi_percent: TrialMinimumPercent
-
-
-class TrialROIResponse(BaseModel):
-    """Validated abbreviated result returned by the anonymous trial endpoint."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    preview: Literal["rough"] = "rough"
-    methodology_version: str
-    horizon_years: int
-    note: str
-    education: TrialEducationResponse
-    roi: TrialROIResultResponse
-
-
 class APIResponse(BaseModel, Generic[T]):
     success: bool = True
     message: str | None = None
@@ -1097,3 +1030,86 @@ class PaymentStatusResponse(BaseModel):
     paid_at: datetime | None
     created_at: datetime
     current_plan: str
+
+
+class TrialProjectionRequest(BaseModel):
+    """Anonymous trial calculation: the full engine on stored PL/UA data, nothing is saved."""
+    model_config = ConfigDict(extra="forbid")
+
+    country: Literal["Poland", "Ukraine"]
+    career_target: str = Field(min_length=2, max_length=255)
+    university: str | None = Field(default=None, max_length=255)
+    study_years: ApiDecimal = Field(default=Decimal("4"), ge=Decimal("1"), le=Decimal("8"), decimal_places=1)
+    annual_tuition: ApiDecimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("1000000"), decimal_places=2)
+    job_search_months: int = Field(default=3, ge=0, le=24)
+    target_payback_years: int | None = Field(default=None, ge=1, le=30)
+
+
+class TrialProjectionScenario(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scenario: Literal["pessimistic", "base", "optimistic"]
+    start_salary: ApiDecimal
+    roi_percent: ApiDecimal | None
+    payback_months: int | None
+
+
+class TrialProjectionYear(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    year: int
+    target_salary: ApiDecimal
+    baseline_salary: ApiDecimal
+    cumulative_incremental_earnings: ApiDecimal
+
+
+class TrialProjectionSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    metric: str
+    source_name: str
+    source_reference: str | None = None
+    sample_size: int | None = None
+    confidence: str | None = None
+
+
+class TrialProjectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    preview: Literal["trial"] = "trial"
+    methodology_version: str
+    country: str
+    career_target: str
+    university: str | None
+    currency: str
+    study_years: ApiDecimal
+    annual_tuition: ApiDecimal
+    total_direct_cost: ApiDecimal
+    opportunity_cost: ApiDecimal
+    total_investment: ApiDecimal
+    estimated_start_salary: ApiDecimal
+    baseline_annual_salary: ApiDecimal
+    inflation_percent: ApiDecimal | None
+    job_search_months: int
+    horizon_years: int
+    roi_percent: ApiDecimal | None
+    payback_months: int | None
+    payback_from_enrollment_months: int | None
+    target_payback_years: int | None
+    payback_within_target: bool | None
+    payback_target_gap_months: int | None
+    scenarios: list[TrialProjectionScenario]
+    trajectory: list[TrialProjectionYear]
+    sources: list[TrialProjectionSource]
+
+
+class TrialProjectionOption(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    country: str
+    currency: str
+    career_target: str
+    median_salary: ApiDecimal
+    seniority: str = "junior"
+    # "listings": job adverts or salary survey; "official": Eurostat earnings survey estimate.
+    salary_source: Literal["listings", "official"] = "listings"

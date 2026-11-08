@@ -15,7 +15,7 @@
 .workspace-shell .sketch-heading-row h1,
 .workspace-shell .workbench-title-row h1,
 .workspace-shell .dashboard-title-row h1,
-.workspace-shell .ov-title-row h1 { font-family:'Manrope',sans-serif; font-size:clamp(40px,5vw,72px); font-weight:800; letter-spacing:-.06em; line-height:.95; }
+.workspace-shell .ov-title-row h1 { font-family:var(--font-manrope),sans-serif; font-size:clamp(40px,5vw,72px); font-weight:800; letter-spacing:-.06em; line-height:.95; }
 /* One title highlight everywhere: the violet swoosh behind the emphasised words */
 .workspace-shell .workbench-title-row h1 span,
 .workspace-shell .highlight-violet,
@@ -75,6 +75,13 @@
 .workspace-shell .calculation-kpis > div:first-child small,
 .workspace-shell .calculation-kpis > div:first-child span { color:var(--lv-ink); }
 .workspace-shell .calculation-kpis strong { font-size:clamp(22px,2.2vw,34px); white-space:nowrap; }
+/* KPI cards: real gaps between the tiles at every width; a tile never inherits the old divider padding. */
+.workspace-shell .calculation-hero .calculation-kpis { grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+@media (max-width:1100px) { .workspace-shell .calculation-hero .calculation-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width:520px) { .workspace-shell .calculation-hero .calculation-kpis { grid-template-columns:minmax(0, 1fr); } }
+.workspace-shell .calculation-hero .calculation-kpis > div,
+.workspace-shell .calculation-hero .calculation-kpis > div:first-child,
+.workspace-shell .calculation-hero .calculation-kpis > div:nth-child(3) { min-width:0; padding:16px 18px; border:0; }
 .workspace-shell .scenario-outcome { border:2px solid var(--lv-ink); border-radius:20px; box-shadow:var(--lv-shadow); }
 .workspace-shell .calculation-warnings { border:2px solid var(--lv-ink); border-radius:18px; background:var(--lv-violet); }
 
@@ -153,7 +160,7 @@
 .preview-live-card.is-lime { background:#b7ff2a; }
 .preview-live-card.is-violet { background:#d7c7ff; }
 .preview-live-card span { font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
-.preview-live-card strong { font-family:'Manrope',sans-serif; font-size:22px; font-weight:800; letter-spacing:-.03em; }
+.preview-live-card strong { font-family:var(--font-manrope),sans-serif; font-size:22px; font-weight:800; letter-spacing:-.03em; }
 .preview-live-card small { font-size:12px; line-height:1.35; overflow-wrap:anywhere; }
 
 /* University live search */
@@ -215,7 +222,7 @@
 .workspace-shell .payback-target-hint.is-error { color:#b42318; font-weight:700; }
 .workspace-shell .payback-verdict { position:relative; display:flex; align-items:center; gap:14px; margin-top:22px; padding:14px 18px; border:2px solid var(--lv-ink); border-radius:20px; background:var(--lv-paper); color:var(--lv-ink); box-shadow:var(--lv-shadow); }
 .workspace-shell .payback-verdict p { margin:0; font-size:15px; line-height:1.4; }
-.workspace-shell .payback-verdict-badge { flex:none; display:grid; place-items:center; min-width:58px; height:40px; padding:0 12px; border:2px solid var(--lv-ink); border-radius:999px; font-family:'Manrope',sans-serif; font-size:16px; font-weight:800; }
+.workspace-shell .payback-verdict-badge { flex:none; display:grid; place-items:center; min-width:58px; height:40px; padding:0 12px; border:2px solid var(--lv-ink); border-radius:999px; font-family:var(--font-manrope),sans-serif; font-size:16px; font-weight:800; }
 .workspace-shell .payback-verdict.is-met .payback-verdict-badge { background:var(--lv-lime); }
 .workspace-shell .payback-verdict.is-missed .payback-verdict-badge { background:var(--lv-violet); }
 @media (prefers-reduced-motion: reduce) { .workspace-shell .payback-target-options button { transition:none; } }

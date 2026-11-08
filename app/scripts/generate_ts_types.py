@@ -49,6 +49,8 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
     s.CheckoutResponse,
     s.PaymentPlansResponse,
     s.PaymentStatusResponse,
+    s.TrialProjectionResponse,
+    s.TrialProjectionOption,
 ]
 
 # Models the frontend sends (validation schema).
@@ -58,6 +60,7 @@ REQUEST_MODELS: list[type[BaseModel]] = [
     s.PasswordResetRequestSchema,
     s.PasswordResetSchema,
     s.SimulationCreateRequest,
+    s.TrialProjectionRequest,
     s.SimulationProjectionRequest,
     s.TuitionSnapshotSelection,
     s.WorkspaceProfileUpdate,

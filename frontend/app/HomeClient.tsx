@@ -12,8 +12,10 @@ import { translations } from "./utils/translations";
 import { SITE_NAV } from "./components/siteNav";
 import { useNavIndicator } from "./components/useNavIndicator";
 import "./styles/landing-lively.css";
+import "./styles/landing-motion.css";
 import type { Lang } from "./context/LanguageContext";
 
+import Link from "next/link";
 // Nav items are derived from translations at render time
 const navTargets = ["comparison", "roadmap", "scholarships", "calculator"];
 const ignoreActiveSectionChange = (_section: string) => undefined;
@@ -117,24 +119,24 @@ export default function HomeClient() {
   };
 
   return (
-    <main className="landing-page" ref={pageRef}>
+    <main className="landing-page" id="landing" ref={pageRef}>
     <JourneyThread />
     <header className={`landing-header ${mobileOpen ? "menu-open" : ""} ${headerScrolled ? "is-scrolled" : ""}`} data-theme={headerTheme}>
       <a className="brand" href="#hero" onClick={(event) => { event.preventDefault(); goTo("hero"); }} aria-label="Fence home"><span className="brand-mark">F</span><span className="brand-name">Fence</span><small>preview</small></a>
       <nav className="desktop-nav" aria-label="Primary navigation" ref={navRef}>
-        {SITE_NAV.map((item) => <a className="desktop-nav-label desktop-nav-link" href={item.href} key={item.href}>{t.nav[item.key]}</a>)}
+        {SITE_NAV.map((item) => <Link className="desktop-nav-label desktop-nav-link" href={item.href} key={item.href}>{t.nav[item.key]}</Link>)}
         <span className="nav-indicator" aria-hidden="true" />
       </nav>
       <div className="header-actions">
         <LangSwitcher />
-        <a className="header-cta" href="/login">{t.header.signIn}</a>
-        <a className="login-link" href="/register">{t.header.signUp}</a>
+        <Link className="header-cta" href="/login">{t.header.signIn}</Link>
+        <Link className="login-link" href="/register">{t.header.signUp}</Link>
         <button className="menu-toggle" type="button" aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={() => setMobileOpen((open) => !open)}><span aria-hidden="true">{mobileOpen ? "×" : "☰"}</span><span className="sr-only">Menu</span></button>
       </div>
       <nav id="mobile-navigation" className="mobile-nav" aria-label="Mobile navigation">
-        {SITE_NAV.map((item) => <a href={item.href} key={item.href}>{t.nav[item.key]}</a>)}
-        <a className="mobile-pricing-link" href="/login">{t.header.signIn}</a>
-        <a href="/register" style={{ opacity: 0.8 }}>{t.header.signUp}</a>
+        {SITE_NAV.map((item) => <Link href={item.href} key={item.href}>{t.nav[item.key]}</Link>)}
+        <Link className="mobile-pricing-link" href="/login">{t.header.signIn}</Link>
+        <Link href="/register" style={{ opacity: 0.8 }}>{t.header.signUp}</Link>
       </nav>
     </header>
 
@@ -144,8 +146,8 @@ export default function HomeClient() {
           <p className="eyebrow">{t.hero.eyebrow}</p>
           <h1 id="hero-title"><HeadlineLine>{t.hero.h1Line1}</HeadlineLine><HeadlineLine><span className="violet-highlight">{t.hero.h1Line2}</span></HeadlineLine><HeadlineLine>{t.hero.h1Line3}</HeadlineLine></h1>
           <div className="hero-actions">
-            <a className="hero-button hero-button--primary" href="/register">{t.hero.ctaPrimary} <span aria-hidden="true">→</span></a>
-            <a className="hero-button hero-button--ghost" href="/calculation">{t.hero.ctaSecondary}</a>
+            <Link className="hero-button hero-button--primary" href="/try">{t.hero.ctaPrimary} <span aria-hidden="true">→</span></Link>
+            <Link className="hero-button hero-button--ghost" href="/calculation">{t.hero.ctaSecondary}</Link>
           </div>
           <div className="info-card">
             <p>{t.hero.infoCardP.split("\n").map((line, i) => i === 0 ? <span key={i}>{line}<br /></span> : <span key={i}>{line}</span>)}</p>

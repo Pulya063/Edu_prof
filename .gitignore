@@ -25,3 +25,4 @@ chroma_db/
 logs/
 *.db
 *.sqlite3
+presentation-screens/

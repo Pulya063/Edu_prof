@@ -2,4 +2,4 @@
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3221").replace(/\/+$/, "");
 
 /** Indexable public pages, in sitemap order. */
-export const PUBLIC_PAGES = ["/", "/calculation", "/about", "/pricing", "/contact"] as const;
+export const PUBLIC_PAGES = ["/", "/try", "/calculation", "/about", "/pricing", "/contact"] as const;

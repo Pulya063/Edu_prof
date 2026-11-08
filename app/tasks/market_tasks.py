@@ -9,18 +9,14 @@ def refresh_market_snapshot(self, role: str, country: str, currency: str) -> dic
     """Fetch live salary listings for a supported role/country pair and store a snapshot."""
     from app.core.database import db
     from app.main import app as flask_app
-    from app.services.market_ingestion_service import MarketIngestionService
+    from app.services.official_wage_service import refresh_salary_snapshot
 
     try:
         with flask_app.app_context():
-            result = MarketIngestionService(db.session).fetch_live(role, country, currency)
+            result = refresh_salary_snapshot(db.session, role, country, currency)
             if result:
-                snapshot, created = result
-                return {
-                    "role": role,
-                    "snapshot_id": snapshot.id,
-                    "created": created
-                }
+                snapshot, created, origin = result
+                return {"role": role, "snapshot_id": snapshot.id, "created": created, "origin": origin}
             return {"role": role, "snapshot_id": None, "created": False, "reason": "no live provider for this role and country"}
     except Exception as error:
         logger.warning("Market snapshot refresh failed for %s: %s", role, error)
@@ -31,9 +27,10 @@ def refresh_market_snapshot_batch(self, roles: list[dict] | None = None) -> dict
     """Batch refresh market snapshots. roles = [{"role": "SE", "country": "US", "currency": "USD"}]"""
     if not roles:
         # Example default list for scheduled runs
+        from app.services.market_ingestion_service import SUPPORTED_ROLES
         roles = [
             {"role": role, "country": country, "currency": currency}
-            for role in ("Python Backend Developer", "Lawyer")
+            for role in SUPPORTED_ROLES
             for country, currency in (("Poland", "PLN"), ("Ukraine", "UAH"))
         ]
         

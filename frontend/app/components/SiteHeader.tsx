@@ -7,6 +7,7 @@ import { translations } from "../utils/translations";
 import { SITE_NAV } from "./siteNav";
 import { useNavIndicator } from "./useNavIndicator";
 
+import Link from "next/link";
 /** Header for public sub-pages (calculation, about, contact, legal). The landing keeps its own animated header. */
 export default function SiteHeader() {
   const pathname = usePathname();
@@ -24,26 +25,26 @@ export default function SiteHeader() {
 
   return (
     <header className={`site-header ${open ? "is-open" : ""}`}>
-      <a className="site-brand" href="/" aria-label="Fence home"><span className="site-brand-mark" aria-hidden="true">F</span><span className="site-brand-name">Fence</span><small>preview</small></a>
+      <Link className="site-brand" href="/" aria-label="Fence home"><span className="site-brand-mark" aria-hidden="true">F</span><span className="site-brand-name">Fence</span><small>preview</small></Link>
       <nav className="site-nav" aria-label="Primary navigation" ref={navRef}>
         {SITE_NAV.map((item) => (
-          <a key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>{t.nav[item.key]}</a>
+          <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>{t.nav[item.key]}</Link>
         ))}
         <span className="nav-indicator" aria-hidden="true" />
       </nav>
       <div className="site-actions">
-        <a className="site-signin" href="/login">{t.header.signIn}</a>
-        <a className="site-signup" href="/register">{t.header.signUp}</a>
+        <Link className="site-signin" href="/login">{t.header.signIn}</Link>
+        <Link className="site-signup" href="/register">{t.header.signUp}</Link>
         <button className="site-menu-toggle" type="button" aria-expanded={open} aria-controls="site-mobile-nav" onClick={() => setOpen((value) => !value)}>
           <span aria-hidden="true">{open ? "×" : "☰"}</span><span className="sr-only">Menu</span>
         </button>
       </div>
       <nav id="site-mobile-nav" className="site-mobile-nav" aria-label="Mobile navigation">
         {SITE_NAV.map((item) => (
-          <a key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>{t.nav[item.key]}</a>
+          <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>{t.nav[item.key]}</Link>
         ))}
-        <a href="/login">{t.header.signIn}</a>
-        <a href="/register">{t.header.signUp}</a>
+        <Link href="/login">{t.header.signIn}</Link>
+        <Link href="/register">{t.header.signUp}</Link>
       </nav>
     </header>
   );

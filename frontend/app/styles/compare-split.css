@@ -6,7 +6,7 @@
 
 .university-panel { position:sticky; top:74px; display:flex; flex-direction:column; min-width:0; max-height:calc(100svh - 90px); overflow:hidden; border:1px solid rgba(111,130,151,.22); border-radius:17px; background:#fff; animation:workspace-panel-reveal 260ms cubic-bezier(.22,1,.36,1) both; }
 .university-panel-bar { display:flex; align-items:center; gap:12px; padding:12px 14px 12px 20px; border-bottom:1px solid #dbe2e8; }
-.university-panel-bar h2 { flex:1; min-width:0; margin:0; font-family:'Manrope',sans-serif; font-size:20px; letter-spacing:-.04em; overflow-wrap:anywhere; outline:none; }
+.university-panel-bar h2 { flex:1; min-width:0; margin:0; font-family:var(--font-manrope),sans-serif; font-size:20px; letter-spacing:-.04em; overflow-wrap:anywhere; outline:none; }
 .university-panel-full { color:#171819; font-size:12px; font-weight:800; white-space:nowrap; text-decoration:underline; text-decoration-color:var(--ws-lime); text-decoration-thickness:3px; text-underline-offset:4px; }
 .university-panel-close { display:grid; flex:none; place-items:center; width:40px; height:40px; padding:0; border:1px solid #d7dee6; border-radius:50%; background:#fff; color:#171819; font-size:24px; line-height:1; cursor:pointer; }
 .university-panel-close:hover { background:#171819; color:#fff; }

@@ -860,7 +860,7 @@ export default function ScenarioBuilder() {
                 <small>{fmt(snapshot.salary_min, snapshot.currency)} – {fmt(snapshot.salary_max, snapshot.currency)} · {snapshot.sample_size ?? "?"} offers · {snapshot.seniority}</small>
               </> : <>
                 <strong>—</strong>
-                <small>{roles.length ? `Live data for: ${roles.join(", ")}` : "No market data loaded"}</small>
+                <small>{roles.length ? `${roles.length} careers with live salary data in Poland and Ukraine` : "No market data loaded"}</small>
               </>}
             </div>
             <div className="preview-live-card is-violet">
