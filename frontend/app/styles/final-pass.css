@@ -1090,9 +1090,10 @@ transition:none !important;
 @keyframes testimonial-arrive-left { from { opacity:0.01; translate:-90px 42px; rotate:-4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
 @keyframes testimonial-arrive-top { from { opacity:0.01; translate:70px -74px; rotate:4deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
 @keyframes testimonial-arrive-right { from { opacity:0.01; translate:110px 48px; rotate:5deg; } to { opacity:1; translate:0 0; rotate:0deg; } }
-.testimonials-section.is-visible .testimonial-card--lime { animation:testimonial-arrive-left 1.05s var(--ease-fence) both; }
-.testimonials-section.is-visible .testimonial-card--light { animation:testimonial-arrive-top 1.12s var(--ease-fence) .12s both; }
-.testimonials-section.is-visible .testimonial-card--dark { animation:testimonial-arrive-right 1.08s var(--ease-fence) .22s both; }
+/* backwards, not both: a held end frame would keep translate:0 0 and beat the active-story offsets. */
+.testimonials-section.is-visible .testimonial-card--lime { animation:testimonial-arrive-left 1.05s var(--ease-fence) backwards; }
+.testimonials-section.is-visible .testimonial-card--light { animation:testimonial-arrive-top 1.12s var(--ease-fence) .12s backwards; }
+.testimonials-section.is-visible .testimonial-card--dark { animation:testimonial-arrive-right 1.08s var(--ease-fence) .22s backwards; }
 @media (prefers-reduced-motion:reduce) {
   .testimonials-section.is-visible .testimonial-card--lime,
   .testimonials-section.is-visible .testimonial-card--light,
@@ -1813,6 +1814,42 @@ transition:none !important;
   .testimonial-card--lime:hover,
   .testimonial-card--light:hover,
   .testimonial-card--dark:hover { transform:translateX(-50%) rotate(0deg); }
+}
+
+/* Tablets get the same deck: in the single-column layout the scattered desktop stack overlaps and
+   clips, so a small offset on the active card was hard to see. One centred card, the neighbour
+   peeking at the edge, and the arrows slide the whole deck. */
+@media (min-width:601px) and (max-width:900px) {
+  .testimonials-stage {
+    height:540px;
+    min-height:540px;
+    overflow:hidden;
+    touch-action:pan-y;
+  }
+  .testimonial-card,
+  .testimonial-card--lime,
+  .testimonial-card--light,
+  .testimonial-card--dark {
+    top:24px!important;
+    right:auto!important;
+    bottom:auto!important;
+    left:50%!important;
+    width:min(520px,76%)!important;
+    min-height:460px;
+    translate:0 0!important;
+    scale:1!important;
+    transition:transform .45s var(--ease-out),box-shadow .3s ease,filter .3s ease;
+  }
+  .testimonial-card:not(.is-active) { pointer-events:none; filter:brightness(.82); }
+  .testimonials-stage[data-active="0"] .testimonial-card--lime { transform:translateX(-50%) rotate(0deg); }
+  .testimonials-stage[data-active="0"] .testimonial-card--light { transform:translateX(calc(-50% + 108%)) rotate(0deg); }
+  .testimonials-stage[data-active="0"] .testimonial-card--dark { transform:translateX(calc(-50% + 216%)) rotate(0deg); }
+  .testimonials-stage[data-active="1"] .testimonial-card--lime { transform:translateX(calc(-50% - 108%)) rotate(0deg); }
+  .testimonials-stage[data-active="1"] .testimonial-card--light { transform:translateX(-50%) rotate(0deg); }
+  .testimonials-stage[data-active="1"] .testimonial-card--dark { transform:translateX(calc(-50% + 108%)) rotate(0deg); }
+  .testimonials-stage[data-active="2"] .testimonial-card--lime { transform:translateX(calc(-50% - 216%)) rotate(0deg); }
+  .testimonials-stage[data-active="2"] .testimonial-card--light { transform:translateX(calc(-50% - 108%)) rotate(0deg); }
+  .testimonials-stage[data-active="2"] .testimonial-card--dark { transform:translateX(-50%) rotate(0deg); }
 }
 
 /* Trackpad and touch scrolling keep the focused university card in sync with

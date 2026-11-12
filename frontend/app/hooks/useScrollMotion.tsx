@@ -70,11 +70,13 @@ export function updatePointerUnderline(event: ReactPointerEvent<HTMLElement>) {
   target.style.setProperty("--pointer-x", `${event.clientX - bounds.left}px`);
 }
 
-/** What reveals on the landing, by motion type. Earlier groups win when elements nest. */
+/** What reveals on the landing, by motion type. Earlier groups win when elements nest.
+ *  The testimonials stage reveals as a whole: the reveal's `translate !important` on each card would
+ *  pin the cards and stop the active-story offsets from moving them when the arrows are pressed. */
 const REVEAL_GROUPS: ReadonlyArray<readonly [string, string]> = [
   // The line (not its clipped inner span) is observed: clip-path hides the shifted span from IntersectionObserver.
   ["line", ".headline-line"],
-  ["card", ".macbook-device, .iphone-device, .bento-card, .info-card, .calculator-device-frame, .university-card, .factor-card, .salary-core, .roadmap-card, .scholarship-card, .testimonial-card, .decision-route, .footer-ready-card"],
+  ["card", ".macbook-device, .iphone-device, .bento-card, .info-card, .calculator-device-frame, .university-card, .factor-card, .salary-core, .roadmap-card, .scholarship-card, .testimonials-stage, .decision-route, .footer-ready-card"],
   ["up", ".eyebrow, .feature-label, .section-index, .scholarship-crest, .hero-actions > a, .feature-description, .testimonials-description, .final-head > p, .comparison-method, .lime-button, .dark-pill-button, .forecast-cta, .testimonials-cta, .factor-proof > b, .roadmap-metrics > b, .carousel-controls, .testimonials-controls, .footer-wordmark, .footer-brand > p, .footer-column, .footer-legal"],
 ];
 
