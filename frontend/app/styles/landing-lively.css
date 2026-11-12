@@ -71,8 +71,14 @@
     translate:50% 0;
   }
 }
+/* Single-column hero: centre the cards on the screen. Here final-pass.css already moves them by
+   translateX(-50%), so a translate:50% would cancel it and push the row to the left. */
 @media (min-width:901px) and (max-width:1100px) {
-  .landing-page #hero .overlay-bento { left:auto !important; right:calc(min(790px,96%) / 2) !important; translate:50% 0; }
+  .landing-page #hero .overlay-bento { left:50% !important; right:auto !important; translate:none; }
+}
+/* The stacked pair stretches to the row height, so its bottom lines up with the other two cards. */
+@media (min-width:901px) {
+  .landing-page #hero .bento-col .bento-card { flex:1 1 auto; }
 }
 
 /* Mobile: keep the outlines visible inside the horizontal KPI scroller */
@@ -208,4 +214,11 @@
 @media (prefers-reduced-motion:reduce) {
   .nav-indicator,.hero-button,.hero-button span { transition:none; }
   .hero-button:hover,.hero-button:active { transform:none; }
+}
+
+/* Factors chapter, single column: a plain 1fr track may grow past the section (its minimum is
+   "auto"), which pushed the centred intro to the right. Keep the track inside the section. */
+@media (max-width:900px) {
+  #landing .factors-shell { grid-template-columns:minmax(0,1fr); }
+  #landing .factors-intro { width:100%; min-width:0; }
 }

@@ -110,10 +110,11 @@ export default function TestimonialsSection() {
   };
   const stageRef = useCarouselGestures<HTMLDivElement>(move);
   const { data } = useLandingData();
-  const liveAnswers = ["knu-python", "poland-nurse", "ukraine-teacher"].flatMap((key) => {
-    const item = data?.scenarios.find((scenario) => scenario.key === key);
-    return item ? [item] : [];
-  });
+  // Preferred examples first; the API skips any role without salary data, so the rest of the
+  // three slots fall back to whichever showcase scenarios it did calculate.
+  const scenarios = data?.scenarios ?? [];
+  const preferred = ["knu-python", "poland-nurse", "ukraine-teacher"].flatMap((key) => scenarios.filter((scenario) => scenario.key === key));
+  const liveAnswers = [...preferred, ...scenarios.filter((scenario) => !preferred.includes(scenario))].slice(0, 3);
 
   useEffect(() => {
     if (!expandedId) return;
