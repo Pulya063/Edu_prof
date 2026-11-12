@@ -49,7 +49,7 @@ def test_register_duplicate_email(db_session):
         service.register(payload)
         
     assert exc.value.status_code == 409
-    assert "вже існує" in str(exc.value.message).lower()
+    assert "already exists" in str(exc.value.message).lower()
 
 def test_login_success(db_session, fake_redis):
     """Перевірка успішного входу."""

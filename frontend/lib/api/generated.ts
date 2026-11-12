@@ -59,6 +59,8 @@ export type CountryEconomicsResponse = {
   baseline_wage_period: IsoDate | null;
   baseline_wage_source_name: string | null;
   baseline_wage_source_url: string | null;
+  graduate_unemployment_percent: number | null;
+  graduate_unemployment_year: number | null;
   series: EconomicSeries[];
 };
 
@@ -74,6 +76,20 @@ export type EconomicSeries = {
   source_url: string;
   acquired_at: IsoDateTime;
   points: EconomicPoint[];
+};
+
+export type LivingCostLine = {
+  key: string;
+  label: string;
+  per_month: number;
+};
+
+export type LivingCostsResponse = {
+  country: string;
+  currency: string;
+  source_name: string;
+  source_url: string;
+  lines: LivingCostLine[];
 };
 
 export type MarketNewsItem = {
@@ -165,8 +181,8 @@ export type ProjectionAIReviewResponse = {
   completed_at: IsoDateTime | null;
 };
 
-/** Збережені входи розрахунку. Порожні для старих проєкцій без рядка projection_inputs. */
 export type ProjectionCalculationInputs = {
+  cost_items: ProjectionCostItem[];
   market_snapshot_id: number | null;
   annual_start_salary: number | null;
   baseline_annual_salary: number | null;
@@ -200,9 +216,22 @@ export type ProjectionCostBreakdown = {
   opportunity_cost: number | null;
 };
 
+/** One visible line of the investment. Switched off, it counts as nothing. */
+export type ProjectionCostItem = {
+  key: "tuition" | "mandatory_fees" | "housing" | "food" | "transport" | "study_materials" | "other_living" | "additional_training" | "scholarships" | "pay_given_up" | "income_during_study";
+  label: string;
+  amount: number;
+  per_month: number | null;
+  enabled: boolean;
+  editable: boolean;
+  source: "user" | "country_average" | "calculated" | "stored" | "ai";
+  source_name: string | null;
+  source_url: string | null;
+};
+
 /** Походження конкретного показника; валідна форма не підтверджує правдивість джерела. */
 export type ProjectionEvidence = {
-  metric: "target_start_salary" | "baseline_salary" | "salary_growth" | "tuition" | "mandatory_fees" | "scholarships" | "study_income" | "inflation";
+  metric: "target_start_salary" | "baseline_salary" | "salary_growth" | "tuition" | "mandatory_fees" | "scholarships" | "study_income" | "inflation" | "career_level";
   source_name: string;
   source_reference: string;
   acquired_at: IsoDateTime;
@@ -212,6 +241,34 @@ export type ProjectionEvidence = {
   currency: string;
   sample_size: number | null;
   confidence: "low" | "medium" | "high";
+};
+
+/** What a change to the cost lines would do. Calculated by the engine, not stored. */
+export type ProjectionPreviewResponse = {
+  total_direct_cost: number;
+  opportunity_cost: number;
+  total_investment: number;
+  estimated_start_salary: number;
+  cost_breakdown: ProjectionCostBreakdown;
+  payback_months: number | null;
+  payback_from_enrollment_months: number | null;
+  break_even_reached: boolean;
+  target_payback_years: number | null;
+  payback_within_target: boolean | null;
+  payback_target_gap_months: number | null;
+  horizon_years: number;
+  cumulative_incremental_earnings: number;
+  roi_percent: number | null;
+  npv: number | null;
+  scenario_outcomes: ProjectionScenarioOutcome[];
+  salary_trajectory: SalaryTrajectoryPoint[];
+  cost_items: ProjectionCostItem[];
+};
+
+/** Lines switched or edited on the full calculation; save stores them as a new projection. */
+export type ProjectionRecalculateRequest = {
+  cost_items: ProjectionCostItem[];
+  save: boolean;
 };
 
 /** v3: one start-salary scenario on the same costs, growth and baseline. */
@@ -262,8 +319,8 @@ export type SalaryTrajectoryPoint = {
 
 /** Вхідні умови освіти й кар'єри; після вибору tuition зберігаються в ревізії. */
 export type SimulationAssumptions = {
-  university: string;
-  specialization: string;
+  university: string | null;
+  specialization: string | null;
   country: string;
   degree: string;
   currency: string;
@@ -397,6 +454,28 @@ export type SimulationScenarioSummary = {
   updated_at: IsoDateTime;
 };
 
+export type SpecializationsResponse = {
+  items: StudyProgrammeItem[];
+  fee_range: StudyFeeRange | null;
+  address: string | null;
+};
+
+export type StudyFeeRange = {
+  min_per_year: number;
+  max_per_year: number;
+  currency: string;
+  academic_year: string;
+  source_title: string;
+  source_url: string;
+};
+
+export type StudyProgrammeItem = {
+  name: string;
+  level: string | null;
+  annual_fee: number | null;
+  study_mode: string | null;
+};
+
 export type TrialProjectionOption = {
   country: string;
   currency: string;
@@ -456,6 +535,26 @@ export type TrialProjectionYear = {
   cumulative_incremental_earnings: number;
 };
 
+export type TrialShowcaseGrant = {
+  label: string;
+  grant: number;
+  without_grant: TrialProjectionResponse;
+  with_grant: TrialProjectionResponse;
+};
+
+/** Public landing data: only real engine results; a case without stored data is left out. */
+export type TrialShowcaseResponse = {
+  careers: TrialProjectionOption[];
+  scenarios: TrialShowcaseScenario[];
+  grant_example: TrialShowcaseGrant | null;
+};
+
+export type TrialShowcaseScenario = {
+  key: string;
+  label: string;
+  result: TrialProjectionResponse;
+};
+
 export type TuitionSnapshotResponse = {
   id: number;
   scope: string;
@@ -487,6 +586,38 @@ export type TuitionSnapshotSource = {
   reference: string;
   url: string | null;
   acquired_at: IsoDateTime;
+};
+
+export type UniversityAddress = {
+  street: string | null;
+  postal_code: string | null;
+  city: string | null;
+  source: string;
+  source_url: string;
+};
+
+export type UniversityFeeItem = {
+  programme: string;
+  faculty: string | null;
+  level: string | null;
+  study_mode: string | null;
+  amount_per_year: number;
+};
+
+/** Yearly fees copied from one document; "press" means a published list, not the original order. */
+export type UniversityFees = {
+  academic_year: string;
+  currency: string;
+  source_kind: "official" | "press";
+  source_title: string;
+  source_url: string;
+  min_per_year: number;
+  max_per_year: number;
+  cheapest: UniversityFeeItem;
+  most_expensive: UniversityFeeItem;
+  paid_programme_count: number;
+  free_programme_count: number;
+  programmes: UniversityFeeItem[];
 };
 
 export type UniversityProfileFacts = {
@@ -558,6 +689,15 @@ export type UniversityProfileTuitionMention = {
   period: "year" | "semester" | "month" | "unknown";
 };
 
+export type UniversityVerifiedFacts = {
+  address: UniversityAddress;
+  founded: string | null;
+  faculties: string[];
+  faculties_source: string | null;
+  programme_count: number;
+  fees: UniversityFees | null;
+};
+
 export type WorkspaceCourseResponse = {
   id: string;
   title: string;
@@ -574,8 +714,8 @@ export type WorkspaceCourseResponse = {
 
 export type WorkspacePreferences = {
   language: "English" | "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430";
-  currency: "USD" | "EUR" | "PLN" | "GBP";
-  theme: "Fence default";
+  currency: "Local" | "USD" | "EUR" | "PLN" | "GBP" | "UAH";
+  theme: "Fence default" | "Dark" | "Monochrome";
 };
 
 export type WorkspaceProfile = {
@@ -624,6 +764,11 @@ export type WorkspaceUniversityDetailsResponse = {
   study_mode: string | null;
   program_name: string | null;
   data_quality: "database" | "directory" | "illustrative";
+  verified_facts: UniversityVerifiedFacts | null;
+  fee_min: number | null;
+  fee_max: number | null;
+  fee_currency: string | null;
+  programme_count: number | null;
   programmes: Record<string, unknown>[];
   documents: Record<string, unknown>[];
   scholarships: Record<string, unknown>[];
@@ -643,6 +788,11 @@ export type WorkspaceUniversityResponse = {
   study_mode: string | null;
   program_name: string | null;
   data_quality: "database" | "directory" | "illustrative";
+  verified_facts: boolean;
+  fee_min: number | null;
+  fee_max: number | null;
+  fee_currency: string | null;
+  programme_count: number | null;
 };
 
 export type WorkspaceUser = {
@@ -651,6 +801,7 @@ export type WorkspaceUser = {
   email: string;
   plan: string;
   scenario_count: number;
+  scenario_limit: number | null;
 };
 
 
@@ -683,9 +834,22 @@ export type PasswordResetSchema = {
   new_password: string;
 };
 
+/** One visible line of the investment. Switched off, it counts as nothing. */
+export type ProjectionCostItemInput = {
+  key: "tuition" | "mandatory_fees" | "housing" | "food" | "transport" | "study_materials" | "other_living" | "additional_training" | "scholarships" | "pay_given_up" | "income_during_study";
+  label: string;
+  amount: number;
+  per_month?: number | null;
+  enabled?: boolean;
+  editable?: boolean;
+  source?: "user" | "country_average" | "calculated" | "stored" | "ai";
+  source_name?: string | null;
+  source_url?: string | null;
+};
+
 /** Походження конкретного показника; валідна форма не підтверджує правдивість джерела. */
 export type ProjectionEvidenceInput = {
-  metric: "target_start_salary" | "baseline_salary" | "salary_growth" | "tuition" | "mandatory_fees" | "scholarships" | "study_income" | "inflation";
+  metric: "target_start_salary" | "baseline_salary" | "salary_growth" | "tuition" | "mandatory_fees" | "scholarships" | "study_income" | "inflation" | "career_level";
   source_name: string;
   source_reference: string;
   acquired_at: IsoDateTime;
@@ -716,8 +880,8 @@ export type RoadmapTaskUpdate = {
 
 /** Вхідні умови освіти й кар'єри; після вибору tuition зберігаються в ревізії. */
 export type SimulationAssumptionsInput = {
-  university: string;
-  specialization: string;
+  university?: string | null;
+  specialization?: string | null;
   country: string;
   degree: string;
   currency?: string;
@@ -761,6 +925,9 @@ export type SimulationProjectionRequest = {
   employment_probability_percent?: number;
   target_payback_years?: number | null;
   evidence?: ProjectionEvidenceInput[];
+  auto_assumptions?: boolean;
+  cost_items?: ProjectionCostItemInput[];
+  career_ladder?: number[] | null;
 };
 
 /** Anonymous trial calculation: the full engine on stored PL/UA data, nothing is saved. */
@@ -792,8 +959,8 @@ export type TuitionSnapshotSelection = {
 
 export type WorkspacePreferencesInput = {
   language?: "English" | "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430";
-  currency?: "USD" | "EUR" | "PLN" | "GBP";
-  theme?: "Fence default";
+  currency?: "Local" | "USD" | "EUR" | "PLN" | "GBP" | "UAH";
+  theme?: "Fence default" | "Dark" | "Monochrome";
 };
 
 export type WorkspaceProfileInput = {

@@ -3,7 +3,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import object_session
 
-from app.models import SimulationProjection, SimulationRevision, SimulationScenario, User
+from app.models import SimulationScenario, User
 
 PLAN_LIMITS: dict[str, int | None] = {
     "Free": 3,
@@ -13,28 +13,21 @@ PLAN_LIMITS: dict[str, int | None] = {
 }
 
 PLAN_FEATURES: dict[str, tuple[str, ...]] = {
-    "Free": ("3 ROI-розрахунки", "Базовий прогноз", "Історія результатів"),
-    "Pro": ("30 ROI-розрахунків", "Повний прогноз на 5 і 10 років", "AI-рекомендації"),
-    "Plus": ("100 ROI-розрахунків", "Розширене порівняння сценаріїв", "AI-рекомендації"),
-    "Teams": ("Без ліміту розрахунків", "Спільна бібліотека сценаріїв", "AI-рекомендації"),
+    "Free": ("3 saved calculations", "10-year forecast", "Result history"),
+    "Pro": ("30 saved calculations", "10-year forecast", "AI review"),
+    "Plus": ("100 saved calculations", "Advanced scenario comparison", "AI review"),
+    "Teams": ("Unlimited calculations", "Shared scenario library", "AI review"),
 }
 
 
 def get_plan_details(user: User) -> dict[str, object]:
+    """Saved calculations (scenarios) against the plan's limit; admins have no limit."""
     plan = user.plan if user.plan in PLAN_LIMITS else "Free"
     session = object_session(user)
     used = 0
     if session is not None:
-        used = int(
-            session.scalar(
-                select(func.count(SimulationProjection.id))
-                .join(SimulationRevision, SimulationProjection.revision_id == SimulationRevision.id)
-                .join(SimulationScenario, SimulationRevision.scenario_id == SimulationScenario.id)
-                .where(SimulationScenario.user_id == user.id)
-            )
-            or 0
-        )
-    limit = PLAN_LIMITS[plan]
+        used = int(session.scalar(select(func.count(SimulationScenario.id)).where(SimulationScenario.user_id == user.id)) or 0)
+    limit = None if user.is_admin else PLAN_LIMITS[plan]
     return {
         "name": plan,
         "limit": limit,

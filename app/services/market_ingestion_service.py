@@ -37,6 +37,10 @@ logger = logging.getLogger(__name__)
 
 METHODOLOGY_VERSION = "listing-quartiles-v2"
 SENIORITY = "junior"
+# Career ladder after the first job: listings filtered by these levels give the pay growth with experience.
+CAREER_LEVELS = ("junior", "mid", "senior")
+PRACUJ_LEVEL = {"junior": "17", "mid": "4", "senior": "18"}  # pracuj.pl "et" filter codes
+DOU_LEVEL = {"junior": "Junior", "mid": "Middle", "senior": "Senior"}
 MIN_SAMPLE = 5
 MEDIUM_SAMPLE = 10  # build_payload marks fewer observations as low confidence
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
@@ -103,7 +107,7 @@ class MarketIngestionService:
         return response
 
     # ── Providers ────────────────────────────────────────────────────
-    def _nofluffjobs(self, requirement: str) -> SalarySample:
+    def _nofluffjobs(self, requirement: str, level: str = SENIORITY) -> SalarySample:
         seen: dict[tuple, Decimal] = {}
         contract_types: set[str] = set()
         page, pages = 1, 1
@@ -111,7 +115,7 @@ class MarketIngestionService:
             response = self._request(
                 "POST", NOFLUFF_SEARCH_URL,
                 params={"salaryCurrency": "PLN", "salaryPeriod": "month", "region": "pl"},
-                json={"criteriaSearch": {"requirement": [requirement], "seniority": ["junior"]}, "page": page},
+                json={"criteriaSearch": {"requirement": [requirement], "seniority": [level]}, "page": page},
             )
             data = response.json()
             pages = int(data.get("totalPages") or 1)
@@ -129,17 +133,19 @@ class MarketIngestionService:
         return SalarySample(
             monthly=list(seen.values()),
             vacancy_count=len(seen),
-            sources=[{"name": "No Fluff Jobs, junior offers with disclosed salary", "reference": f"nofluffjobs:requirement={requirement};seniority=junior",
-                      "url": f"https://nofluffjobs.com/pl/{requirement}?criteria=seniority%3Djunior"}],
+            sources=[{"name": f"No Fluff Jobs, {level} offers with disclosed salary", "reference": f"nofluffjobs:requirement={requirement};seniority={level}",
+                      "url": f"https://nofluffjobs.com/pl/{requirement}?criteria=seniority%3D{level}"}],
             notes=[f"Contract types in sample: {', '.join(sorted(contract_types))}. B2B rates are invoice amounts before tax."],
         )
 
-    def _pracuj(self, query: str, junior: bool = True) -> SalarySample:
-        """Pracuj.pl listings; junior=True keeps only the 'junior / assistant' level (et=17)."""
+    def _pracuj(self, query: str, junior: bool = True, level: str | None = None) -> SalarySample:
+        """Pracuj.pl listings at one level (et=17 junior, 4 mid, 18 senior); junior=False with no level keeps all."""
+        level = level or (SENIORITY if junior else None)
+        code = PRACUJ_LEVEL.get(level) if level else None
         values: dict[tuple, Decimal] = {}
         slug = quote(query)
         for page in (1, 2, 3):
-            params = {"et": "17", "pn": page} if junior else {"pn": page}
+            params = {"et": code, "pn": page} if code else {"pn": page}
             response = self._request("GET", PRACUJ_URL.format(query=slug), params=params)
             match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', response.text, re.S)
             if not match:
@@ -156,9 +162,9 @@ class MarketIngestionService:
                     values[(offer.get("jobTitle"), offer.get("companyName"), text)] = value
         return SalarySample(
             monthly=list(values.values()), vacancy_count=len(values),
-            sources=[{"name": f"Pracuj.pl, {'junior' if junior else 'all-level'} offers for '{query}' with disclosed monthly salary",
-                      "reference": f"pracuj:{query};{'et=17' if junior else 'all'}",
-                      "url": f"https://www.pracuj.pl/praca/{slug};kw" + ("?et=17" if junior else "")}],
+            sources=[{"name": f"Pracuj.pl, {level or 'all-level'} offers for '{query}' with disclosed monthly salary",
+                      "reference": f"pracuj:{query};{f'et={code}' if code else 'all'}",
+                      "url": f"https://www.pracuj.pl/praca/{slug};kw" + (f"?et={code}" if code else "")}],
             notes=["Mix of employment contracts (umowa o pracę, zlecenie, B2B) as published by employers."],
         )
 
@@ -220,8 +226,9 @@ class MarketIngestionService:
             self._dou_cache = (latest, header, list(reader), rate)
         return self._dou_cache
 
-    def _dou_junior(self, label: str, column_prefix: str, accepted: tuple[str, ...]) -> SalarySample:
-        """DOU salary survey: juniors living and working in IT in Ukraine whose answer in one column matches."""
+    def _dou_junior(self, label: str, column_prefix: str, accepted: tuple[str, ...], level: str = SENIORITY) -> SalarySample:
+        """DOU salary survey: people at one level (Junior by default) living and working in IT in Ukraine."""
+        title = DOU_LEVEL[level]
         latest, header, rows, rate_data = self._dou_survey()
 
         def column(prefix: str) -> int:
@@ -231,7 +238,7 @@ class MarketIngestionService:
         employment_col, residence_col = column("Ваша основна зайнятість"), column("Де ви зараз живете")
         usd = [
             Decimal(row[salary_col]) for row in rows
-            if len(row) > max(residence_col, filter_col) and row[filter_col] in accepted and row[title_col] == "Junior"
+            if len(row) > max(residence_col, filter_col) and row[filter_col] in accepted and row[title_col] == title
             and row[employment_col].startswith("Працюю в ІТ") and row[residence_col] == "В Україні"
             and row[salary_col].strip().isdigit()
         ]
@@ -241,7 +248,8 @@ class MarketIngestionService:
             monthly=[value * rate for value in usd],
             vacancy_count=None,
             sources=[
-                {"name": f"DOU salary survey {survey}, {label} juniors living in Ukraine", "reference": f"dou:{latest}:{'|'.join(accepted)}",
+                {"name": f"DOU salary survey {survey}, {label} {title} specialists living in Ukraine" if level != SENIORITY else f"DOU salary survey {survey}, {label} juniors living in Ukraine",
+                 "reference": f"dou:{latest}:{'|'.join(accepted)}" + ("" if level == SENIORITY else f":{title}"),
                  "url": f"https://github.com/devua/csv/blob/master/salaries/{latest}"},
                 {"name": f"NBU official USD rate {rate_data.get('exchangedate')}", "reference": f"nbu:USD:{rate}",
                  "url": "https://bank.gov.ua/en/markets/exchangerates"},
@@ -267,7 +275,7 @@ class MarketIngestionService:
         if kind == "nofluff":
             return self._nofluffjobs(*args)
         if kind == "pracuj":
-            return self._pracuj(args[0], junior=True)
+            return self._pracuj(args[0], junior=True, level=args[1] if len(args) > 1 else None)
         if kind == "pracuj_all":
             return self._pracuj(args[0], junior=False)
         if kind == "register":
@@ -285,13 +293,48 @@ class MarketIngestionService:
                     table[(role.casefold(), country)] = (currency, spec[country])
         return table
 
+    def fetch_level(self, role: str, country: str, level: str, currency: str | None = None) -> MarketSnapshot:
+        """Mid or senior pay for a catalogue role: the same sources as its junior tier, filtered by level.
+        Sources without a level filter (the Ukrainian vacancy register) give no ladder and are skipped."""
+        entry = self.providers().get((role.strip().casefold(), country.strip().casefold()))
+        if entry is None or level not in CAREER_LEVELS:
+            raise MarketProviderError(f"No {level} salary source for {role} in {country}")
+        provider_currency, tiers = entry
+        if currency and currency.upper() != provider_currency:
+            raise MarketProviderError(f"Listings for {country} are in {provider_currency}, not {currency}")
+        junior_sources = next((sources for seniority, sources in tiers if seniority == SENIORITY), [])
+        sources = [(kind, *args, level) for kind, *args in junior_sources if kind in ("nofluff", "pracuj", "dou")]
+        if not sources:
+            raise MarketProviderError(f"No {level} salary source for {role} in {country}")
+        _, _, sample = self._collect_tiers(role, country, provider_currency, [(level, sources)])
+        canonical_role = next(name for name in SUPPORTED_ROLES if name.casefold() == role.strip().casefold())
+        return self.snapshots.create(self.build_payload(canonical_role, country.strip().title(), provider_currency, sample, seniority=level))[0]
+
     def collect(self, role: str, country: str) -> tuple[str, str, SalarySample]:
-        """(currency, seniority, sample): the first tier with MEDIUM_SAMPLE clean observations, otherwise
-        the first with MIN_SAMPLE. A broader level with a solid sample beats a thin junior one."""
+        """(currency, seniority, sample) for a role in the catalogue."""
         entry = self.providers().get((role.strip().casefold(), country.strip().casefold()))
         if entry is None:
             raise MarketProviderError(f"No live salary provider for {role} in {country}")
-        currency, tiers = entry
+        return self._collect_tiers(role, country, *entry)
+
+    def fetch_custom(self, role: str, country: str, currency: str | None = None) -> tuple[MarketSnapshot, bool]:
+        """A role typed by the user: search current listings by its name, right now."""
+        name = re.sub(r"\s+", " ", role).strip()
+        place = country.strip().casefold()
+        if place == "poland":
+            entry = ("PLN", [(SENIORITY, [("pracuj", name)]), (ALL_LEVELS, [("pracuj_all", name)])])
+        elif place == "ukraine":
+            entry = ("UAH", [(ALL_LEVELS, [("register", re.escape(name))])])
+        else:
+            raise MarketProviderError(f"No live salary source for {country}")
+        if currency and currency.upper() != entry[0]:
+            raise MarketProviderError(f"Listings for {country} are in {entry[0]}, not {currency}")
+        provider_currency, seniority, sample = self._collect_tiers(name, country, *entry)
+        return self.snapshots.create(self.build_payload(name, country.strip().title(), provider_currency, sample, seniority=seniority))
+
+    def _collect_tiers(self, role: str, country: str, currency: str, tiers: list) -> tuple[str, str, SalarySample]:
+        """The first tier with MEDIUM_SAMPLE clean observations, otherwise the first with MIN_SAMPLE.
+        A broader level with a solid sample beats a thin junior one."""
         reasons: list[str] = []
         fallback: tuple[str, str, SalarySample] | None = None
         for seniority, sources in tiers:
@@ -369,11 +412,11 @@ class MarketIngestionService:
         return self.snapshots.create(payload)
 
 
-def _it_role(nofluff: str | None, pracuj: str, dou: tuple) -> dict:
+def _it_role(nofluff: str | None, pracuj: str, dou: tuple, register: str = r"(програміст|розробник|аналітик|тестувальник)") -> dict:
     junior_pl = ([("nofluff", nofluff)] if nofluff else []) + [("pracuj", pracuj)]
     return {
         "poland": [(SENIORITY, junior_pl), (ALL_LEVELS, [("pracuj_all", pracuj)])],
-        "ukraine": [(SENIORITY, [("dou", *dou)]), (ALL_LEVELS, [("register", r"(програміст|розробник|аналітик|тестувальник)")])],
+        "ukraine": [(SENIORITY, [("dou", *dou)]), (ALL_LEVELS, [("register", register)])],
         "ses": ("OC2", "J"),
     }
 
@@ -396,6 +439,25 @@ ROLE_CATALOG: dict[str, dict] = {
     "Java Developer": _it_role("java", "java developer", ("Java", "Основна мова", ("Java",))),
     "QA Engineer": _it_role("testing", "tester", ("QA", "Категорії", ("QA",))),
     "Data Analyst": _it_role(None, "analityk danych", ("Analytics", "Категорії", ("Analytics",))),
+    "DevOps Engineer": _it_role("devops", "devops", ("DevOps", "Категорії", ("DevOps & SRE",))),
+    "Data Scientist": _it_role(None, "data scientist", ("Data Science", "Категорії", ("DS / AI / ML / Data Engineering",))),
+    ".NET Developer": _it_role(".net", ".net developer", (".NET", "Основна мова", ("C# / .NET",))),
+    "Project Manager": _it_role(None, "project manager", ("Project Management", "Категорії", ("Project Management",)), r"(менеджер|керівник).{0,12}проєкт"),
+    "UX/UI Designer": _it_role(None, "ux designer", ("Design", "Категорії", ("UI/UX / Product Design",)), r"дизайнер"),
+    "Cybersecurity Specialist": _it_role(None, "cyberbezpieczeństwo", ("Security", "Категорії", ("Security",)), r"(кібербезпек|інформаційн\w* безпек)"),
+    "Economist": _role("ekonomista", r"економіст", ("OC2", "K")),
+    "Financial Analyst": _role("analityk finansowy", r"(фінансов\w* аналітик|аналітик фінанс)", ("OC2", "K")),
+    "HR Specialist": _role("specjalista hr", r"(менеджер з персоналу|hr|інспектор з кадрів|фахівець з кадрів)", ("OC2", "M")),
+    "Sales Manager": _role("przedstawiciel handlowy", r"(менеджер.{0,24}(збут|продаж)|торговельн\w* агент|торговий представник)", ("OC3", "G")),
+    "Logistics Specialist": _role("logistyk", r"логіст", ("OC3", "H")),
+    "Architect": _role("architekt", r"^архітектор", ("OC2", "M")),
+    "Mechanical Engineer": _role("inżynier mechanik", r"інженер.{0,20}механ", ("OC2", "C")),
+    "Electrical Engineer": _role("inżynier elektryk", r"інженер.{0,20}електр", ("OC2", "D")),
+    "Dentist": _role("lekarz dentysta", r"стоматолог", ("OC2", "Q")),
+    "Physiotherapist": _role("fizjoterapeuta", r"(фізіотерапевт|реабілітолог|фізичн\w* терапевт)", ("OC2", "Q")),
+    "Veterinarian": _role("weterynarz", r"ветеринар", ("OC2", "M")),
+    "Social Worker": _role("pracownik socjalny", r"соціальн\w* працівн", ("OC3", "Q")),
+    "Agronomist": _role("agronom", r"агроном", ("OC2", "M")),
     "Lawyer": _role("prawnik", r"^(юрист|юрисконсульт)", ("OC2", "M")),
     "Accountant": _role("księgowy", r"^(бухгалтер|головний бухгалтер)", ("OC3", "M")),
     "Marketing Specialist": _role("marketing", r"(маркетолог|фахівець з маркетингу|менеджер з маркетингу)", ("OC2", "M")),

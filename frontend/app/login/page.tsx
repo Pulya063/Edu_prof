@@ -74,7 +74,7 @@ export default function LoginPage() {
     <div className="auth-shell">
       {/* Left brand panel */}
       <div className="auth-brand-panel" aria-hidden="true">
-        <Link href="/workspace/overview" className="auth-brand-logo">
+        <Link href="/" className="auth-brand-logo" aria-label="Fence home">
           <span>F</span>
           <div>
             <b>Fence</b>

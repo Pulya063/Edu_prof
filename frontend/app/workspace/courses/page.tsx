@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
-import CourseCatalog from "./CourseCatalog";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Course search" };
-
+// Courses are hidden until Fence has course partners; the catalog component stays for later.
 export default function CoursesPage() {
-  return <CourseCatalog />;
+  redirect("/workspace/overview");
 }
-

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/api/decimal";
 import type { MarketNewsResponse, SimulationProjectionExplainabilityResponse } from "@/lib/api/generated";
-import { workspaceFetch, type WorkspaceConnection, type WorkspaceCourse } from "@/lib/api/workspace";
+import { workspaceFetch, type WorkspaceConnection } from "@/lib/api/workspace";
 
 const PLATFORMS: Array<{ id: string; name: string; logo: string }> = [
   { id: "linkedin", name: "LinkedIn", logo: "in" },
@@ -92,10 +92,8 @@ export function MarketCard({ explainability, role, country }: { explainability: 
   );
 }
 
-/** External platforms and learning catalog. Integrations show their real status, never a fake connection. */
-export function PlatformsCard({ connections, courses, coursesFailed }: { connections: Record<string, WorkspaceConnection>; courses: WorkspaceCourse[] | null; coursesFailed: boolean }) {
-  const saved = courses?.filter((course) => course.saved) ?? [];
-  const shown = (saved.length ? saved : courses ?? []).slice(0, 3);
+/** External platforms. Integrations show their real status, never a fake connection. */
+export function PlatformsCard({ connections }: { connections: Record<string, WorkspaceConnection> }) {
   return (
     <section className="ov-card ov-platforms" aria-labelledby="ov-platforms-title">
       <div className="ov-card-head">
@@ -115,19 +113,6 @@ export function PlatformsCard({ connections, courses, coursesFailed }: { connect
           );
         })}
       </ul>
-      <div className="ov-courses">
-        <h3>{saved.length ? `Saved courses (${saved.length})` : "Courses for your skills"}</h3>
-        {coursesFailed ? <p className="ov-muted">The course catalog could not load right now.</p>
-          : courses == null ? <p className="ov-muted" role="status">Loading courses…</p>
-          : shown.length === 0 ? <p className="ov-muted">No courses in the catalog yet.</p>
-          : (
-            <ul className="ov-list">
-              {shown.map((course) => (
-                <li key={course.id}><Link href="/workspace/courses">{course.title}<span>{course.provider_name} · {course.duration}</span></Link></li>
-              ))}
-            </ul>
-          )}
-      </div>
     </section>
   );
 }

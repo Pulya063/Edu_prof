@@ -15,7 +15,7 @@ blueprint = Blueprint("market", __name__)
 @get_current_user
 def create_market_snapshot(user: User) -> tuple[Response, int]:
     if not user.is_admin:
-        raise AppError("Недостатньо прав для завантаження market data", status_code=403)
+        raise AppError("You do not have permission to upload market data", status_code=403)
     payload = MarketSnapshotCreateRequest.model_validate(request.get_json(silent=True) or {})
     snapshot, created = MarketSnapshotService(db.session).create(payload)
     response = MarketSnapshotResponse.model_validate(snapshot)
@@ -26,12 +26,12 @@ def create_market_snapshot(user: User) -> tuple[Response, int]:
 @get_current_user
 def queue_market_refresh(user: User) -> tuple[Response, int]:
     if not user.is_admin:
-        raise AppError("Недостатньо прав для оновлення market data", status_code=403)
+        raise AppError("You do not have permission to refresh market data", status_code=403)
         
     payload = request.get_json(silent=True) or {}
     role = payload.get("role")
     if not role:
-        raise AppError("Поле 'role' є обов'язковим", status_code=422)
+        raise AppError("The 'role' field is required", status_code=422)
         
     country = payload.get("country", "United States")
     currency = payload.get("currency", "USD")
@@ -40,7 +40,7 @@ def queue_market_refresh(user: User) -> tuple[Response, int]:
     try:
         task = refresh_market_snapshot.delay(role, country, currency)
     except Exception as error:
-        raise AppError("Черга оновлення market data недоступна", status_code=503) from error
+        raise AppError("The market data refresh queue is unavailable", status_code=503) from error
 
     return jsonify({"job_id": task.id}), 202
 
@@ -74,11 +74,32 @@ NEWS_QUERIES = {
 }
 
 
+@blueprint.get("/fx")
+@get_current_user
+def exchange_rates(user: User) -> Response:
+    """Official NBP mid rates (PLN per unit) for showing amounts in the person's chosen currency."""
+    import httpx
+
+    from app.services.fx_service import latest_rates
+
+    try:
+        return jsonify(latest_rates())
+    except (httpx.HTTPError, ValueError, KeyError, IndexError) as error:
+        raise AppError("Exchange rates are not available right now; amounts stay in the calculation currency", status_code=503) from error
+
+
 @blueprint.get("/roles")
 @get_current_user
 def list_supported_roles(user: User) -> Response:
+    """Popular roles, plus every role someone has already asked Fence to read listings for."""
+    from sqlalchemy import select
+
+    from app.models import MarketSnapshot
     from app.services.market_ingestion_service import SUPPORTED_ROLES
-    return jsonify(list(SUPPORTED_ROLES))
+
+    known = {role.casefold(): role for role in db.session.execute(select(MarketSnapshot.role).distinct()).scalars()}
+    known.update({role.casefold(): role for role in SUPPORTED_ROLES})
+    return jsonify(sorted(known.values(), key=str.casefold))
 
 
 @blueprint.get("/economics")
@@ -89,7 +110,7 @@ def country_economics(user: User) -> Response:
 
     country = (request.args.get("country") or "").strip()
     if not country:
-        raise AppError("Поле 'country' є обов'язковим", status_code=422)
+        raise AppError("The 'country' field is required", status_code=422)
     response = CountryEconomicsResponse.model_validate(EconomicDataService(db.session).profile(country))
     return jsonify(response.model_dump(mode="json"))
 
@@ -98,7 +119,7 @@ def country_economics(user: User) -> Response:
 @get_current_user
 def refresh_country_economics(user: User) -> Response:
     if not user.is_admin:
-        raise AppError("Недостатньо прав для оновлення економічних даних", status_code=403)
+        raise AppError("You do not have permission to refresh economic data", status_code=403)
     from app.services.economic_data_service import EconomicDataError, EconomicDataService
 
     country = str((request.get_json(silent=True) or {}).get("country") or "").strip()
@@ -118,11 +139,26 @@ def market_news(user: User) -> Response:
     role = (request.args.get("role") or "").strip()
     country = (request.args.get("country") or "").strip()
     if not role:
-        raise AppError("Поле 'role' є обов'язковим", status_code=422)
+        raise AppError("The 'role' field is required", status_code=422)
     query = NEWS_QUERIES.get((role.casefold(), country.casefold()), f"{role} job market {country}".strip())
     try:
         items = search_news(query, country)
     except Exception as error:
-        raise AppError("Стрічка новин тимчасово недоступна", status_code=503) from error
+        raise AppError("The news feed is temporarily unavailable", status_code=503) from error
     response = MarketNewsResponse(query=query, feed_url=news_feed_url(query, country), items=items)
     return jsonify(response.model_dump(mode="json"))
+
+
+@blueprint.get("/living-costs")
+@get_current_user
+def living_costs(user: User) -> Response:
+    """Typical monthly student costs for a country, each line on its own."""
+    from app.data.living_costs import COST_LABELS, LIVING_COST_KEYS, LIVING_COSTS
+    from app.schemas import LivingCostsResponse
+
+    country = (request.args.get("country") or "").strip()
+    data = LIVING_COSTS.get(country)
+    if data is None:
+        raise AppError("There is no cost data for this country", status_code=404)
+    lines = [{"key": key, "label": data["labels"].get(key, COST_LABELS[key]), "per_month": data["lines"][key]} for key in LIVING_COST_KEYS if key in data["lines"]]
+    return jsonify(LivingCostsResponse(country=country, currency=data["currency"], source_name=data["source_name"], source_url=data["source_url"], lines=lines).model_dump(mode="json"))

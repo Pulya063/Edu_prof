@@ -59,4 +59,4 @@ def validate_csrf_request() -> None:
     cookie_token = request.cookies.get(CSRF_COOKIE_NAME, "")
     header_token = request.headers.get(CSRF_HEADER_NAME, "")
     if not cookie_token or not header_token or not hmac.compare_digest(cookie_token, header_token):
-        raise AppError("CSRF token відсутній або недійсний", status_code=403)
+        raise AppError("CSRF token is missing or invalid", status_code=403)

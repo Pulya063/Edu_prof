@@ -17,6 +17,7 @@ from app.services.economic_data_service import COUNTRIES, EconomicDataService
 from app.services.market_ingestion_service import SUPPORTED_ROLES, MarketIngestionService
 from app.services.official_wage_service import refresh_salary_snapshot
 from app.services.university_catalog_service import UniversityCatalogService
+from app.services.university_facts_service import ensure_catalogue_rows, sync_programmes
 
 
 def main() -> None:
@@ -30,6 +31,8 @@ def main() -> None:
                 print(f"economics {country}: FAILED {type(error).__name__}: {error}")
 
         print(f"universities added: {UniversityCatalogService(db.session).import_countries()}")
+        print(f"top universities added to the catalogue: {ensure_catalogue_rows(db.session)}")
+        print(f"study programmes stored: {sync_programmes(db.session)}")
 
         # One ingestion instance, so the Ukrainian register and the DOU survey download once for all roles.
         ingestion = MarketIngestionService(db.session)

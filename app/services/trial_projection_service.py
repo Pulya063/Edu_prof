@@ -7,6 +7,7 @@ with inflation (today's money). Missing data is reported as an error, never fill
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -22,10 +23,23 @@ from app.services.market_snapshot_service import MarketSnapshotService
 from app.services.official_wage_service import METHODOLOGY_VERSION as OFFICIAL_METHODOLOGY
 from app.services.simulation_projection_service import METHODOLOGY_VERSION, DeterministicProjectionEngine
 
+logger = logging.getLogger(__name__)
+
 COUNTRY_CURRENCY = {"Poland": "PLN", "Ukraine": "UAH"}
 TRIAL_HORIZON_YEARS = 10
 TRIAL_DISCOUNT_RATE = Decimal("5")
 TRIAL_SELECTION = {"seniority": "junior", "minimum_confidence": "medium"}
+
+# State-funded places unless a tuition is stated; the 5-year target is an example for the landing.
+SHOWCASE_SCENARIOS = (
+    ("warsaw-python", "Warsaw Tech · Python", {"country": "Poland", "career_target": "Python Backend Developer", "university": "Warsaw University of Technology", "study_years": Decimal("3.5"), "target_payback_years": 5}),
+    ("knu-python", "KNU Kyiv · Python", {"country": "Ukraine", "career_target": "Python Backend Developer", "university": "Taras Shevchenko National University of Kyiv", "study_years": Decimal("4"), "target_payback_years": 5}),
+    ("warsaw-law", "Univ. of Warsaw · Law", {"country": "Poland", "career_target": "Lawyer", "university": "University of Warsaw", "study_years": Decimal("5"), "target_payback_years": 5}),
+    ("poland-nurse", "Nurse · Poland", {"country": "Poland", "career_target": "Nurse", "study_years": Decimal("3.5"), "target_payback_years": 5}),
+    ("ukraine-teacher", "Teacher · Ukraine", {"country": "Ukraine", "career_target": "Teacher", "study_years": Decimal("4"), "target_payback_years": 5}),
+)
+SHOWCASE_GRANT = Decimal("30000")
+SHOWCASE_GRANT_REQUEST = {"country": "Poland", "career_target": "Python Backend Developer", "study_years": Decimal("3.5"), "annual_tuition": Decimal("20000"), "target_payback_years": 5}
 
 
 def _snapshot_source_name(snapshot: MarketSnapshot) -> str:
@@ -38,6 +52,27 @@ def _snapshot_source_name(snapshot: MarketSnapshot) -> str:
 class TrialProjectionService:
     def __init__(self, db_session: Session) -> None:
         self.db = db_session
+
+    def showcase(self) -> dict:
+        """Fixed example scenarios for the public landing, calculated by the same engine."""
+        scenarios = []
+        for key, label, request in SHOWCASE_SCENARIOS:
+            try:
+                scenarios.append({"key": key, "label": label, "result": self.preview(TrialProjectionRequest(**request))})
+            except AppError as error:
+                logger.info("Showcase scenario %s skipped: %s", key, error)
+        grant_example = None
+        try:
+            request = TrialProjectionRequest(**SHOWCASE_GRANT_REQUEST)
+            grant_example = {
+                "label": "Warsaw · Python backend, 3.5 years",
+                "grant": SHOWCASE_GRANT,
+                "without_grant": self.preview(request),
+                "with_grant": self.preview(request, scholarships=SHOWCASE_GRANT),
+            }
+        except AppError as error:
+            logger.info("Showcase grant example skipped: %s", error)
+        return {"careers": self.options(), "scenarios": scenarios, "grant_example": grant_example}
 
     def options(self) -> list[dict]:
         """Role/country pairs the preview can calculate now: the snapshot it would pick for each pair."""
@@ -66,10 +101,10 @@ class TrialProjectionService:
             "salary_source": "official" if snapshot.methodology_version == OFFICIAL_METHODOLOGY else "listings",
         } for snapshot in best.values()), key=lambda item: (item["country"], item["career_target"]))
 
-    def preview(self, payload: TrialProjectionRequest) -> dict:
+    def preview(self, payload: TrialProjectionRequest, scholarships: Decimal = Decimal("0")) -> dict:
         role = next((name for name in SUPPORTED_ROLES if name.casefold() == payload.career_target.strip().casefold()), None)
         if role is None:
-            raise AppError("Для цієї професії ще немає зарплатних даних", status_code=422)
+            raise AppError("There is no salary data for this role yet", status_code=422)
         currency = COUNTRY_CURRENCY[payload.country]
         selection = MarketSnapshotSelection(**TRIAL_SELECTION)
         try:
@@ -79,13 +114,13 @@ class TrialProjectionService:
                 minimum_confidence=selection.minimum_confidence,
             )
         except AppError as error:
-            raise AppError("Зарплатні дані для цієї професії й країни зараз недоступні", status_code=422) from error
+            raise AppError("Salary data for this role and country is unavailable right now", status_code=422) from error
 
         economics = EconomicDataService(self.db).profile(payload.country)
         inflation = economics.get("suggested_inflation_percent")
         monthly_baseline = economics.get("baseline_monthly_wage")
         if inflation is None or monthly_baseline is None:
-            raise AppError("Економічні дані для цієї країни ще не завантажені", status_code=422)
+            raise AppError("Economic data for this country is not loaded yet", status_code=422)
         baseline_annual = (Decimal(str(monthly_baseline)) * 12).quantize(Decimal("0.01"))
         inflation = Decimal(str(inflation))
 
@@ -116,6 +151,7 @@ class TrialProjectionService:
             foregone_income_percent=Decimal("100"), horizon_years=TRIAL_HORIZON_YEARS,
             discount_rate_percent=TRIAL_DISCOUNT_RATE, inflation_percent=inflation,
             job_search_months=payload.job_search_months, target_payback_years=payload.target_payback_years,
+            scholarships_and_grants=scholarships,
             evidence=evidence,
         )
         assumptions = {

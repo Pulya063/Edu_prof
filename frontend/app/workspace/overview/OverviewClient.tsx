@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api/client";
-import { formatMoney, formatPercent } from "@/lib/api/decimal";
+import { formatMoney, formatRoiPerYear } from "@/lib/api/decimal";
 import type { RecentCalculationSummary, SimulationOverviewResponse } from "@/lib/api/generated";
-import { type RoadmapTask, type WorkspaceCourse, type WorkspaceState, workspaceFetch } from "@/lib/api/workspace";
+import { type RoadmapTask, type WorkspaceState } from "@/lib/api/workspace";
 import { useWorkspaceAuth } from "@/components/auth/WorkspaceAuthGuard";
 import GoalProgress from "./GoalProgress";
 import { buildGoalMilestones } from "./goalMilestones";
@@ -37,9 +37,6 @@ export default function OverviewClient() {
   const [overview, setOverview] = useState<SimulationOverviewResponse | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   const [state, setState] = useState<LoadState>("loading");
-  // The course catalog is secondary: if it fails, the dashboard still renders.
-  const [courses, setCourses] = useState<WorkspaceCourse[] | null>(null);
-  const [coursesFailed, setCoursesFailed] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setState("loading");
@@ -60,9 +57,6 @@ export default function OverviewClient() {
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
-    workspaceFetch<WorkspaceCourse[]>("/api/workspace/courses", { signal: controller.signal })
-      .then(setCourses)
-      .catch((reason) => { if (reason.name !== "AbortError") setCoursesFailed(true); });
     return () => controller.abort();
   }, [load]);
 
@@ -88,7 +82,7 @@ export default function OverviewClient() {
   const doneTasks = allTasks.filter((task) => task.completed).length;
   const activeTasks = allTasks.filter((task) => !task.completed);
   const milestones = buildGoalMilestones(workspace, calculations, showRoadmap);
-  const platforms = <PlatformsCard connections={workspace.connections} courses={courses} coursesFailed={coursesFailed} />;
+  const platforms = <PlatformsCard connections={workspace.connections} />;
   const goal = workspace.profile.career_target?.trim() || roadmap?.target_job || calculations[0]?.target_role || "your career plan";
 
   return (
@@ -191,7 +185,7 @@ function CalculationRow({ item }: { item: RecentCalculationSummary }) {
       </Link>
       {hasForecast ? (
         <dl className="ov-calc-metrics">
-          <div><dt>ROI</dt><dd>{formatPercent(item.roi_percent)}</dd></div>
+          <div><dt>ROI a year</dt><dd>{formatRoiPerYear(item.roi_percent)}</dd></div>
           <div><dt>Payback</dt><dd>{formatPayback(item.payback_months)}</dd></div>
           <div><dt>Investment</dt><dd>{formatMoney(item.total_investment, item.currency)}</dd></div>
         </dl>

@@ -6,6 +6,7 @@ import "../styles/workspace-trial.css";
 import AvatarDropdown from "./AvatarDropdown";
 import WorkspaceAuthGuard from "@/components/auth/WorkspaceAuthGuard";
 import WorkspaceSidebar from "./WorkspaceSidebar";
+import WorkspacePreferences from "./WorkspacePreferences";
 
 export const metadata: Metadata = {
   title: "Workspace",
@@ -24,7 +25,7 @@ export default function WorkspaceLayout({ children }: Readonly<{ children: React
               <AvatarDropdown />
             </div>
           </header>
-          {children}
+          <WorkspacePreferences>{children}</WorkspacePreferences>
         </main>
       </div>
     </WorkspaceAuthGuard>

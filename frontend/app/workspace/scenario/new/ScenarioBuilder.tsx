@@ -1,33 +1,42 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AUTH_EXPIRED_EVENT, getCsrfToken, readApiError, type FieldErrors } from "@/lib/api/client";
-import { workspaceFetch } from "@/lib/api/workspace";
+import { workspaceFetch, type WorkspaceState } from "@/lib/api/workspace";
+import DecimalInput, { parseDecimal } from "../../DecimalInput";
+import SearchSelect, { type SearchOption } from "./SearchSelect";
 import UniversitySearch from "./UniversitySearch";
+import { careersForProgramme, standardStudyYears } from "./programmeRules";
 import type {
   CountryEconomicsResponse,
+  LivingCostsResponse,
   MarketSnapshotResponse,
   SimulationCreateRequest,
   SimulationProjectionRequest,
   SimulationScenarioResponse,
-  TuitionSnapshotResponse,
-  TuitionSnapshotSelection,
+  SpecializationsResponse,
+  StudyProgrammeItem,
 } from "@/lib/api/generated";
 
 // ─── Types ───────────────────────────────────────────────────────
-type SubmitState = "idle" | "checking" | "creating" | "projecting" | "partial" | "error";
-type TuitionLookupState = "idle" | "loading" | "found" | "missing" | "error";
-
+type SubmitState = "idle" | "checking" | "projecting" | "error";
 type CreatedScenario = SimulationScenarioResponse;
-type TuitionSnapshot = TuitionSnapshotResponse;
+type CostItem = NonNullable<SimulationProjectionRequest["cost_items"]>[number];
+type LivingKey = "housing" | "food" | "transport" | "study_materials" | "other_living";
 
 // Countries with live market, economic and university data; the currency follows the country.
 const COUNTRY_CURRENCY: Record<string, string> = { Poland: "PLN", Ukraine: "UAH" };
+const AVERAGE_STUDY_YEARS = 3.5;
+// Every forecast looks ten years past graduation; the person only picks the payback target.
+const HORIZON_YEARS = 10;
 
 function fmt(n: number, currency: string) {
   return new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(n) + " " + currency;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 // ─── API error parser ─────────────────────────────────────────────
@@ -40,46 +49,31 @@ const API_FIELD_TO_FORM: Record<string, FormKey> = {
   "assumptions.specialization": "specialization",
   "assumptions.country": "country",
   "assumptions.degree": "degree",
-  "assumptions.currency": "currency",
   "assumptions.annual_tuition": "annualTuition",
   "assumptions.study_duration_years": "studyDuration",
   "assumptions.career_target": "careerTarget",
-  "assumptions.experience_years": "experienceYears",
   annual_start_salary: "annualStartSalary",
   baseline_annual_salary: "baselineAnnualSalary",
-  annual_salary_growth_percent: "annualSalaryGrowthPercent",
-  baseline_salary_growth_percent: "baselineSalaryGrowthPercent",
-  foregone_income_percent: "foregoneIncomePercent",
   mandatory_fees: "mandatoryFees",
   scholarships_and_grants: "scholarshipsAndGrants",
   additional_education_cost: "additionalEducationCost",
-  incremental_living_cost: "incrementalLivingCost",
   employment_income_during_study: "employmentIncomeDuringStudy",
-  horizon_years: "horizonYears",
-  discount_rate_percent: "discountRatePercent",
-  inflation_percent: "inflationPercent",
-  job_search_months: "jobSearchMonths",
-  employment_probability_percent: "employmentProbabilityPercent",
   target_payback_years: "targetPaybackYears",
   "market_snapshot_selection.seniority": "seniority",
 };
 
 const DETAILED_FIELDS = new Set<FormKey>([
-  "baselineAnnualSalary", "foregoneIncomePercent", "employmentIncomeDuringStudy", "mandatoryFees",
-  "scholarshipsAndGrants", "additionalEducationCost", "incrementalLivingCost",
-  "annualSalaryGrowthPercent", "baselineSalaryGrowthPercent",
+  "baselineAnnualSalary", "employmentIncomeDuringStudy", "mandatoryFees",
+  "scholarshipsAndGrants", "additionalEducationCost", "name",
 ]);
-
-// Which inputs were filled from an official source (they lose that label once edited).
-type OfficialInputs = { inflation: boolean; baseline: boolean };
 
 function toFormErrors(errors: FieldErrors): Partial<Record<FormKey, string>> {
   const mapped: Partial<Record<FormKey, string>> = {};
   for (const [path, text] of Object.entries(errors)) {
     // Evidence records reuse the target role and seniority typed in the form.
-    const evidence = path.match(/^evidence\.\d+\.(role|seniority|country|currency)$/);
+    const evidence = path.match(/^evidence\.\d+\.(role|seniority|country)$/);
     const key = evidence
-      ? ({ role: "careerTarget", seniority: "seniority", country: "country", currency: "currency" } as const)[evidence[1] as "role" | "seniority" | "country" | "currency"]
+      ? ({ role: "careerTarget", seniority: "seniority", country: "country" } as const)[evidence[1] as "role" | "seniority" | "country"]
       : API_FIELD_TO_FORM[path];
     if (key && !mapped[key]) mapped[key] = text;
   }
@@ -91,257 +85,206 @@ async function responseError(response: Response): Promise<{ message: string; fie
     window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
   }
   if (response.status === 401) return { message: "Your secure session has expired. Sign in again before saving this scenario.", fields: {} };
-  if (response.status === 403) return { message: "This request could not be verified. Refresh the page and try again.", fields: {} };
-  const error = await readApiError(response, "Fence could not complete this request. Review the assumptions and try again.");
+  if (response.status === 403) {
+    // A full plan explains itself; anything else at 403 is a failed browser-session check.
+    const error = await readApiError(response, "This request could not be verified. Refresh the page and try again.");
+    return { message: /plan/i.test(error.message) ? error.message : "This request could not be verified. Refresh the page and try again.", fields: {} };
+  }
+  const error = await readApiError(response, "Fence could not complete this request. Review the inputs and try again.");
   return { message: error.message, fields: toFormErrors(error.fieldErrors) };
 }
 
 // ─── Initial form state ───────────────────────────────────────────
 const initialForm = {
-  name:            "My education decision",
+  name:            "",
+  country:         "Poland",
   university:      "",
   specialization:  "",
-  country:         "Poland",
   degree:          "Bachelor's degree",
-  currency:        "PLN",
-  studyDuration:   "3",
-  careerTarget:    "",
-  experienceYears: "0",
-  seniority:       "junior",
-  horizonYears:    "10",
-  discountRatePercent: "",
+  // Empty: the 3.5-year average.
+  studyDuration:   "",
   annualTuition:   "",
-  studentResidency: "unspecified",
+  careerTarget:    "",
+  seniority:       "junior",
   annualStartSalary: "",
-  baselineAnnualSalary: "0",
-  annualSalaryGrowthPercent: "0",
-  baselineSalaryGrowthPercent: "0",
-  foregoneIncomePercent: "100",
-  mandatoryFees: "",
-  scholarshipsAndGrants: "",
-  additionalEducationCost: "",
-  incrementalLivingCost: "",
-  employmentIncomeDuringStudy: "",
-  inflationPercent: "",
-  jobSearchMonths: "3",
-  employmentProbabilityPercent: "100",
   // Empty: no payback target, the result shows payback without a yes/no verdict.
   targetPaybackYears: "",
+  housing: "",
+  food: "",
+  transport: "",
+  study_materials: "",
+  other_living: "",
+  mandatoryFees: "",
+  additionalEducationCost: "",
+  scholarshipsAndGrants: "",
+  employmentIncomeDuringStudy: "",
+  baselineAnnualSalary: "",
 };
 
-const PAYBACK_TARGET_PRESETS = ["3", "4", "5", "10"];
-
-const TUITION_IDENTITY_FIELDS = new Set<keyof typeof initialForm>([
-  "university",
-  "specialization",
-  "country",
-  "degree",
-  "currency",
-  "studentResidency",
-]);
+const PAYBACK_TARGET_PRESETS = ["3", "5", "7", "10"];
+const LEVEL_DEGREE: Record<string, string> = { "first cycle": "Bachelor's degree", "second cycle": "Master's degree", "long-cycle master's": "Master's degree" };
+const LEVEL_LABEL: Record<string, string> = { "first cycle": "Bachelor", "second cycle": "Master", "long-cycle master's": "Long-cycle master" };
 
 // ─── Component ───────────────────────────────────────────────────
 export default function ScenarioBuilder() {
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [economics, setEconomics] = useState<CountryEconomicsResponse | null>(null);
+  const [averages, setAverages] = useState<LivingCostsResponse | null>(null);
+  const [universityInfo, setUniversityInfo] = useState<SpecializationsResponse | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [snapshot, setSnapshot] = useState<MarketSnapshotResponse | null>(null);
-  const [official, setOfficial] = useState<OfficialInputs>({ inflation: false, baseline: false });
+  // The official document a programme's fee came from; gone once the fee is typed over.
+  const [tuitionSource, setTuitionSource] = useState<{ title: string; url: string } | null>(null);
+  // The programme level the study length was filled from; gone once the years are typed over.
+  const [yearsFromLevel, setYearsFromLevel] = useState<string | null>(null);
   const [state, setState] = useState<SubmitState>("idle");
   const [message, setMessage] = useState("");
-  const [savedScenarioId, setSavedScenarioId] = useState<number | null>(null);
-  const [tuitionSnapshot, setTuitionSnapshot] = useState<TuitionSnapshot | null>(null);
-  const [tuitionLookupState, setTuitionLookupState] = useState<TuitionLookupState>("idle");
-  const [tuitionMessage, setTuitionMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FormKey, string>>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
   // A scenario already saved for these exact inputs; a retry then only re-runs the projection.
-  const [savedScenario, setSavedScenario] = useState<{ key: string; scenario: CreatedScenario } | null>(null);
 
-  const busy = state === "checking" || state === "creating" || state === "projecting";
+  // Saved calculations against the plan's limit; the server enforces it, this only says so up front.
+  const [slots, setSlots] = useState<{ used: number; limit: number | null; plan: string } | null>(null);
+  const planFull = slots?.limit != null && slots.used >= slots.limit;
+
+  const currency = COUNTRY_CURRENCY[form.country];
+  const busy = state === "checking" || state === "projecting";
 
   useEffect(() => {
     workspaceFetch<string[]>("/api/market/roles").then(setRoles).catch(() => setRoles([]));
+    workspaceFetch<WorkspaceState>("/api/workspace").then((value) => setSlots({ used: value.user.scenario_count, limit: value.user.scenario_limit ?? null, plan: value.user.plan })).catch(() => setSlots(null));
   }, []);
 
-  // Official inflation for the country pre-fills the inflation input (still editable).
   useEffect(() => {
-    if (!COUNTRY_CURRENCY[form.country]) { setEconomics(null); return; }
     const controller = new AbortController();
-    workspaceFetch<CountryEconomicsResponse>(`/api/market/economics?country=${encodeURIComponent(form.country)}`, { signal: controller.signal })
-      .then((data) => {
-        setEconomics(data);
-        if (data.suggested_inflation_percent != null) {
-          setForm((previous) => ({ ...previous, inflationPercent: String(data.suggested_inflation_percent) }));
-          setOfficial((previous) => ({ ...previous, inflation: true }));
-        }
-      })
-      .catch(() => setEconomics(null));
+    const query = `country=${encodeURIComponent(form.country)}`;
+    workspaceFetch<CountryEconomicsResponse>(`/api/market/economics?${query}`, { signal: controller.signal })
+      .then(setEconomics).catch(() => setEconomics(null));
+    workspaceFetch<LivingCostsResponse>(`/api/market/living-costs?${query}`, { signal: controller.signal })
+      .then(setAverages).catch(() => setAverages(null));
     return () => controller.abort();
   }, [form.country]);
 
+  // Fee range and address of the chosen university.
+  useEffect(() => {
+    if (!form.university.trim()) { setUniversityInfo(null); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({ country: form.country, university: form.university });
+      workspaceFetch<SpecializationsResponse>(`/api/workspace/specializations?${params}`, { signal: controller.signal })
+        .then(setUniversityInfo).catch(() => setUniversityInfo(null));
+    }, 250);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [form.country, form.university]);
+
   // The market snapshot the calculation would use, shown before submitting.
   useEffect(() => {
-    if (!form.careerTarget.trim() || !form.country.trim()) { setSnapshot(null); return; }
+    if (!form.careerTarget.trim()) { setSnapshot(null); return; }
     const controller = new AbortController();
     const params = new URLSearchParams({ role: form.careerTarget, country: form.country });
     const timer = window.setTimeout(() => {
       workspaceFetch<MarketSnapshotResponse[]>(`/api/market/snapshots?${params}`, { signal: controller.signal })
-        .then((items) => setSnapshot(items.find((item) => item.role.toLowerCase() === form.careerTarget.trim().toLowerCase() && item.currency === form.currency) ?? null))
+        .then((items) => setSnapshot(items.find((item) => item.role.toLowerCase() === form.careerTarget.trim().toLowerCase() && item.currency === currency) ?? null))
         .catch(() => setSnapshot(null));
     }, 200);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [form.careerTarget, form.country, form.currency]);
+  }, [form.careerTarget, form.country, currency]);
 
-  function applyOfficialBaseline() {
-    if (economics?.baseline_monthly_wage == null) return;
-    update("baselineAnnualSalary", String(Math.round(economics.baseline_monthly_wage * 12 * 100) / 100));
-    setOfficial((previous) => ({ ...previous, baseline: true }));
+  // A chosen programme narrows the careers to the ones it leads to; without a clue every role is offered.
+  const fieldRoles = useMemo(() => careersForProgramme(form.specialization, roles), [form.specialization, roles]);
+  const offeredRoles = fieldRoles.length ? fieldRoles : roles;
+  const roleOptions = useMemo<SearchOption[]>(() => offeredRoles.map((role) => ({ key: role, label: role })), [offeredRoles]);
+  const roleKnown = roles.some((role) => role.toLowerCase() === form.careerTarget.trim().toLowerCase());
+
+  function loadSpecializations(query: string, signal: AbortSignal): Promise<SearchOption<StudyProgrammeItem>[]> {
+    const params = new URLSearchParams({ country: form.country, q: query, university: form.university.trim() });
+    return workspaceFetch<SpecializationsResponse>(`/api/workspace/specializations?${params}`, { signal }).then((data) =>
+      data.items.map((item) => ({
+        key: `${item.name}|${item.level ?? ""}|${item.study_mode ?? ""}`,
+        label: item.name,
+        meta: [item.level ? LEVEL_LABEL[item.level] ?? item.level : null, item.study_mode, item.annual_fee != null ? `${fmt(item.annual_fee, currency)} / year` : null].filter(Boolean).join(" · "),
+        data: item,
+      })));
   }
 
-  const estimatedAnnualTuition = Number(form.annualTuition) || 0;
-  const estimatedDirectCost = useMemo(
-    () => Math.max(
-      estimatedAnnualTuition * (Number(form.studyDuration) || 0)
-      + (Number(form.mandatoryFees) || 0)
-      + (Number(form.additionalEducationCost) || 0)
-      + (Number(form.incrementalLivingCost) || 0)
-      - (Number(form.scholarshipsAndGrants) || 0),
-      0,
-    ),
-    [estimatedAnnualTuition, form.studyDuration, form.mandatoryFees,
-      form.additionalEducationCost, form.incrementalLivingCost, form.scholarshipsAndGrants],
-  );
-
-  const estimatedOpportunityCost = useMemo(
-    () => Math.max(
-      (Number(form.baselineAnnualSalary) || 0)
-      * (Number(form.studyDuration) || 0)
-      * (Number(form.foregoneIncomePercent) || 0) / 100
-      - (Number(form.employmentIncomeDuringStudy) || 0),
-      0,
-    ),
-    [form.baselineAnnualSalary, form.studyDuration, form.foregoneIncomePercent,
-      form.employmentIncomeDuringStudy],
-  );
-
-  const estimatedTotalCost = estimatedDirectCost + estimatedOpportunityCost;
-
-  const coreFieldsComplete = [form.university, form.specialization, form.careerTarget, form.country, form.annualTuition]
-    .filter((v) => v.trim()).length;
-  const coreInputsReady = coreFieldsComplete === 5;
-
-  function setPaybackTarget(years: string) {
-    update("targetPaybackYears", years);
-    // The verdict needs the target inside the horizon, so a longer target extends the horizon.
-    const target = Number(years);
-    if (Number.isInteger(target) && target >= 1 && target <= 30 && target > Number(form.horizonYears)) {
-      update("horizonYears", String(target));
+  function pickSpecialization(option: SearchOption<StudyProgrammeItem>) {
+    const item = option.data;
+    const matching = careersForProgramme(option.label, roles);
+    // A career from another field (an agronomist for Computer Science) no longer fits.
+    const keepRole = (role: string) => !matching.length || !role.trim() || matching.some((fit) => fit.toLowerCase() === role.trim().toLowerCase());
+    if (!item) {
+      setForm((previous) => ({ ...previous, careerTarget: keepRole(previous.careerTarget) ? previous.careerTarget : "" }));
+      return;
     }
+    const standardYears = standardStudyYears(item, form.university);
+    setForm((previous) => ({
+      ...previous,
+      careerTarget: keepRole(previous.careerTarget) ? previous.careerTarget : "",
+      degree: (item.level && LEVEL_DEGREE[item.level]) || previous.degree,
+      // Fee and length come from the programme when known; otherwise the person types them.
+      annualTuition: item.annual_fee != null ? String(item.annual_fee) : tuitionSource ? "" : previous.annualTuition,
+      studyDuration: standardYears != null ? String(standardYears).replace(".", ",") : yearsFromLevel ? "" : previous.studyDuration,
+    }));
+    setTuitionSource(item.annual_fee != null && universityInfo?.fee_range
+      ? { title: universityInfo.fee_range.source_title, url: universityInfo.fee_range.source_url }
+      : null);
+    setYearsFromLevel(standardYears != null && item.level ? LEVEL_LABEL[item.level] ?? item.level : null);
   }
 
-  function update(field: keyof typeof initialForm, value: string) {
+  function update(field: FormKey, value: string) {
     setFieldErrors((previous) => {
       if (!previous[field]) return previous;
       const next = { ...previous };
       delete next[field];
       return next;
     });
-    setForm((prev) => {
-      const next = field === "currency" || (field === "country" && COUNTRY_CURRENCY[value])
-        ? {
-          ...prev,
-          ...(field === "country" ? { country: value } : {}),
-          currency: field === "country" ? COUNTRY_CURRENCY[value] : value,
-          annualTuition: "",
-          annualStartSalary: "",
-          baselineAnnualSalary: "0",
-          mandatoryFees: "",
-          scholarshipsAndGrants: "",
-          additionalEducationCost: "",
-          incrementalLivingCost: "",
-          employmentIncomeDuringStudy: "",
-        }
-        : { ...prev, [field]: value };
-      if (tuitionSnapshot && TUITION_IDENTITY_FIELDS.has(field)) {
-        next.annualTuition = "";
-      }
-      return next;
+    setForm((previous) => {
+      // Another country means another currency and other institutions: its money fields start empty.
+      if (field === "country") return { ...initialForm, country: value, careerTarget: previous.careerTarget, name: previous.name, degree: previous.degree, seniority: previous.seniority, targetPaybackYears: previous.targetPaybackYears };
+      // A fee or length read from another university's programme no longer applies.
+      if (field === "university") return { ...previous, university: value, annualTuition: tuitionSource ? "" : previous.annualTuition, studyDuration: yearsFromLevel ? "" : previous.studyDuration };
+      return { ...previous, [field]: value };
     });
-    if (field === "inflationPercent") setOfficial((previous) => ({ ...previous, inflation: false }));
-    if (field === "baselineAnnualSalary" || field === "currency" || field === "country") setOfficial((previous) => ({ ...previous, baseline: false }));
-    if (field === "annualTuition" || TUITION_IDENTITY_FIELDS.has(field)) {
-      setTuitionSnapshot(null);
-      setTuitionLookupState("idle");
-      setTuitionMessage("");
-    }
+    if (field === "country" || field === "university" || field === "annualTuition") setTuitionSource(null);
+    if (field === "country" || field === "university" || field === "studyDuration") setYearsFromLevel(null);
     if (state === "error") setState("idle");
   }
 
-  async function resolveTuitionSnapshot() {
-    if (!form.university.trim() || !form.specialization.trim() || !form.country.trim()) {
-      setTuitionLookupState("missing");
-      setTuitionMessage("Add the university, programme and country before checking verified tuition.");
-      return;
-    }
-
-    const csrfToken = getCsrfToken();
-    if (!csrfToken) {
-      setTuitionLookupState("error");
-      setTuitionMessage("Refresh the page so Fence can verify this secure request.");
-      return;
-    }
-
-    setTuitionLookupState("loading");
-    setTuitionMessage("");
-    try {
-      const response = await fetch("/api/tuition/snapshots/resolve", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
-        },
-        body: JSON.stringify({
-          university: form.university,
-          program: form.specialization,
-          country: form.country,
-          degree: form.degree,
-          student_residency: form.studentResidency as TuitionSnapshotSelection["student_residency"],
-          currency: form.currency,
-          max_age_days: 1460,
-          minimum_confidence: "medium",
-          allow_country_fallback: false,
-        } satisfies TuitionSnapshotSelection),
-      });
-
-      if (!response.ok) {
-        setTuitionSnapshot(null);
-        setTuitionLookupState(response.status === 422 ? "missing" : "error");
-        setTuitionMessage(response.status === 422
-          ? "No matching verified record is stored yet. Enter the official fee manually and Fence will label it as user-provided."
-          : (await responseError(response)).message);
-        return;
-      }
-
-      const snapshot = (await response.json()) as TuitionSnapshot;
-      setTuitionSnapshot(snapshot);
-      setForm((previous) => ({ ...previous, annualTuition: String(snapshot.annual_tuition) }));
-      setTuitionLookupState("found");
-      setTuitionMessage("Verified stored record selected. Fence will keep its source with this scenario revision.");
-    } catch {
-      setTuitionSnapshot(null);
-      setTuitionLookupState("error");
-      setTuitionMessage("Fence could not check stored tuition records. You can still enter the official fee manually.");
-    }
+  /** Input text -> number for the API. Blank uses the fallback; unparseable text is sent as null so the API reports the field. */
+  function formNumber(value: string, fallback = 0): number {
+    const parsed = parseDecimal(value);
+    return parsed === null ? fallback : parsed;
   }
 
-  /** Input text -> number for the API. Blank uses the fallback; unparseable text becomes NaN (sent as null) so the API reports the field. */
-  function formNumber(value: string, fallback = 0): number {
-    const text = value.trim().replace(",", ".");
-    return text ? Number(text) : fallback;
+  function numberOr(value: string, fallback: number): number {
+    const parsed = parseDecimal(value);
+    return parsed === null || Number.isNaN(parsed) ? fallback : parsed;
+  }
+
+  // ─── Live picture of the costs ────────────────────────────────
+  const years = numberOr(form.studyDuration, AVERAGE_STUDY_YEARS) || AVERAGE_STUDY_YEARS;
+  const baselineYear = form.baselineAnnualSalary.trim()
+    ? numberOr(form.baselineAnnualSalary, 0)
+    : (economics?.baseline_monthly_wage ?? 0) * 12;
+  const livingLines = (averages?.lines ?? []).map((line) => {
+    const typed = form[line.key as LivingKey]?.trim();
+    const perMonth = typed ? numberOr(typed, 0) : line.per_month;
+    return { key: line.key as LivingKey, label: line.label, average: line.per_month, perMonth, typed: Boolean(typed), total: perMonth * 12 * years };
+  });
+  const moneyLines = [
+    { key: "tuition", label: "Tuition", total: numberOr(form.annualTuition, 0) * years, note: form.annualTuition.trim() ? `${years} years` : "not entered" },
+    ...(numberOr(form.mandatoryFees, 0) ? [{ key: "fees", label: "Mandatory fees", total: numberOr(form.mandatoryFees, 0), note: "" }] : []),
+    ...livingLines.map((line) => ({ key: line.key, label: line.label, total: line.total, note: `${fmt(line.perMonth, currency)} / mo${line.typed ? "" : " · average"}` })),
+    ...(numberOr(form.additionalEducationCost, 0) ? [{ key: "training", label: "Additional training", total: numberOr(form.additionalEducationCost, 0), note: "" }] : []),
+    ...(numberOr(form.scholarshipsAndGrants, 0) ? [{ key: "grants", label: "Scholarships and grants", total: -numberOr(form.scholarshipsAndGrants, 0), note: "" }] : []),
+    { key: "pay", label: "Pay given up while studying", total: baselineYear * years, note: form.baselineAnnualSalary.trim() ? "your figure" : economics?.baseline_wage_kind === "minimum_wage" ? "minimum wage" : "typical pay" },
+    ...(numberOr(form.employmentIncomeDuringStudy, 0) ? [{ key: "income", label: "Income while studying", total: -numberOr(form.employmentIncomeDuringStudy, 0), note: "" }] : []),
+  ];
+  const estimatedTotalCost = Math.max(moneyLines.reduce((sum, line) => sum + line.total, 0), 0);
+
+  function setPaybackTarget(value: string) {
+    update("targetPaybackYears", value);
   }
 
   // ─── Submit ───────────────────────────────────────────────────
@@ -365,196 +308,108 @@ export default function ScenarioBuilder() {
         "X-CSRF-Token": csrfToken,
       };
 
+      const university = form.university.trim();
+      const specialization = form.specialization.trim();
+      const role = form.careerTarget.trim();
       const assumptions: SimulationCreateRequest["assumptions"] = {
-        university:           form.university,
-        specialization:       form.specialization,
+        university:           university || null,
+        specialization:       specialization || null,
         country:              form.country,
         degree:               form.degree,
-        currency:             form.currency,
-        study_duration_years: formNumber(form.studyDuration),
-        career_target:        form.careerTarget,
+        currency,
+        study_duration_years: formNumber(form.studyDuration, AVERAGE_STUDY_YEARS),
+        career_target:        role,
         existing_skills:      [],
         additional_education: [],
         courses:              [],
         certifications:       [],
-        experience_years:     formNumber(form.experienceYears),
-        ...(tuitionSnapshot ? {} : { annual_tuition: estimatedAnnualTuition }),
+        // Not used by the calculation, so the form no longer asks for it.
+        experience_years:     0,
+        annual_tuition:       formNumber(form.annualTuition),
       };
       const scenarioRequest: SimulationCreateRequest = {
-        name: form.name,
+        name: form.name.trim() || [role, specialization || university || form.country].join(" · ").slice(0, 255),
         assumptions,
-        ...(tuitionSnapshot ? { tuition_snapshot_id: tuitionSnapshot.id } : {}),
       };
-      const scenarioKey = JSON.stringify(scenarioRequest);
-
-      let scenario: CreatedScenario;
-      if (savedScenario && savedScenario.key === scenarioKey) {
-        scenario = savedScenario.scenario;
-      } else {
-        setState("creating");
-        setSavedScenarioId(null);
-        const scenarioResponse = await fetch("/api/simulations", {
-          method: "POST",
-          credentials: "include",
-          headers: mutationHeaders,
-          body: scenarioKey,
-        });
-
-        if (!scenarioResponse.ok) {
-          const failure = await responseError(scenarioResponse);
-          setFieldErrors(failure.fields);
-          setState("error");
-          setMessage(failure.message);
-          return;
-        }
-
-        scenario = (await scenarioResponse.json()) as CreatedScenario;
-        setSavedScenario({ key: scenarioKey, scenario });
-      }
-      setSavedScenarioId(scenario.id);
       setState("projecting");
 
       const acquiredAt = new Date().toISOString();
-      const userEvidence: NonNullable<SimulationProjectionRequest["evidence"]> = [
-        ...(!tuitionSnapshot ? [{
-          metric: "tuition" as const,
-          source_name: "User-provided tuition estimate",
-          source_reference: "user-provided:scenario-form",
-          acquired_at: acquiredAt,
-          country: form.country,
-          role: form.careerTarget,
-          seniority: form.seniority,
-          currency: form.currency,
-          confidence: "low" as const,
-        }] : []),
-        ...(official.inflation && economics && form.inflationPercent.trim() ? [{
-          metric: "inflation" as const,
-          source_name: `World Bank CPI inflation, median ${economics.inflation_window}`,
-          source_reference: economics.series.find((series) => series.indicator === "cpi_inflation")?.source_url || "worldbank:FP.CPI.TOTL.ZG",
-          acquired_at: acquiredAt,
-          country: form.country,
-          role: form.careerTarget,
-          seniority: form.seniority,
-          currency: form.currency,
-          confidence: "high" as const,
-        }] : []),
-        ...(Number(form.baselineAnnualSalary) > 0 && official.baseline && economics?.baseline_wage_source_url ? [{
-          metric: "baseline_salary" as const,
-          source_name: economics.baseline_wage_source_name || "Official baseline wage",
-          source_reference: economics.baseline_wage_source_url,
-          acquired_at: acquiredAt,
-          country: form.country,
-          role: "Work without this degree",
-          seniority: form.seniority,
-          currency: form.currency,
-          confidence: "high" as const,
-        }] : []),
-        ...(Number(form.baselineAnnualSalary) > 0 && !(official.baseline && economics?.baseline_wage_source_url) ? [{
-          metric: "baseline_salary" as const,
-          source_name: "User-provided baseline salary",
-          source_reference: "user-provided:scenario-form",
-          acquired_at: acquiredAt,
-          country: form.country,
-          role: "Current employment",
-          seniority: form.seniority,
-          currency: form.currency,
-          confidence: "low" as const,
-        }] : []),
-        ...(Number(form.employmentIncomeDuringStudy) > 0 ? [{
-          metric: "study_income" as const,
-          source_name: "User-provided study income estimate",
-          source_reference: "user-provided:detailed-analysis",
-          acquired_at: acquiredAt,
-          country: form.country,
-          role: "Employment during study",
-          seniority: form.seniority,
-          currency: form.currency,
-          confidence: "low" as const,
-        }] : []),
+      const evidenceBase = { acquired_at: acquiredAt, country: form.country, seniority: form.seniority, currency };
+      const userProvided = { source_reference: "user-provided:scenario-form", confidence: "low" as const };
+      const evidence: NonNullable<SimulationProjectionRequest["evidence"]> = [
+        tuitionSource
+          ? { metric: "tuition" as const, source_name: tuitionSource.title, source_reference: tuitionSource.url, confidence: "high" as const, role, ...evidenceBase }
+          : { metric: "tuition" as const, source_name: "User-provided tuition estimate", role, ...userProvided, ...evidenceBase },
+        ...(form.baselineAnnualSalary.trim() ? [{ metric: "baseline_salary" as const, source_name: "User-provided income without this degree", role: "Current employment", ...userProvided, ...evidenceBase }] : []),
+        ...(formNumber(form.employmentIncomeDuringStudy) > 0 ? [{ metric: "study_income" as const, source_name: "User-provided study income estimate", role: "Employment during study", ...userProvided, ...evidenceBase }] : []),
       ];
 
       const salarySource: Pick<SimulationProjectionRequest, "annual_start_salary" | "market_snapshot_selection" | "evidence"> = form.annualStartSalary.trim()
         ? {
             annual_start_salary: formNumber(form.annualStartSalary),
-            evidence: [
-              ...userEvidence,
-              {
-                metric: "target_start_salary" as const,
-                source_name: "User-provided salary estimate",
-                source_reference: "user-provided:scenario-form",
-                acquired_at: acquiredAt,
-                country: form.country,
-                role: form.careerTarget,
-                seniority: form.seniority,
-                currency: form.currency,
-                confidence: "low" as const,
-              },
-            ],
+            evidence: [...evidence, { metric: "target_start_salary" as const, source_name: "User-provided salary estimate", role, ...userProvided, ...evidenceBase }],
           }
         : {
-            market_snapshot_selection: {
-              seniority: form.seniority,
-              max_age_days: 365,
-              minimum_confidence: "medium" as const,
-            },
-            evidence: userEvidence,
+            market_snapshot_selection: { seniority: form.seniority, max_age_days: 365, minimum_confidence: "medium" as const },
+            evidence,
           };
 
-      const projectionResponse = await fetch(
-        `/api/simulations/${scenario.id}/revisions/${scenario.current_revision_number}/projections`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: mutationHeaders,
-          body: JSON.stringify({
-            ...salarySource,
-            baseline_annual_salary: formNumber(form.baselineAnnualSalary, 0),
-            annual_salary_growth_percent: formNumber(form.annualSalaryGrowthPercent, 0),
-            baseline_salary_growth_percent: formNumber(form.baselineSalaryGrowthPercent, 0),
-            foregone_income_percent: formNumber(form.foregoneIncomePercent, 100),
-            mandatory_fees: formNumber(form.mandatoryFees, 0),
-            scholarships_and_grants: formNumber(form.scholarshipsAndGrants, 0),
-            additional_education_cost: formNumber(form.additionalEducationCost, 0),
-            incremental_living_cost: formNumber(form.incrementalLivingCost, 0),
-            employment_income_during_study: form.employmentIncomeDuringStudy.trim() ? formNumber(form.employmentIncomeDuringStudy) : null,
-            horizon_years: Number(form.horizonYears),
-            // Empty means no NPV; the server never assumes a discount rate.
-            discount_rate_percent: form.discountRatePercent.trim() ? formNumber(form.discountRatePercent) : null,
-            // Empty inflation keeps the forecast nominal; the result then says so.
-            inflation_percent: form.inflationPercent.trim() ? formNumber(form.inflationPercent) : null,
-            job_search_months: formNumber(form.jobSearchMonths, 0),
-            employment_probability_percent: formNumber(form.employmentProbabilityPercent, 100),
-            target_payback_years: form.targetPaybackYears.trim() ? Number(form.targetPaybackYears) : null,
-          } satisfies SimulationProjectionRequest),
-        },
-      );
+      // Only what the person typed; every other line comes from the country average on the server.
+      const costItems: CostItem[] = livingLines.filter((line) => line.typed).map((line) => ({
+        key: line.key,
+        label: line.label,
+        per_month: line.perMonth,
+        amount: roundMoney(line.total),
+        source: "user",
+      }));
 
-      if (!projectionResponse.ok) {
-        const failure = await responseError(projectionResponse);
-        if (projectionResponse.status === 422 && Object.keys(failure.fields).length) {
-          // Stay on the form so the user can fix the highlighted inputs; the saved scenario is reused.
-          setFieldErrors(failure.fields);
-          if (Object.keys(failure.fields).some((key) => DETAILED_FIELDS.has(key as FormKey))) setDetailsOpen(true);
-          setState("partial");
-          setMessage(`${failure.message} The scenario is saved; fix the fields and submit again to finish the forecast.`);
-          return;
-        }
-        setState("partial");
+      // One request: if the forecast fails, the server keeps no empty scenario.
+      const response = await fetch("/api/simulations/calculate", {
+        method: "POST",
+        credentials: "include",
+        headers: mutationHeaders,
+        body: JSON.stringify({
+          scenario: scenarioRequest,
+          projection: {
+            ...salarySource,
+            auto_assumptions: true,
+            cost_items: costItems,
+            baseline_annual_salary: formNumber(form.baselineAnnualSalary),
+            annual_salary_growth_percent: 0,
+            baseline_salary_growth_percent: 0,
+            foregone_income_percent: 100,
+            mandatory_fees: formNumber(form.mandatoryFees),
+            scholarships_and_grants: formNumber(form.scholarshipsAndGrants),
+            additional_education_cost: formNumber(form.additionalEducationCost),
+            incremental_living_cost: 0,
+            employment_income_during_study: form.employmentIncomeDuringStudy.trim() ? formNumber(form.employmentIncomeDuringStudy) : null,
+            horizon_years: HORIZON_YEARS,
+            target_payback_years: form.targetPaybackYears.trim() ? Number(form.targetPaybackYears) : null,
+          } satisfies SimulationProjectionRequest,
+        }),
+      });
+
+      if (!response.ok) {
+        const failure = await responseError(response);
+        // Stay on the form: everything typed is still there for the next try.
+        const noSalaryData = response.status === 422 && !Object.keys(failure.fields).length;
+        setFieldErrors(noSalaryData ? { annualStartSalary: failure.message } : failure.fields);
+        if (Object.keys(failure.fields).some((key) => DETAILED_FIELDS.has(key as FormKey))) setDetailsOpen(true);
+        setState("error");
         setMessage(failure.message);
-        router.push(`/workspace/scenarios/${scenario.id}`);
-        router.refresh();
         return;
       }
 
+      const scenario = (await response.json()) as CreatedScenario;
       router.push(`/workspace/scenarios/${scenario.id}`);
       router.refresh();
     } catch {
       setState("error");
-      setMessage(
-        "Fence could not reach the calculation service. Your browser has not received a confirmed result; check the connection and try again.",
-      );
+      setMessage("Fence could not reach the calculation service. Your browser has not received a confirmed result; check the connection and try again.");
     }
   }
+
+  const fees = universityInfo?.fee_range;
 
   // ─── Render ───────────────────────────────────────────────────
   return (
@@ -566,7 +421,7 @@ export default function ScenarioBuilder() {
         <div className="workbench-title-row">
           <div>
             <h1>Build your <span>education forecast</span></h1>
-            <p>Estimate the costs, potential returns and payback for your studies.</p>
+            <p>Tell us the career you want. Fence works out the rest and shows where the money goes.</p>
           </div>
         </div>
       </header>
@@ -579,11 +434,7 @@ export default function ScenarioBuilder() {
             <div>
               <p>Scenario inputs</p>
               <h2>Education details</h2>
-              <span>Enter your study information to calculate an estimated return on investment.</span>
-            </div>
-            <div className="completion-mark">
-              <strong>{coreFieldsComplete} / 5</strong>
-              <span>core fields</span>
+              <span>Only the target role is required. Fill in what you already know.</span>
             </div>
           </div>
 
@@ -591,20 +442,21 @@ export default function ScenarioBuilder() {
           <section className="input-section" aria-labelledby="scenario-education">
             <div className="input-section-title">
               <span>01</span>
-              <div><h3 id="scenario-education">Education path</h3><p>What you plan to study and where.</p></div>
+              <div><h3 id="scenario-education">Education path</h3><p>Not decided yet? Leave university and programme empty and add them later.</p></div>
             </div>
             <div className="professional-field-grid">
-              <Field label="Scenario name" error={fieldErrors.name} className="field-wide">
-                <input required minLength={2} maxLength={255} value={form.name}
-                  onChange={(e) => update("name", e.target.value)} />
+              <Field label="Country" error={fieldErrors.country} hint={`Amounts in ${currency}`}>
+                <select value={form.country} onChange={(e) => update("country", e.target.value)}>
+                  {Object.keys(COUNTRY_CURRENCY).map((country) => <option key={country}>{country}</option>)}
+                </select>
               </Field>
-              <Field label="University" error={fieldErrors.university} hint="Live catalogue">
+              <Field label="University" error={fieldErrors.university} hint="Optional">
                 <UniversitySearch country={form.country} value={form.university} onChange={(value) => update("university", value)} />
               </Field>
-              <Field label="Specialization" error={fieldErrors.specialization}>
-                <input required minLength={2} value={form.specialization}
-                  onChange={(e) => update("specialization", e.target.value)}
-                  placeholder="e.g. Computer Science" />
+              <Field label="Specialization" error={fieldErrors.specialization} hint="Optional">
+                <SearchSelect value={form.specialization} load={loadSpecializations} reloadKey={`${form.country}|${form.university}`}
+                  onChange={(value) => update("specialization", value)} onPick={pickSpecialization}
+                  placeholder="e.g. Informatyka" loadingText="Searching programmes…" />
               </Field>
               <Field label="Degree" error={fieldErrors.degree}>
                 <select value={form.degree} onChange={(e) => update("degree", e.target.value)}>
@@ -614,50 +466,27 @@ export default function ScenarioBuilder() {
                   <option>Professional certificate</option>
                 </select>
               </Field>
-              <Field label="Duration" error={fieldErrors.studyDuration} hint="Years">
-                <input required type="number" min="0.5" max="12" step="0.5"
-                  value={form.studyDuration}
-                  onChange={(e) => update("studyDuration", e.target.value)} />
+              <Field label="Study years" error={fieldErrors.studyDuration}
+                hint={yearsFromLevel ? `Standard length of a ${yearsFromLevel} programme` : `Empty: average ${AVERAGE_STUDY_YEARS}`}>
+                <DecimalInput value={form.studyDuration} onChange={(e) => update("studyDuration", e.target.value)} placeholder={`Enter yours, or the average ${String(AVERAGE_STUDY_YEARS).replace(".", ",")} is used`} />
               </Field>
-              <Field label="Fee category">
-                <select value={form.studentResidency}
-                  onChange={(e) => update("studentResidency", e.target.value)}>
-                  <option value="unspecified">Not specified</option>
-                  <option value="domestic">Domestic student</option>
-                  <option value="international">International student</option>
-                  <option value="eu">EU / EEA student</option>
-                  <option value="non_eu">Non-EU student</option>
-                  <option value="in_state">US in-state</option>
-                  <option value="out_of_state">US out-of-state</option>
-                </select>
+              <Field label="Annual tuition" error={fieldErrors.annualTuition} className="field-wide"
+                hint={tuitionSource ? `From the official fee list · ${currency}` : form.specialization.trim() ? `No fee found for this programme: enter it · ${currency}` : `Empty: free · ${currency}`}>
+                <DecimalInput value={form.annualTuition} onChange={(e) => update("annualTuition", e.target.value)}
+                  placeholder={fees ? `${fmt(fees.min_per_year, fees.currency)} – ${fmt(fees.max_per_year, fees.currency)} at this university` : "The fee per year; leave empty for a free place"} />
               </Field>
-              <Field label="Annual tuition" error={fieldErrors.annualTuition} hint={tuitionSnapshot ? `Verified · ${form.currency}` : form.currency}>
-                <input required type="number" min="0" step="0.01"
-                  value={form.annualTuition}
-                  readOnly={Boolean(tuitionSnapshot)}
-                  onChange={(e) => update("annualTuition", e.target.value)}
-                  placeholder="Enter the quoted annual fee" />
-              </Field>
-              <div className={`tuition-source-panel field-wide is-${tuitionLookupState}`} aria-live="polite">
-                <div>
-                  <span>Tuition source</span>
-                  <strong>{tuitionSnapshot ? "Verified record selected" : "Check Fence data before entering a fee"}</strong>
-                  <p>
-                    {tuitionSnapshot
-                      ? `${tuitionSnapshot.sources[0]?.name || "Stored source"} · ${tuitionSnapshot.academic_year} · ${tuitionSnapshot.confidence} confidence`
-                      : "Fence checks stored, validated records only. The calculator never waits for a live provider request."}
-                  </p>
-                  {tuitionMessage ? <small>{tuitionMessage}</small> : null}
+              {universityInfo && (fees || universityInfo.address) ? (
+                <div className="tuition-source-panel field-wide is-found" aria-live="polite">
+                  <div>
+                    <span>{form.university}</span>
+                    <strong>{fees ? `${fmt(fees.min_per_year, fees.currency)} – ${fmt(fees.max_per_year, fees.currency)} a year` : "Fees not published in our sources"}</strong>
+                    <p>
+                      {fees ? <>Cheapest to most expensive paid programme, {fees.academic_year}. <a href={fees.source_url} target="_blank" rel="noreferrer">{fees.source_title}</a></> : null}
+                      {universityInfo.address ? <> {universityInfo.address}</> : null}
+                    </p>
+                  </div>
                 </div>
-                {tuitionSnapshot ? (
-                  <button type="button" onClick={() => update("annualTuition", "")}>Use manual fee</button>
-                ) : (
-                  <button type="button" onClick={resolveTuitionSnapshot}
-                    disabled={tuitionLookupState === "loading"}>
-                    {tuitionLookupState === "loading" ? "Checking…" : "Check verified tuition"}
-                  </button>
-                )}
-              </div>
+              ) : null}
             </div>
           </section>
 
@@ -665,19 +494,17 @@ export default function ScenarioBuilder() {
           <section className="input-section" aria-labelledby="scenario-career">
             <div className="input-section-title">
               <span>02</span>
-              <div><h3 id="scenario-career">Career target</h3><p>The role and market your education should unlock.</p></div>
+              <div><h3 id="scenario-career">Career target</h3><p>The job this education should lead to.</p></div>
             </div>
             <div className="professional-field-grid">
-              <Field label="Target role" error={fieldErrors.careerTarget} className="field-wide" hint="Use the market title">
-                <input required minLength={2} value={form.careerTarget} list="market-roles"
-                  onChange={(e) => update("careerTarget", e.target.value)}
-                  placeholder={roles[0] ? `e.g. ${roles[0]}` : "e.g. Lawyer"} />
-                <datalist id="market-roles">{roles.map((role) => <option key={role} value={role} />)}</datalist>
-              </Field>
-              <Field label="Country" error={fieldErrors.country}>
-                <select value={form.country} onChange={(e) => update("country", e.target.value)}>
-                  {Object.keys(COUNTRY_CURRENCY).map((country) => <option key={country}>{country}</option>)}
-                </select>
+              <Field label="Target role" error={fieldErrors.careerTarget} className="field-wide"
+                hint={fieldRoles.length ? `${fieldRoles.length} careers for this programme, or type your own` : `${roles.length || ""} popular roles, or type your own`}>
+                <SearchSelect required value={form.careerTarget} options={roleOptions}
+                  onChange={(value) => update("careerTarget", value)}
+                  placeholder={fieldRoles[0] ? `e.g. ${fieldRoles[0]}` : "e.g. Lawyer"} />
+                {form.careerTarget.trim().length >= 2 && !roleKnown && !snapshot
+                  ? <small className="field-live-note">Not on our list yet. Fence reads current job listings for this role before showing the calculation.</small>
+                  : null}
               </Field>
               <Field label="Expected seniority" error={fieldErrors.seniority}>
                 <select value={form.seniority} onChange={(e) => update("seniority", e.target.value)}>
@@ -687,89 +514,42 @@ export default function ScenarioBuilder() {
                   <option value="senior">Senior</option>
                 </select>
               </Field>
-              <Field label="Existing experience" error={fieldErrors.experienceYears} hint="Years">
-                <input required type="number" min="0" max="60" step="0.5"
-                  value={form.experienceYears}
-                  onChange={(e) => update("experienceYears", e.target.value)} />
-              </Field>
-              <Field label="Currency" error={fieldErrors.currency}>
-                <select value={form.currency} onChange={(e) => update("currency", e.target.value)}>
-                  <option>PLN</option>
-                  <option>UAH</option>
-                  <option>EUR</option>
-                  <option>USD</option>
-                  <option>GBP</option>
-                </select>
-              </Field>
-              <Field label="Expected annual starting salary" error={fieldErrors.annualStartSalary} className="field-wide" hint="Optional manual estimate">
-                <input type="number" min="0.01" step="0.01"
-                  value={form.annualStartSalary}
-                  onChange={(e) => update("annualStartSalary", e.target.value)}
-                  placeholder="Leave empty to use a validated market snapshot" />
+              <Field label="Expected annual salary" error={fieldErrors.annualStartSalary} hint={`Optional · ${currency}`}>
+                <DecimalInput value={form.annualStartSalary} onChange={(e) => update("annualStartSalary", e.target.value)}
+                  placeholder="From the market" />
               </Field>
             </div>
           </section>
 
-          {/* Section 03 — Forecast horizon */}
+          {/* Section 03 — Payback target */}
           <section className="input-section" aria-labelledby="scenario-forecast">
             <div className="input-section-title">
               <span>03</span>
               <div>
-                <h3 id="scenario-forecast">Forecast horizon</h3>
-                <p>How many years ahead to project your career trajectory.</p>
+                <h3 id="scenario-forecast">Payback target</h3>
+                <p>When you want the money back. The forecast always covers {HORIZON_YEARS} years after graduation.</p>
               </div>
             </div>
             <div className="professional-field-grid">
-              <Field label="Forecast horizon" error={fieldErrors.horizonYears} hint="Years">
-                <input required type="number" min="1" max="30" step="1"
-                  value={form.horizonYears}
-                  onChange={(e) => update("horizonYears", e.target.value)} />
-              </Field>
-              <div className="payback-target-field">
+              <div className="payback-target-field field-wide">
                 <span className="payback-target-label">Should pay back within</span>
                 <div className="payback-target-options" role="group" aria-label="Target payback period after graduation">
                   <button type="button" className={form.targetPaybackYears === "" ? "is-active" : ""}
                     aria-pressed={form.targetPaybackYears === ""}
                     onClick={() => update("targetPaybackYears", "")}>No target</button>
-                  {PAYBACK_TARGET_PRESETS.map((years) => (
-                    <button key={years} type="button" className={form.targetPaybackYears === years ? "is-active" : ""}
-                      aria-pressed={form.targetPaybackYears === years}
-                      onClick={() => setPaybackTarget(years)}>{years} yrs</button>
+                  {PAYBACK_TARGET_PRESETS.map((value) => (
+                    <button key={value} type="button" className={form.targetPaybackYears === value ? "is-active" : ""}
+                      aria-pressed={form.targetPaybackYears === value}
+                      onClick={() => setPaybackTarget(value)}>{value} yrs</button>
                   ))}
-                  <input type="number" min="1" max="30" step="1" inputMode="numeric" placeholder="N"
+                  <input type="number" min="1" max={HORIZON_YEARS} step="1" inputMode="numeric" placeholder="N"
                     aria-label="Custom target payback period in years"
                     value={PAYBACK_TARGET_PRESETS.includes(form.targetPaybackYears) ? "" : form.targetPaybackYears}
                     onChange={(e) => setPaybackTarget(e.target.value)} />
                 </div>
                 <small className={fieldErrors.targetPaybackYears ? "payback-target-hint is-error" : "payback-target-hint"}>
-                  {fieldErrors.targetPaybackYears ?? "Years after graduation. The forecast horizon grows to fit the target."}
+                  {fieldErrors.targetPaybackYears ?? `Years after graduation, up to ${HORIZON_YEARS}.`}
                 </small>
-              </div>
-              <Field label="Discount rate for NPV" error={fieldErrors.discountRatePercent} hint="Optional, % per year">
-                <input type="number" min="0" max="30" step="0.1" inputMode="decimal" placeholder="Leave empty to skip NPV"
-                  value={form.discountRatePercent}
-                  onChange={(e) => update("discountRatePercent", e.target.value)} />
-              </Field>
-              <Field label="Inflation" error={fieldErrors.inflationPercent} hint={official.inflation && economics?.inflation_window ? `World Bank median ${economics.inflation_window}` : "% per year · empty = nominal"}>
-                <input type="number" min="-10" max="100" step="0.1" inputMode="decimal" placeholder="Leave empty for nominal values"
-                  value={form.inflationPercent}
-                  onChange={(e) => update("inflationPercent", e.target.value)} />
-              </Field>
-              <Field label="Job search after graduation" error={fieldErrors.jobSearchMonths} hint="Months without salary">
-                <input type="number" min="0" max="24" step="1" value={form.jobSearchMonths}
-                  onChange={(e) => update("jobSearchMonths", e.target.value)} />
-              </Field>
-              <Field label="Chance of a job in this field" error={fieldErrors.employmentProbabilityPercent} hint="% · otherwise baseline pay">
-                <input type="number" min="1" max="100" step="1" value={form.employmentProbabilityPercent}
-                  onChange={(e) => update("employmentProbabilityPercent", e.target.value)} />
-              </Field>
-              <div className="field-note-box">
-                <span>Calculation policy</span>
-                <p>
-                  {tuitionSnapshot
-                    ? "The selected snapshot is stored with its source and reused deterministically."
-                    : "Your explicit tuition is labelled as user-provided. Regional ranges remain orientation only."}
-                </p>
               </div>
             </div>
           </section>
@@ -777,57 +557,38 @@ export default function ScenarioBuilder() {
           <details className="detailed-analysis" open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
             <summary>
               <span>Detailed financial analysis</span>
-              <small>Optional inputs</small>
+              <small>Optional</small>
             </summary>
             <div className="detailed-analysis-body">
               <p>
-                Add only values that apply to your situation. Empty fields are treated as zero;
-                employment during study is never assumed automatically.
+                Change only what you know. An empty cost per month uses the {form.country} average
+                {averages ? <> from <a href={averages.source_url} target="_blank" rel="noreferrer">{averages.source_name}</a></> : null}.
+                Enter 0 for anything you will not pay, like housing if you live with your parents.
               </p>
               <div className="professional-field-grid">
-                <Field label="Income without this degree" error={fieldErrors.baselineAnnualSalary} hint={official.baseline ? "Official source · per year" : `${form.currency} · per year`}>
-                  <input type="number" min="0" step="0.01" value={form.baselineAnnualSalary}
-                    onChange={(e) => update("baselineAnnualSalary", e.target.value)} />
+                {livingLines.map((line) => (
+                  <Field key={line.key} label={line.label} hint={`${currency} / month`}>
+                    <DecimalInput value={form[line.key]} onChange={(e) => update(line.key, e.target.value)} placeholder={`Average ${fmt(line.average, currency)}`} />
+                  </Field>
+                ))}
+                <Field label="Additional training and courses" error={fieldErrors.additionalEducationCost} hint={`${currency} · total`}>
+                  <DecimalInput value={form.additionalEducationCost} onChange={(e) => update("additionalEducationCost", e.target.value)} placeholder="Courses, licences, certificates" />
                 </Field>
-                {economics?.baseline_monthly_wage != null && economics.currency === form.currency ? (
-                  <div className="field-note-box">
-                    <span>{economics.baseline_wage_kind === "minimum_wage" ? "Statutory minimum wage" : "Median vacancy salary"}</span>
-                    <p>{fmt(economics.baseline_monthly_wage, form.currency)} per month · {economics.baseline_wage_source_name}</p>
-                    <button type="button" className="field-note-action" onClick={applyOfficialBaseline}>Use as baseline</button>
-                  </div>
-                ) : null}
-                <Field label="Income forgone while studying" error={fieldErrors.foregoneIncomePercent} hint="Percent">
-                  <input type="number" min="0" max="100" step="1" value={form.foregoneIncomePercent}
-                    onChange={(e) => update("foregoneIncomePercent", e.target.value)} />
+                <Field label="Mandatory fees" error={fieldErrors.mandatoryFees} hint={`${currency} · total`}>
+                  <DecimalInput value={form.mandatoryFees} onChange={(e) => update("mandatoryFees", e.target.value)} placeholder="Admission, diploma, exams" />
                 </Field>
-                <Field label="Total income during study" error={fieldErrors.employmentIncomeDuringStudy} hint={`${form.currency} · optional`}>
-                  <input type="number" min="0" step="0.01" value={form.employmentIncomeDuringStudy}
-                    onChange={(e) => update("employmentIncomeDuringStudy", e.target.value)}
-                    placeholder="Leave empty if not applicable" />
+                <Field label="Scholarships and grants" error={fieldErrors.scholarshipsAndGrants} hint={`${currency} · total`}>
+                  <DecimalInput value={form.scholarshipsAndGrants} onChange={(e) => update("scholarshipsAndGrants", e.target.value)} />
                 </Field>
-                <Field label="Mandatory fees" error={fieldErrors.mandatoryFees} hint={`${form.currency} · total`}>
-                  <input type="number" min="0" step="0.01" value={form.mandatoryFees}
-                    onChange={(e) => update("mandatoryFees", e.target.value)} />
+                <Field label="Income while studying" error={fieldErrors.employmentIncomeDuringStudy} hint={`${currency} · total`}>
+                  <DecimalInput value={form.employmentIncomeDuringStudy} onChange={(e) => update("employmentIncomeDuringStudy", e.target.value)} placeholder="A part-time job, if you plan one" />
                 </Field>
-                <Field label="Scholarships and grants" error={fieldErrors.scholarshipsAndGrants} hint={form.currency}>
-                  <input type="number" min="0" step="0.01" value={form.scholarshipsAndGrants}
-                    onChange={(e) => update("scholarshipsAndGrants", e.target.value)} />
+                <Field label="Income without this degree" error={fieldErrors.baselineAnnualSalary} hint={`${currency} / year`}>
+                  <DecimalInput value={form.baselineAnnualSalary} onChange={(e) => update("baselineAnnualSalary", e.target.value)}
+                    placeholder={economics?.baseline_monthly_wage != null ? `Empty: ${fmt(economics.baseline_monthly_wage * 12, currency)} (official)` : "What you would earn instead"} />
                 </Field>
-                <Field label="Additional education" error={fieldErrors.additionalEducationCost} hint={form.currency}>
-                  <input type="number" min="0" step="0.01" value={form.additionalEducationCost}
-                    onChange={(e) => update("additionalEducationCost", e.target.value)} />
-                </Field>
-                <Field label="Incremental living costs" error={fieldErrors.incrementalLivingCost} hint={`${form.currency} · total`}>
-                  <input type="number" min="0" step="0.01" value={form.incrementalLivingCost}
-                    onChange={(e) => update("incrementalLivingCost", e.target.value)} />
-                </Field>
-                <Field label="Target salary growth" error={fieldErrors.annualSalaryGrowthPercent} hint="Percent / year">
-                  <input type="number" min="0" max="50" step="0.1" value={form.annualSalaryGrowthPercent}
-                    onChange={(e) => update("annualSalaryGrowthPercent", e.target.value)} />
-                </Field>
-                <Field label="Baseline salary growth" error={fieldErrors.baselineSalaryGrowthPercent} hint="Percent / year">
-                  <input type="number" min="0" max="50" step="0.1" value={form.baselineSalaryGrowthPercent}
-                    onChange={(e) => update("baselineSalaryGrowthPercent", e.target.value)} />
+                <Field label="Calculation name" error={fieldErrors.name} hint="Optional">
+                  <input maxLength={255} value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Named after the role if empty" />
                 </Field>
               </div>
             </div>
@@ -837,21 +598,14 @@ export default function ScenarioBuilder() {
         {/* ── Right: forecast preview (sticky) ──────────────────── */}
         <aside className="forecast-preview" aria-label="Scenario preview">
 
-          {/* Header */}
           <div className="forecast-preview-top">
             <div>
               <p>Forecast preview</p>
-              <h2>Your education forecast</h2>
-              <span>
-                {form.university || "University not selected"} · {form.specialization || "Specialization not selected"} — {form.degree}
-              </span>
+              <h2>{form.careerTarget.trim() || "Your education forecast"}</h2>
+              <span>{[form.university.trim(), form.specialization.trim()].filter(Boolean).join(" · ") || "University and programme not chosen yet"}</span>
             </div>
-            <span className={`forecast-state ${coreInputsReady ? "is-ready" : ""}`}>
-              {coreInputsReady ? "Ready to match" : "Unverified input"}
-            </span>
           </div>
 
-          {/* Live market range and country economy: stored official data, never typed in */}
           <div className="preview-live-grid">
             <div className="preview-live-card is-lime">
               <span>Market salary · {form.careerTarget || "role"}</span>
@@ -860,95 +614,60 @@ export default function ScenarioBuilder() {
                 <small>{fmt(snapshot.salary_min, snapshot.currency)} – {fmt(snapshot.salary_max, snapshot.currency)} · {snapshot.sample_size ?? "?"} offers · {snapshot.seniority}</small>
               </> : <>
                 <strong>—</strong>
-                <small>{roles.length ? `${roles.length} careers with live salary data in Poland and Ukraine` : "No market data loaded"}</small>
-              </>}
-            </div>
-            <div className="preview-live-card is-violet">
-              <span>{form.country} economy</span>
-              {economics?.latest_inflation_percent != null ? <>
-                <strong>{economics.latest_inflation_percent}% inflation</strong>
-                <small>{economics.latest_inflation_year} · {economics.devaluation_vs_eur_percent != null ? `${economics.currency} vs EUR ${economics.devaluation_vs_eur_percent > 0 ? "+" : ""}${economics.devaluation_vs_eur_percent}% / year` : "no exchange-rate history"}</small>
-              </> : <>
-                <strong>—</strong>
-                <small>Economic data not loaded for this country</small>
+                <small>{form.careerTarget.trim() ? "Fence collects it when you calculate" : `${roles.length} popular careers in Poland and Ukraine`}</small>
               </>}
             </div>
           </div>
 
-          {/* Key metrics */}
           <dl className="forecast-metrics">
             <div>
               <dt>Estimated investment</dt>
-              <dd aria-live="polite">{fmt(estimatedTotalCost, form.currency)}</dd>
-              <span>
-                direct cost + opportunity cost · before taxes
-              </span>
+              <dd aria-live="polite">{fmt(estimatedTotalCost, currency)}</dd>
+              <span>everything below, before taxes</span>
             </div>
             <div>
-              <dt>Study duration</dt>
-              <dd>{form.studyDuration} years</dd>
-              <span>{form.degree}</span>
-            </div>
-            <div>
-              <dt>Forecast horizon</dt>
-              <dd>{form.horizonYears} years</dd>
-              <span>versioned scenario window</span>
-            </div>
-            <div>
-              <dt>Payback target</dt>
-              <dd>{form.targetPaybackYears ? `${form.targetPaybackYears} years` : "None"}</dd>
-              <span>after graduation</span>
+              <dt>Study years</dt>
+              <dd>{String(years).replace(".", ",")}</dd>
+              <span>{form.studyDuration.trim() ? form.degree : "the average, until you enter yours"}</span>
             </div>
           </dl>
 
-          {/* Market evidence callout */}
-          <div className="forecast-trust-callout">
-            <span aria-hidden="true">!</span>
-            <div>
-              <strong>{tuitionSnapshot ? "Tuition source verified" : "Evidence required"}</strong>
-              <p>
-                {tuitionSnapshot
-                  ? `Tuition uses snapshot #${tuitionSnapshot.id}. Salary still needs a market snapshot or an explicit estimate.`
-                  : "Check stored tuition first. User-provided tuition and salary stay visibly low-confidence."}
-              </p>
-            </div>
-          </div>
-
-          {/* Career & market */}
-          <section className="forecast-target" aria-labelledby="preview-target">
+          <section className="forecast-target" aria-labelledby="preview-money">
             <div className="preview-section-heading">
-              <h3 id="preview-target">Career &amp; market match</h3>
-              <span>Live inputs</span>
+              <h3 id="preview-money">Where the money goes</h3>
+              <span>You can switch lines off later</span>
             </div>
-            <dl>
-              <div><dt>Target role</dt><dd>{form.careerTarget || "Not set"}</dd></div>
-              <div><dt>Market</dt><dd>{form.country} · {form.seniority}</dd></div>
-              <div><dt>Experience</dt><dd>{form.experienceYears} years</dd></div>
-              <div><dt>Tuition source</dt><dd>{tuitionSnapshot ? `${tuitionSnapshot.confidence} confidence` : "User-provided"}</dd></div>
-              <div><dt>Salary source</dt><dd>{form.annualStartSalary ? "User-provided estimate" : "Validated snapshot"}</dd></div>
+            <dl className="forecast-cost-lines">
+              {moneyLines.map((line) => (
+                <div key={line.key}>
+                  <dt>{line.label}{line.note ? <small>{line.note}</small> : null}</dt>
+                  <dd>{line.total < 0 ? "− " : ""}{fmt(Math.abs(line.total), currency)}</dd>
+                </div>
+              ))}
             </dl>
           </section>
 
-          {/* Error / partial feedback */}
-          {(state === "error" || state === "partial") && (
-            <div className={`professional-feedback ${state === "partial" ? "is-partial" : "is-error"}`} role="alert">
-              <strong>{state === "partial" ? "Scenario saved. Forecast paused." : "This scenario was not completed."}</strong>
+          {state === "error" && (
+            <div className="professional-feedback is-error" role="alert">
+              <strong>This calculation was not completed.</strong>
               <p>{message}</p>
-              {state === "partial" && savedScenarioId && (
-                <Link href={`/workspace/scenarios/${savedScenarioId}`}>Open saved calculation <span aria-hidden="true">→</span></Link>
-              )}
             </div>
           )}
 
-          {/* Submit */}
+          {planFull && slots ? (
+            <div className="professional-feedback is-error" role="status">
+              <strong>All {slots.limit} calculations on your {slots.plan} plan are used ({slots.used} / {slots.limit}).</strong>
+              <p>Delete a saved calculation or <a href="/pricing">upgrade your plan</a> to calculate another.</p>
+            </div>
+          ) : null}
+
           <div className="forecast-action">
-            <button type="submit" disabled={busy || state === "partial"} aria-busy={busy}>
+            <button type="submit" disabled={busy || planFull} aria-busy={busy}>
               {state === "checking"   ? "Checking session…"   :
-               state === "creating"  ? "Saving scenario…"    :
-               state === "projecting"? "Calculating forecast…": "Calculate forecast"}
+               state === "projecting"? (snapshot || form.annualStartSalary.trim() ? "Calculating forecast…" : "Reading job listings for this role…") : "Calculate forecast"}
               <span aria-hidden="true">→</span>
             </button>
-            <p>Deterministic calculation · no AI-generated financial values</p>
+            <p>All numbers come from the calculation itself, never from AI</p>
           </div>
         </aside>
       </form>

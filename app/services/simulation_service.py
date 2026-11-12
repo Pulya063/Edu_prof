@@ -31,8 +31,8 @@ class SimulationService:
         else:
             assert selection is not None
             expected = {
-                "university": assumptions.university,
-                "program": assumptions.specialization,
+                "university": assumptions.university or "",
+                "program": assumptions.specialization or "",
                 "country": assumptions.country,
                 "currency": assumptions.currency,
             }
@@ -43,7 +43,7 @@ class SimulationService:
                 "currency": selection.currency,
             }
             if any(actual[key].casefold() != value.casefold() for key, value in expected.items()):
-                raise AppError("Tuition selection не відповідає assumptions сценарію", status_code=422)
+                raise AppError("The tuition selection does not match the scenario's assumptions", status_code=422)
             try:
                 snapshot = TuitionSnapshotService(self.db).resolve_validated(selection)
             except AppError as e:
@@ -58,7 +58,7 @@ class SimulationService:
                         refresh_college_scorecard_tuition.delay(scorecard_id)
                         add_watched_scorecard_id(scorecard_id)
                         raise AppError(
-                            f"Дані для '{selection.university}' ще не завантажені. Ми почали їх оновлення — будь ласка, повторіть спробу через декілька секунд.",
+                            f"Data for '{selection.university}' is not loaded yet. We started refreshing it, so try again in a few seconds.",
                             status_code=409
                         )
                 raise e
@@ -72,18 +72,19 @@ class SimulationService:
         assumptions: SimulationAssumptions, snapshot: TuitionSnapshot
     ) -> None:
         if snapshot.country.casefold() != assumptions.country.casefold():
-            raise AppError("Країна tuition snapshot не відповідає сценарію", status_code=422)
+            raise AppError("The tuition snapshot country does not match the scenario", status_code=422)
         if snapshot.currency != assumptions.currency.upper():
-            raise AppError("Валюта tuition snapshot не відповідає сценарію", status_code=422)
+            raise AppError("The tuition snapshot currency does not match the scenario", status_code=422)
         if snapshot.scope in {"program", "university"}:
-            if not snapshot.university or snapshot.university.casefold() != assumptions.university.casefold():
-                raise AppError("Університет tuition snapshot не відповідає сценарію", status_code=422)
+            if not snapshot.university or snapshot.university.casefold() != (assumptions.university or "").casefold():
+                raise AppError("The tuition snapshot university does not match the scenario", status_code=422)
         if snapshot.scope == "program":
-            if not snapshot.program or snapshot.program.casefold() != assumptions.specialization.casefold():
-                raise AppError("Програма tuition snapshot не відповідає сценарію", status_code=422)
+            if not snapshot.program or snapshot.program.casefold() != (assumptions.specialization or "").casefold():
+                raise AppError("The tuition snapshot program does not match the scenario", status_code=422)
 
     def create(self, user_id: int, payload: SimulationCreateRequest) -> SimulationScenario:
         """Визначити tuition з локальних даних і зберегти сценарій з першою ревізією."""
+        self.ensure_slot(user_id)
         resolved_assumptions, source_refs = self._resolve_tuition(
             payload.assumptions,
             payload.tuition_snapshot_id,
@@ -109,6 +110,28 @@ class SimulationService:
         self.db.commit()
         return self.get(user_id, scenario.id)
 
+    def ensure_slot(self, user_id: int) -> None:
+        """A new calculation needs a free slot on the user's plan; saved ones over the limit stay readable."""
+        from app.models import User
+        from app.services.plan_service import get_plan_details
+
+        user = self.db.get(User, user_id)
+        if user is None:
+            return
+        plan = get_plan_details(user)
+        limit = plan["limit"]
+        if limit is not None and int(plan["used"]) >= int(limit):  # type: ignore[call-overload]
+            raise AppError(
+                f"Your {plan['name']} plan includes {limit} saved calculations and all of them are used. "
+                "Delete one or upgrade your plan to calculate another.",
+                status_code=403,
+            )
+
+    def discard(self, user_id: int, scenario_id: int) -> None:
+        """Remove a scenario whose first calculation failed, so the list holds only real results."""
+        self.db.delete(self.get(user_id, scenario_id))
+        self.db.commit()
+
     def list_for_user(self, user_id: int) -> list[SimulationScenario]:
         return list(
             self.db.execute(
@@ -126,7 +149,7 @@ class SimulationService:
             .where(SimulationScenario.id == scenario_id, SimulationScenario.user_id == user_id)
         ).scalar_one_or_none()
         if scenario is None:
-            raise AppError("Сценарій не знайдено", status_code=404)
+            raise AppError("Scenario not found", status_code=404)
         return scenario
 
     def add_revision(
@@ -142,7 +165,7 @@ class SimulationService:
             .with_for_update()
         ).scalar_one_or_none()
         if scenario is None:
-            raise AppError("Сценарій не знайдено", status_code=404)
+            raise AppError("Scenario not found", status_code=404)
 
         resolved_assumptions, source_refs = self._resolve_tuition(
             payload.assumptions,

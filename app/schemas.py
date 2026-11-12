@@ -20,24 +20,29 @@ class RegisterSchema(BaseModel):
     @classmethod
     def password_strength(cls, value: str) -> str:
         if len(value) < 8:
-            raise ValueError("Пароль повинен містити не менше 8 символів")
+            raise ValueError("Password must be at least 8 characters long")
         if not any(char.isupper() for char in value):
-            raise ValueError("Пароль повинен містити хоча б одну велику літеру")
+            raise ValueError("Password must contain at least one uppercase letter")
         if not any(char.islower() for char in value):
-            raise ValueError("Пароль повинен містити хоча б одну маленьку літеру")
+            raise ValueError("Password must contain at least one lowercase letter")
         if not any(char.isdigit() for char in value):
-            raise ValueError("Пароль повинен містити хоча б одну цифру")
+            raise ValueError("Password must contain at least one digit")
         return value
 
     @model_validator(mode="after")
     def passwords_match(self) -> "RegisterSchema":
         if self.confirm_password is not None and self.password != self.confirm_password:
-            raise ValueError("Паролі не співпадають")
+            raise ValueError("Passwords do not match")
         return self
 
 
 class LoginSchema(BaseModel):
     email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+
+class ChangeEmailSchema(BaseModel):
+    new_email: EmailStr
     password: str = Field(min_length=1, max_length=128)
 
 
@@ -116,11 +121,11 @@ class PasswordResetSchema(BaseModel):
     @classmethod
     def password_strength(cls, value: str) -> str:
         if not any(char.isupper() for char in value):
-            raise ValueError("Пароль повинен містити хоча б одну велику літеру")
+            raise ValueError("Password must contain at least one uppercase letter")
         if not any(char.islower() for char in value):
-            raise ValueError("Пароль повинен містити хоча б одну маленьку літеру")
+            raise ValueError("Password must contain at least one lowercase letter")
         if not any(char.isdigit() for char in value):
-            raise ValueError("Пароль повинен містити хоча б одну цифру")
+            raise ValueError("Password must contain at least one digit")
         return value
 
 
@@ -129,14 +134,15 @@ class SimulationAssumptions(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    university: str = Field(min_length=2, max_length=255)
-    specialization: str = Field(min_length=2, max_length=500)
+    # Optional: a person may know the career and not yet the university or the programme.
+    university: str | None = Field(default=None, min_length=2, max_length=255)
+    specialization: str | None = Field(default=None, min_length=2, max_length=500)
     country: str = Field(min_length=2, max_length=120)
     degree: str = Field(min_length=2, max_length=255)
     currency: str = Field(default="USD", min_length=3, max_length=3)
     # None означає вибір snapshot; 0 є явною вартістю безкоштовного навчання.
     annual_tuition: ApiDecimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
-    study_duration_years: ApiDecimal = Field(gt=Decimal("0"), le=Decimal("12"), decimal_places=1)
+    study_duration_years: ApiDecimal = Field(gt=Decimal("0"), le=Decimal("12"), decimal_places=2)
     career_target: str = Field(min_length=2, max_length=255)
     existing_skills: list[str] = Field(default_factory=list, max_length=100)
     additional_education: list[str] = Field(default_factory=list, max_length=50)
@@ -204,11 +210,11 @@ class SimulationCreateRequest(BaseModel):
             for source in (self.tuition_snapshot_id, self.tuition_snapshot_selection)
         )
         if source_count > 1:
-            raise ValueError("Вкажіть лише одне tuition snapshot source")
+            raise ValueError("Provide only one tuition snapshot source")
         if source_count == 0 and self.assumptions.annual_tuition is None:
-            raise ValueError("Вкажіть annual_tuition або tuition snapshot source")
+            raise ValueError("Provide annual_tuition or a tuition snapshot source")
         if source_count == 1 and self.assumptions.annual_tuition is not None:
-            raise ValueError("Не поєднуйте manual annual_tuition з tuition snapshot source")
+            raise ValueError("Do not combine a manual annual_tuition with a tuition snapshot source")
         return self
 
 
@@ -227,11 +233,11 @@ class SimulationRevisionCreateRequest(BaseModel):
             for source in (self.tuition_snapshot_id, self.tuition_snapshot_selection)
         )
         if source_count > 1:
-            raise ValueError("Вкажіть лише одне tuition snapshot source")
+            raise ValueError("Provide only one tuition snapshot source")
         if source_count == 0 and self.assumptions.annual_tuition is None:
-            raise ValueError("Вкажіть annual_tuition або tuition snapshot source")
+            raise ValueError("Provide annual_tuition or a tuition snapshot source")
         if source_count == 1 and self.assumptions.annual_tuition is not None:
-            raise ValueError("Не поєднуйте manual annual_tuition з tuition snapshot source")
+            raise ValueError("Do not combine a manual annual_tuition with a tuition snapshot source")
         return self
 
 
@@ -292,6 +298,8 @@ class ProjectionEvidence(BaseModel):
         "scholarships",
         "study_income",
         "inflation",
+        # Pay at a later career level (mid, senior) for the same role and country: the salary ladder.
+        "career_level",
     ]
     source_name: str = Field(min_length=2, max_length=255)
     source_reference: str = Field(min_length=2, max_length=1000)
@@ -323,6 +331,21 @@ class MarketSnapshotSelection(BaseModel):
     @classmethod
     def normalize_seniority(cls, value: str) -> str:
         return value.strip().casefold()
+
+
+class ProjectionCostItem(BaseModel):
+    """One visible line of the investment. Switched off, it counts as nothing."""
+    model_config = ConfigDict(extra="forbid")
+
+    key: Literal["tuition", "mandatory_fees", "housing", "food", "transport", "study_materials", "other_living", "additional_training", "scholarships", "pay_given_up", "income_during_study"]
+    label: str = Field(min_length=2, max_length=120)
+    amount: ApiDecimal = Field(ge=Decimal("0"), max_digits=14, decimal_places=2)
+    per_month: ApiDecimal | None = Field(default=None, ge=Decimal("0"), max_digits=14, decimal_places=2)
+    enabled: bool = True
+    editable: bool = True
+    source: Literal["user", "country_average", "calculated", "stored", "ai"] = "user"
+    source_name: str | None = Field(default=None, max_length=255)
+    source_url: str | None = Field(default=None, max_length=1000)
 
 
 class SimulationProjectionRequest(BaseModel):
@@ -358,6 +381,13 @@ class SimulationProjectionRequest(BaseModel):
     # v5: optional "should pay back within N years after graduation" target; must fit inside the horizon.
     target_payback_years: int | None = Field(default=None, ge=1, le=30)
     evidence: list[ProjectionEvidence] = Field(default_factory=list, max_length=20)
+    # True: Fence works out inflation, the no-degree wage, job search, job chance and the discount rate.
+    auto_assumptions: bool = False
+    # Lines the user set; with auto_assumptions the rest are filled from country averages.
+    cost_items: list[ProjectionCostItem] = Field(default_factory=list, max_length=20)
+    # Pay in year N after graduating as a multiple of the starting pay, from career-level market data
+    # (junior, mid, senior). Empty: the starting pay only follows salary growth, as before.
+    career_ladder: list[ApiDecimal] | None = Field(default=None, max_length=30)
 
     @model_validator(mode="after")
     def select_salary_source(self) -> "SimulationProjectionRequest":
@@ -371,11 +401,11 @@ class SimulationProjectionRequest(BaseModel):
         )
         if source_count != 1:
             raise ValueError(
-                "Вкажіть рівно одне джерело зарплати: market_snapshot_id, "
-                "market_snapshot_selection або annual_start_salary"
+                "Provide exactly one salary source: market_snapshot_id, "
+                "market_snapshot_selection or annual_start_salary"
             )
         if self.target_payback_years is not None and self.target_payback_years > self.horizon_years:
-            raise ValueError("Термін окупності не може перевищувати горизонт прогнозу")
+            raise ValueError("The payback target cannot exceed the forecast horizon")
         return self
 
 
@@ -422,7 +452,16 @@ class ProjectionAIReviewResponse(BaseModel):
     completed_at: datetime | None = None
 
 
+class ProjectionRecalculateRequest(BaseModel):
+    """Lines switched or edited on the full calculation; save stores them as a new projection."""
+    model_config = ConfigDict(extra="forbid")
+
+    cost_items: list[ProjectionCostItem] = Field(min_length=1, max_length=20)
+    save: bool = False
+
+
 class ProjectionCalculationInputs(BaseModel):
+    cost_items: list[ProjectionCostItem] = Field(default_factory=list)
     """Збережені входи розрахунку. Порожні для старих проєкцій без рядка projection_inputs."""
     market_snapshot_id: int | None = None
     annual_start_salary: ApiDecimal | None = None
@@ -505,7 +544,7 @@ class MarketSnapshotSource(BaseModel):
     @classmethod
     def require_source_timezone(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError("acquired_at має містити timezone")
+            raise ValueError("acquired_at must include a timezone")
         return value
 
 
@@ -536,11 +575,11 @@ class MarketSnapshotCreateRequest(BaseModel):
     @model_validator(mode="after")
     def validate_salary_range(self) -> "MarketSnapshotCreateRequest":
         if not self.salary_min <= self.median_salary <= self.salary_max:
-            raise ValueError("Salary range має відповідати salary_min <= median_salary <= salary_max")
+            raise ValueError("Salary range must satisfy salary_min <= median_salary <= salary_max")
         if self.acquired_at.tzinfo is None or self.acquired_at.utcoffset() is None:
-            raise ValueError("acquired_at має містити timezone")
+            raise ValueError("acquired_at must include a timezone")
         if self.snapshot_date > self.acquired_at.date():
-            raise ValueError("snapshot_date не може бути пізніше acquired_at")
+            raise ValueError("snapshot_date cannot be later than acquired_at")
         return self
 
 
@@ -596,7 +635,7 @@ class TuitionSnapshotSource(BaseModel):
     @classmethod
     def require_source_timezone(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError("acquired_at має містити timezone")
+            raise ValueError("acquired_at must include a timezone")
         return value
 
 
@@ -634,18 +673,18 @@ class TuitionSnapshotCreateRequest(BaseModel):
     def validate_snapshot(self) -> "TuitionSnapshotCreateRequest":
         if not self.annual_tuition_min <= self.annual_tuition <= self.annual_tuition_max:
             raise ValueError(
-                "Tuition range має відповідати annual_tuition_min <= annual_tuition <= annual_tuition_max"
+                "Tuition range must satisfy annual_tuition_min <= annual_tuition <= annual_tuition_max"
             )
         if self.acquired_at.tzinfo is None or self.acquired_at.utcoffset() is None:
-            raise ValueError("acquired_at має містити timezone")
+            raise ValueError("acquired_at must include a timezone")
         if self.snapshot_date > self.acquired_at.date():
-            raise ValueError("snapshot_date не може бути пізніше acquired_at")
+            raise ValueError("snapshot_date cannot be later than acquired_at")
         if self.scope == "program" and (not self.university or not self.program):
-            raise ValueError("Program snapshot потребує university і program")
+            raise ValueError("A program snapshot needs a university and a program")
         if self.scope == "university" and not self.university:
-            raise ValueError("University snapshot потребує university")
+            raise ValueError("A university snapshot needs a university")
         if self.scope == "country_average" and (self.university or self.program):
-            raise ValueError("Country average не повинен містити university або program")
+            raise ValueError("A country average must not include a university or a program")
         return self
 
 
@@ -777,8 +816,9 @@ class WorkspacePreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     language: Literal["English", "Українська"] = "English"
-    currency: Literal["USD", "EUR", "PLN", "GBP"] = "USD"
-    theme: Literal["Fence default"] = "Fence default"
+    # "Local": amounts stay in each calculation's own currency (PLN, UAH); others convert at NBP rates.
+    currency: Literal["Local", "USD", "EUR", "PLN", "GBP", "UAH"] = "Local"
+    theme: Literal["Fence default", "Dark", "Monochrome"] = "Fence default"
 
 
 class WorkspaceProfileUpdate(BaseModel):
@@ -794,6 +834,8 @@ class WorkspaceUser(BaseModel):
     email: str
     plan: str
     scenario_count: int
+    # Saved calculations the plan allows; null means no limit.
+    scenario_limit: int | None = None
 
 
 class WorkspaceRoadmapSummary(BaseModel):
@@ -850,6 +892,12 @@ class WorkspaceUniversityResponse(BaseModel):
     program_name: str | None = None
     # "directory": name, country and website from the open university directory; nothing else is known yet.
     data_quality: Literal["database", "directory", "illustrative"]
+    # From the reviewed university facts, when the university has them.
+    verified_facts: bool = False
+    fee_min: float | None = None
+    fee_max: float | None = None
+    fee_currency: str | None = None
+    programme_count: int | None = None
 
 
 class UniversityProfileLink(BaseModel):
@@ -917,7 +965,49 @@ class UniversityProfileResponse(BaseModel):
     unavailable_sources: list[str] = Field(default_factory=list)
 
 
+class UniversityAddress(BaseModel):
+    street: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    source: str
+    source_url: str
+
+
+class UniversityFeeItem(BaseModel):
+    programme: str
+    faculty: str | None = None
+    level: str | None = None
+    study_mode: str | None = None
+    amount_per_year: ApiDecimal
+
+
+class UniversityFees(BaseModel):
+    """Yearly fees copied from one document; "press" means a published list, not the original order."""
+    academic_year: str
+    currency: str
+    source_kind: Literal["official", "press"]
+    source_title: str
+    source_url: str
+    min_per_year: ApiDecimal
+    max_per_year: ApiDecimal
+    cheapest: UniversityFeeItem
+    most_expensive: UniversityFeeItem
+    paid_programme_count: int
+    free_programme_count: int
+    programmes: list[UniversityFeeItem]
+
+
+class UniversityVerifiedFacts(BaseModel):
+    address: UniversityAddress
+    founded: str | None = None
+    faculties: list[str] = Field(default_factory=list)
+    faculties_source: str | None = None
+    programme_count: int = 0
+    fees: UniversityFees | None = None
+
+
 class WorkspaceUniversityDetailsResponse(WorkspaceUniversityResponse):
+    verified_facts: UniversityVerifiedFacts | None = None
     programmes: list[dict[str, Any]] = Field(default_factory=list)
     documents: list[dict[str, Any]] = Field(default_factory=list)
     scholarships: list[dict[str, Any]] = Field(default_factory=list)
@@ -954,6 +1044,9 @@ class CountryEconomicsResponse(BaseModel):
     baseline_wage_period: date | None = None
     baseline_wage_source_name: str | None = None
     baseline_wage_source_url: str | None = None
+    # World Bank: unemployment among people with advanced education; the job chance is its complement.
+    graduate_unemployment_percent: ApiDecimal | None = None
+    graduate_unemployment_year: int | None = None
     series: list[EconomicSeries]
 
 
@@ -1113,3 +1206,88 @@ class TrialProjectionOption(BaseModel):
     seniority: str = "junior"
     # "listings": job adverts or salary survey; "official": Eurostat earnings survey estimate.
     salary_source: Literal["listings", "official"] = "listings"
+
+
+class TrialShowcaseScenario(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    label: str
+    result: TrialProjectionResponse
+
+
+class TrialShowcaseGrant(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str
+    grant: ApiDecimal
+    without_grant: TrialProjectionResponse
+    with_grant: TrialProjectionResponse
+
+
+class TrialShowcaseResponse(BaseModel):
+    """Public landing data: only real engine results; a case without stored data is left out."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    careers: list[TrialProjectionOption]
+    scenarios: list[TrialShowcaseScenario]
+    grant_example: TrialShowcaseGrant | None = None
+
+
+class ProjectionPreviewResponse(BaseModel):
+    """What a change to the cost lines would do. Calculated by the engine, not stored."""
+    total_direct_cost: ApiDecimal
+    opportunity_cost: ApiDecimal
+    total_investment: ApiDecimal
+    estimated_start_salary: ApiDecimal
+    cost_breakdown: ProjectionCostBreakdown
+    payback_months: int | None
+    payback_from_enrollment_months: int | None
+    break_even_reached: bool
+    target_payback_years: int | None
+    payback_within_target: bool | None
+    payback_target_gap_months: int | None
+    horizon_years: int
+    cumulative_incremental_earnings: ApiDecimal
+    roi_percent: ApiDecimal | None
+    npv: ApiDecimal | None
+    scenario_outcomes: list[ProjectionScenarioOutcome]
+    salary_trajectory: list[SalaryTrajectoryPoint]
+    cost_items: list[ProjectionCostItem]
+
+
+class LivingCostLine(BaseModel):
+    key: str
+    label: str
+    per_month: ApiDecimal
+
+
+class LivingCostsResponse(BaseModel):
+    country: str
+    currency: str
+    source_name: str
+    source_url: str
+    lines: list[LivingCostLine]
+
+
+class StudyProgrammeItem(BaseModel):
+    name: str
+    level: str | None = None
+    annual_fee: ApiDecimal | None = None
+    study_mode: str | None = None
+
+
+class StudyFeeRange(BaseModel):
+    min_per_year: ApiDecimal
+    max_per_year: ApiDecimal
+    currency: str
+    academic_year: str
+    source_title: str
+    source_url: str
+
+
+class SpecializationsResponse(BaseModel):
+    items: list[StudyProgrammeItem]
+    fee_range: StudyFeeRange | None = None
+    address: str | None = None

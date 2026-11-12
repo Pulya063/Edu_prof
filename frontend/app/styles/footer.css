@@ -57,3 +57,10 @@
 
 /* Sub-pages set `.site-page a { color:inherit }`, which turned the card text paper-on-paper. */
 .fence-footer .footer-ready-card { color:#050505; }
+
+/* Data sources row */
+.footer-sources { position:relative; z-index:2; display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; margin:32px 0 0; }
+.footer-sources > span { color:#b7ff2a; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+.footer-sources ul { display:flex; flex-wrap:wrap; gap:8px; margin:0; padding:0; list-style:none; }
+.fence-footer .footer-sources a { display:inline-block; padding:4px 12px; border:1.5px solid rgba(247,247,243,.45); border-radius:999px; color:#f7f7f3; font-size:12px; font-weight:700; text-decoration:none; transition:background-color .2s ease, color .2s ease; }
+.fence-footer .footer-sources a:hover { background:#b7ff2a; border-color:#b7ff2a; color:#171819; }

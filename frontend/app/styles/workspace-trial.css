@@ -108,6 +108,14 @@
 .cc-legend li { display:inline-flex; align-items:center; gap:7px; }
 .cc-legend i { display:inline-block; width:22px; height:0; border-top:3px solid; }
 .cc-legend i.is-lime { border-color:#b7ff2a; } .cc-legend i.is-violet { border-color:#d7c7ff; } .cc-legend i.is-dashed { border-top-style:dashed; }
+.cc-legend i.is-zero { border-color:rgba(247,247,243,.7); border-top-width:2px; }
+.cc-legend--explained { flex-direction:column; gap:6px; font-weight:500; }
+.cc-legend--explained li { align-items:flex-start; }
+.cc-legend--explained li i { flex:none; margin-top:7px; }
+.cc-legend--explained b { font-weight:800; }
+.cc-band { fill:rgba(247,247,243,.035); } .cc-band.is-alt { fill:rgba(215,199,255,.08); }
+.cc-band-label { fill:#d7c7ff; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.cc-footnote { margin:8px 0 0; font-size:12px; line-height:1.45; opacity:.72; }
 
 .cc-stack { display:flex; gap:2px; height:44px; padding:3px; border:2px solid #171819; border-radius:14px; background:#fff; }
 .cc-stack i { min-width:6px; border-radius:4px; transition:opacity .2s ease; }
@@ -149,3 +157,33 @@
   .cc-bar-track i { animation:none; }
   .workspace-shell :is(.sketch-btn,.btn-new-scenario,.btn-create,.ov-button,button.sketch-chip):hover { transform:none; }
 }
+
+/* Page loading: a moving bar and spinner, so the person sees the page is working. */
+.ws-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; min-height:50vh; color:#171819; }
+.ws-loading p { margin:0; font:700 15px var(--font-dm-sans),sans-serif; opacity:.75; }
+.ws-loading-bar { position:fixed; z-index:200; top:0; left:0; right:0; height:3px; overflow:hidden; background:transparent; }
+.ws-loading-bar i { position:absolute; inset:0 auto 0 0; width:40%; background:#b7ff2a; box-shadow:0 0 8px #b7ff2a; animation:ws-loading-bar 1.1s ease-in-out infinite; }
+.ws-loading-spinner { width:38px; height:38px; border:4px solid #e7e7e1; border-top-color:#171819; border-right-color:#b7ff2a; border-radius:50%; animation:ws-spin .8s linear infinite; }
+@keyframes ws-loading-bar { 0% { transform:translateX(-100%); } 100% { transform:translateX(260%); } }
+@keyframes ws-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ws-loading-bar i, .ws-loading-spinner { animation-duration:3s; } }
+
+/* Themes chosen in Settings. The filter sits on the root so fixed elements keep their place; pictures keep their colours. */
+html[data-ws-theme="dark"] { filter:invert(1) hue-rotate(180deg); background:#fff; }
+html[data-ws-theme="dark"] :is(img, video, picture, canvas, iframe) { filter:invert(1) hue-rotate(180deg); }
+html[data-ws-theme="monochrome"] { filter:grayscale(1) contrast(1.05); }
+
+/* Settings: theme picker and email change form. */
+.settings-theme-options { display:flex; flex-wrap:wrap; gap:8px; }
+.settings-theme { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 12px; border:2px solid #171819; border-radius:999px; background:#fff; color:#171819; font:700 13px var(--font-dm-sans),sans-serif; cursor:pointer; }
+.settings-theme i { width:16px; height:16px; border:2px solid #171819; border-radius:50%; background:linear-gradient(90deg,#f7f7f3 50%,#171819 50%); }
+.settings-theme.is-light i { background:#f7f7f3; } .settings-theme.is-dark i { background:#171819; }
+.settings-theme.is-on { background:#171819; color:#b7ff2a; }
+.settings-theme.is-on i { border-color:#b7ff2a; }
+.settings-email-form { display:grid; gap:10px; margin:4px 0 14px; padding:14px; border:1px dashed rgba(23,24,25,.25); border-radius:16px; }
+.settings-email-form label { display:grid; gap:4px; font-size:12px; font-weight:800; }
+.settings-email-form input { height:42px; padding:0 12px; border:2px solid #171819; border-radius:12px; font:600 14px var(--font-dm-sans),sans-serif; }
+.settings-email-error { margin:0; color:#b42318; font-size:13px; font-weight:700; }
+/* Surfaces that are already dark keep their own colours (and their lime) in the dark theme. */
+html[data-ws-theme="dark"] :is(.workspace-rail, .sketch-card-dark, .cc-card--dark, .forecast-preview, .ov-goal, .btn-create, .compare-search-button, .workspace-rail-toggle) { filter:invert(1) hue-rotate(180deg); }
+html[data-ws-theme="dark"] :is(.workspace-rail, .sketch-card-dark, .cc-card--dark, .forecast-preview) :is(img, video, picture, canvas, iframe) { filter:none; }

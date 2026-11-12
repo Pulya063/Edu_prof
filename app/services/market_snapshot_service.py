@@ -74,7 +74,7 @@ class MarketSnapshotService:
             )
         ).scalar_one_or_none()
         if snapshot is None:
-            raise AppError("Market snapshot не знайдено", status_code=404)
+            raise AppError("Market snapshot not found", status_code=404)
         return snapshot
 
     def resolve_validated(
@@ -130,7 +130,7 @@ class MarketSnapshotService:
         ).scalar_one_or_none()
         if snapshot is None:
             raise AppError(
-                "Немає validated market snapshot, що відповідає сценарію та правилам якості",
+                "No validated market snapshot matches this scenario and the quality rules",
                 status_code=422,
             )
         return snapshot

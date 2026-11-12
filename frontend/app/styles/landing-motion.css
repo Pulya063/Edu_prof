@@ -20,13 +20,13 @@
   opacity:0 !important; translate:0 105% !important;
   transition:opacity .45s ease var(--reveal-delay,0ms), translate .8s cubic-bezier(.22,1,.36,1) var(--reveal-delay,0ms) !important;
 }
-#landing.js-ready [data-reveal="line"].is-in > span { opacity:1 !important; translate:0 0 !important; }
-#landing.js-ready [data-reveal="line"]:not(.is-in) > span { transition-duration:.25s, .3s !important; }
+#landing.js-ready [data-reveal="line"][data-in] > span { opacity:1 !important; translate:0 0 !important; }
+#landing.js-ready [data-reveal="line"]:not([data-in]) > span { transition-duration:.25s, .3s !important; }
 
-#landing.js-ready [data-reveal].is-in { opacity:1 !important; translate:0 0 !important; scale:1; }
+#landing.js-ready [data-reveal][data-in] { opacity:1 !important; translate:0 0 !important; scale:1; }
 
 /* Leaving is quicker than arriving, so nothing lingers half-faded over the next block. */
-#landing.js-ready [data-reveal]:not(.is-in) {
+#landing.js-ready [data-reveal]:not([data-in]) {
   transition-duration:.28s, .32s, .36s, .2s, .2s !important;
 }
 

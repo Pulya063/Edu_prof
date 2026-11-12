@@ -96,6 +96,25 @@ class University(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     motivation_letters: Mapped[list["MotivationLetter"]] = relationship(back_populates="university")
 
 
+class StudyProgramme(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
+    """A programme of a university from the official register or a fee document; the fee may be unknown."""
+
+    __tablename__ = "study_programmes"
+    __table_args__ = (
+        UniqueConstraint("university_id", "name", "level", "study_mode", name="uq_study_programme"),
+        Index("ix_study_programmes_country_name", "country", "name"),
+    )
+    repr_fields = ("id", "university_id", "name")
+
+    university_id: Mapped[int] = mapped_column(ForeignKey("universities.id", ondelete="CASCADE"), index=True, nullable=False)
+    country: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    level: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    study_mode: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    annual_fee: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+
+
 class UniversityProfile(BaseIDMixin, TimestampMixin, ReprMixin, db.Model):
     """Cached public profile collected from Wikidata, Wikipedia, news feeds and the official site."""
 
@@ -413,11 +432,13 @@ class ProjectionInput(db.Model):
         ForeignKey("market_snapshots.id", ondelete="RESTRICT"), nullable=True
     )
     salary_source_kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    cost_items: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
 
     projection: Mapped[SimulationProjection] = relationship(back_populates="inputs")
 
     def as_dict(self) -> dict:
         return {
+            "cost_items": self.cost_items or [],
             "market_snapshot_id": self.market_snapshot_id,
             "annual_start_salary": self.annual_start_salary,
             "baseline_annual_salary": self.baseline_annual_salary,

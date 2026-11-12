@@ -1,0 +1,46 @@
+/* The sidebar folds to icons: by hand, or while a split view is open (desktop only).
+   Nothing jumps while it folds: icons keep their column, labels and the wordmark fade and narrow
+   in step with the rail's width. */
+.workspace-rail-head { position:relative; display:flex; align-items:center; }
+.workspace-rail-toggle { display:none; }
+.workspace-help-icon { display:grid; place-items:center; width:26px; height:26px; border:1.5px solid currentColor; border-radius:50%; font-size:14px; font-weight:800; }
+
+@media (min-width:821px) {
+  .workspace-rail { overflow:visible; transition:width .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1); }
+  .workspace-main,.workspace-topbar { transition:margin-left .28s cubic-bezier(.4,0,.2,1), left .28s cubic-bezier(.4,0,.2,1); }
+
+  .workspace-brand { margin-left:6px; transition:margin .28s cubic-bezier(.4,0,.2,1); }
+  .workspace-brand b, .workspace-rail .workspace-nav-label, .workspace-rail-foot p, .ws-nav-group {
+    display:block; max-width:180px; overflow:hidden; white-space:nowrap;
+    transition:opacity .18s ease, max-width .28s cubic-bezier(.4,0,.2,1);
+  }
+  .workspace-rail nav > * { transition:padding .28s cubic-bezier(.4,0,.2,1), background .15s; }
+  .workspace-rail-foot .workspace-help-link { display:grid; grid-template-columns:32px minmax(0,1fr); align-items:center; gap:0; min-height:46px; padding:0 12px; border-radius:10px; transition:padding .28s cubic-bezier(.4,0,.2,1), background .15s; }
+  .workspace-rail-foot .workspace-help-link:hover { background:rgba(255,255,255,.055); }
+  .workspace-rail-foot { padding:0; gap:28px; }
+
+  /* Round button on the rail's edge, level with the logo. */
+  .workspace-rail-toggle { position:absolute; z-index:5; top:50%; right:-26px; display:grid; place-items:center; width:28px; height:28px; padding:0; border:2px solid #171819; border-radius:50%; background:#b7ff2a; color:#171819; cursor:pointer; transform:translateY(-50%); box-shadow:0 2px 0 #171819; transition:transform .28s cubic-bezier(.4,0,.2,1), background .15s; }
+  .workspace-rail-toggle:hover { background:#c8ff5a; }
+  .workspace-rail-toggle:focus-visible { outline:3px solid #d7c7ff; outline-offset:2px; }
+  .workspace-rail-toggle svg { transition:transform .28s cubic-bezier(.4,0,.2,1); }
+
+  html[data-ws-rail="collapsed"] .workspace-rail { width:76px; padding-inline:12px; }
+  html[data-ws-rail="collapsed"] .workspace-main { margin-left:76px; }
+  html[data-ws-rail="collapsed"] .workspace-topbar { left:76px; }
+  html[data-ws-rail="collapsed"] .workspace-brand { margin-left:6px; column-gap:0; }
+  html[data-ws-rail="collapsed"] .workspace-brand b,
+  html[data-ws-rail="collapsed"] .workspace-rail .workspace-nav-label,
+  html[data-ws-rail="collapsed"] .workspace-rail-foot p,
+  html[data-ws-rail="collapsed"] .ws-nav-group { max-width:0; opacity:0; }
+  html[data-ws-rail="collapsed"] .workspace-rail nav > * { padding-inline:10px; }
+  html[data-ws-rail="collapsed"] .workspace-rail-foot .workspace-help-link { padding-inline:13px; }
+  html[data-ws-rail="collapsed"] .workspace-rail-toggle { right:-26px; }
+  html[data-ws-rail="collapsed"] .workspace-rail-toggle svg { transform:rotate(180deg); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .workspace-rail,.workspace-main,.workspace-topbar,.workspace-brand,.workspace-rail-toggle,.workspace-rail-toggle svg,
+  .workspace-brand b,.workspace-rail .workspace-nav-label,.workspace-rail-foot p,.ws-nav-group { transition:none; }
+}
+/* The old rule drew a circle around every span in the Help link; only the icon is a circle. */
+.workspace-help-link > .workspace-nav-label { display:block; width:auto; height:auto; border:0; border-radius:0; color:inherit !important; font-size:14px; font-weight:500; }

@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import "../../styles/dashboard.css";
+import PageLoading from "../PageLoading";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api/client";
-import { formatMoney, formatPercent } from "@/lib/api/decimal";
+import { formatMoney, formatRoiPerYear } from "@/lib/api/decimal";
 import type { SimulationScenarioListItem } from "@/lib/api/generated";
 
 type ScenarioSummary = SimulationScenarioListItem;
@@ -31,6 +32,21 @@ export default function ScenariosPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteSelected(id: number) {
+    setDeleting(true); setError("");
+    try {
+      await apiRequest(`/api/simulations/${id}`, { method: "DELETE", authenticated: true });
+      setScenarios((items) => items.filter((item) => item.id !== id));
+      setSelectedId(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not delete the calculation.");
+    } finally {
+      setDeleting(false); setConfirmDelete(false);
+    }
+  }
 
   useEffect(() => {
     async function loadScenarios() {
@@ -59,7 +75,7 @@ export default function ScenariosPage() {
     `${scenario.name} ${scenario.country} ${scenario.target_role}`.toLowerCase().includes(query.trim().toLowerCase())
   );
 
-  if (loading) return <div className="dashboard-layout" style={{ paddingTop: 100 }}>Loading scenarios...</div>;
+  if (loading) return <PageLoading label="Loading saved scenarios" />;
 
   return (
     <div className="dashboard-layout">
@@ -97,7 +113,7 @@ export default function ScenariosPage() {
                 <div 
                   key={scenario.id} 
                   className={`sc-card ${isDark ? 'is-dark' : 'is-light'}`}
-                  onClick={() => setSelectedId(scenario.id)}
+                  onClick={() => { setSelectedId(scenario.id); setConfirmDelete(false); }}
                   style={{ cursor: "pointer" }}
                 >
                   <div className="sc-header">
@@ -206,8 +222,8 @@ export default function ScenariosPage() {
               <div className="sp-fact">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
                 <div className="sp-fact-text">
-                  <span>ROI</span>
-                  <span>{selectedScenario.projection_id != null ? formatPercent(selectedScenario.roi_percent) : "No forecast yet"}</span>
+                  <span>ROI a year</span>
+                  <span>{selectedScenario.projection_id != null ? formatRoiPerYear(selectedScenario.roi_percent) : "No forecast yet"}</span>
                 </div>
               </div>
               <div className="sp-fact">
@@ -261,6 +277,13 @@ export default function ScenariosPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
             </Link>
             <span className="sp-footer-note">Includes investment, salary, payback, evidence and calculation assumptions.</span>
+            <div className="sp-delete">
+              {confirmDelete ? <>
+                <p>Delete “{selectedScenario.name}” and its forecasts? This cannot be undone. It frees one calculation on your plan.</p>
+                <div><button type="button" className="sp-delete-confirm" disabled={deleting} onClick={() => deleteSelected(selectedScenario.id)}>{deleting ? "Deleting…" : "Delete for good"}</button>
+                  <button type="button" className="sp-delete-cancel" onClick={() => setConfirmDelete(false)}>Keep it</button></div>
+              </> : <button type="button" className="sp-delete-open" onClick={() => setConfirmDelete(true)}>Delete this calculation</button>}
+            </div>
           </aside>
         )}
 

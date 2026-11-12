@@ -3,7 +3,7 @@ from flask import Blueprint, Response, jsonify, request
 
 from app.core.database import db
 from app.core.rate_limit import rate_limit
-from app.schemas import TrialProjectionOption, TrialProjectionRequest, TrialProjectionResponse
+from app.schemas import TrialProjectionOption, TrialProjectionRequest, TrialProjectionResponse, TrialShowcaseResponse
 from app.services.trial_projection_service import TrialProjectionService
 
 blueprint = Blueprint("roi", __name__)
@@ -15,6 +15,16 @@ def trial_projection_options() -> Response:
     """Countries and professions the anonymous trial can calculate right now."""
     options = [TrialProjectionOption.model_validate(item).model_dump(mode="json") for item in TrialProjectionService(db.session).options()]
     return jsonify(options)
+
+
+@blueprint.get("/preview/showcase")
+@rate_limit(120, 60, "trial-showcase")
+def trial_projection_showcase() -> Response:
+    """Real engine results for the public landing; browsers and proxies may reuse them for 10 minutes."""
+    result = TrialShowcaseResponse.model_validate(TrialProjectionService(db.session).showcase())
+    response = jsonify(result.model_dump(mode="json"))
+    response.headers["Cache-Control"] = "public, max-age=600"
+    return response
 
 
 @blueprint.post("/preview")

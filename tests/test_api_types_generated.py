@@ -58,7 +58,7 @@ def test_workspace_state_and_me_keep_their_shape(client, monkeypatch):
     state = client.get("/api/workspace")
     assert state.status_code == 200
     body = state.get_json()
-    assert set(body["user"]) == {"id", "username", "email", "plan", "scenario_count"}
+    assert set(body["user"]) == {"id", "username", "email", "plan", "scenario_count", "scenario_limit"}
     assert body["roadmap"] is None
 
     user = db.session.execute(select(User).where(User.email == "shape@example.com")).scalar_one()

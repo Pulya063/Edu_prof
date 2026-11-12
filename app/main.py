@@ -142,7 +142,7 @@ def create_app() -> Flask:
         if request.headers.get("HX-Request") == "true":
             msg = error.message
             if error.status_code == 401:
-                msg = "Необхідна авторизація. Будь ласка, увійдіть в систему."
+                msg = "Sign in to continue."
             return f'<p class="mt-4 text-sm font-medium text-red-500 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg">{msg}</p>', 200
 
         response = jsonify(detail=error.message)
@@ -155,12 +155,12 @@ def create_app() -> Flask:
     def handle_validation_error(error: ValidationError) -> tuple[Response | str, int]:
         logger.warning(f"Validation error: {error.errors()}")
         if request.headers.get("HX-Request") == "true":
-            msg = error.errors()[0].get("msg", "Невірні дані")
+            msg = error.errors()[0].get("msg", "Invalid data")
             if "value is not a valid email address" in msg.lower():
-                msg = "Невірний формат електронної пошти"
+                msg = "Invalid email format"
             elif "String should have at least" in msg:
-                msg = "Занадто коротке значення"
-            return f'<p class="mt-4 text-sm font-medium text-red-500 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg">Помилка валідації: {msg}</p>', 200
+                msg = "Value is too short"
+            return f'<p class="mt-4 text-sm font-medium text-red-500 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg">Validation error: {msg}</p>', 200
         return jsonify(detail=error.errors(include_url=False, include_context=False, include_input=False)), 422
 
     @flask_app.errorhandler(HTTPException)

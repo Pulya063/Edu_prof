@@ -42,7 +42,7 @@ def generate_roadmap(user: User) -> Response | str:
         )
     except Exception as e:
         logger.error(f"Invalid request payload: {e}")
-        return jsonify({"success": False, "message": "Неправильні вхідні дані"}), 400
+        return jsonify({"success": False, "message": "Invalid input"}), 400
 
     client = DreamworkClient()
     try:
@@ -100,8 +100,8 @@ def generate_roadmap(user: User) -> Response | str:
         return jsonify({
             "success": True,
             "data": response_model.model_dump(mode="json"),
-            "warning": "DreamWork недоступний — створено локальний план Fence.",
+            "warning": "DreamWork is unavailable, so Fence created a local plan.",
         }), 201
     except Exception as e:
         logger.error(f"Unexpected error during roadmap generation: {e}")
-        return jsonify({"success": False, "message": "Внутрішня помилка сервера"}), 500
+        return jsonify({"success": False, "message": "Internal server error"}), 500

@@ -18,7 +18,7 @@ def get_current_user(func):
         if not getattr(g, "user", None):
             # Якщо це HTMX-запит або API-запит, повертаємо 401 для обробки JS
             if request.headers.get("HX-Request") == "true" or request.path.startswith("/api/"):
-                raise AppError("Необхідна авторизація", status_code=401)
+                raise AppError("Sign in to continue", status_code=401)
             # Якщо це звичайний GET-запит сторінки (наприклад, /roadmap), редірект на логін
             return redirect(url_for("pages.login_page"))
 
@@ -34,7 +34,7 @@ def admin_required(func):
     def wrapper(*args, **kwargs):
         user = kwargs.get("user")
         if user is None or not user.is_admin:
-            raise AppError("Розділ доступний лише адміністраторам", status_code=403)
+            raise AppError("This section is for administrators only", status_code=403)
         return func(*args, **kwargs)
 
     return wrapper

@@ -55,7 +55,7 @@ class AuthService:
             self.db.commit()
         except IntegrityError as exc:
             self.db.rollback()
-            raise AppError("Користувач з таким email вже існує", status_code=409) from exc
+            raise AppError("A user with this email already exists", status_code=409) from exc
         self.db.refresh(user)
         return user
 
@@ -73,6 +73,24 @@ class AuthService:
         return self.create_token_pair(user)
 
     @log_call
+    def change_email(self, user: User, new_email: str, password: str) -> User:
+        """Move the account to a new address after the current password is confirmed."""
+        email = new_email.strip().lower()
+        if not user.password_hash or not verify_password(password, user.password_hash):
+            raise AppError("The current password is not correct", status_code=400)
+        if email == user.email:
+            raise AppError("This is already your email address", status_code=400)
+        if self.db.execute(select(User.id).where(User.email == email)).scalar_one_or_none() is not None:
+            raise AppError("A user with this email already exists", status_code=409)
+        user.email = email
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise AppError("A user with this email already exists", status_code=409) from exc
+        logger.info("User id=%s changed email", user.id)
+        return user
+
     def create_access_token(self, user: User) -> TokenResponse:
         """Legacy helper — kept for backward compat (Google OAuth, etc.)."""
         logger.info("Creating access token for user_id=%s", user.id)
@@ -109,7 +127,7 @@ class AuthService:
         logger.info("Refreshing token pair")
         user_id = get_user_id_by_refresh_token(refresh_token)
         if user_id is None:
-            raise AppError("Refresh token недійсний або прострочений", status_code=401)
+            raise AppError("Refresh token is invalid or expired", status_code=401)
 
         # Revoke the old refresh token immediately (rotation)
         delete_refresh_token(refresh_token)
@@ -117,7 +135,7 @@ class AuthService:
         result = self.db.execute(select(User).where(User.id == user_id, User.is_active.is_(True)))
         user = result.scalar_one_or_none()
         if user is None:
-            raise AppError("Користувача не знайдено або заблоковано", status_code=401)
+            raise AppError("User not found or blocked", status_code=401)
 
         return self.create_token_pair(user)
 
@@ -172,16 +190,16 @@ class AuthService:
             user_id = consume_password_reset_token(token)
         except RedisError as error:
             logger.error("Password-reset storage unavailable: %s", error)
-            raise AppError("Сервіс відновлення пароля тимчасово недоступний", status_code=503) from error
+            raise AppError("Password recovery is temporarily unavailable", status_code=503) from error
 
         if user_id is None:
-            raise AppError("Код відновлення недійсний або прострочений", status_code=400)
+            raise AppError("Recovery code is invalid or expired", status_code=400)
 
         user = self.db.execute(
             select(User).where(User.id == user_id, User.is_active.is_(True))
         ).scalar_one_or_none()
         if user is None:
-            raise AppError("Код відновлення недійсний або прострочений", status_code=400)
+            raise AppError("Recovery code is invalid or expired", status_code=400)
 
         user.password_hash = hash_password(new_password)
         self.db.commit()

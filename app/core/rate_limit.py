@@ -66,7 +66,7 @@ def rate_limit(limit: int, window_seconds: int, scope: str, *, key_func: Callabl
             if count > limit:
                 retry_after = window_seconds - (int(time.time()) % window_seconds)
                 raise AppError(
-                    "Забагато запитів. Спробуйте пізніше.",
+                    "Too many requests. Try again later.",
                     status_code=429,
                     headers={"Retry-After": str(retry_after)},
                 )

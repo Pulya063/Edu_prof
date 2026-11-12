@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
+import { formatRoi, formatYears, useLandingData } from "../context/LandingDataContext";
+import { useCarouselGestures } from "../hooks/useCarouselGestures";
 import { HeadlineLine } from "../hooks/useScrollMotion";
 
 type TestimonialTheme = "lime" | "light" | "dark";
@@ -102,12 +104,16 @@ function TestimonialCard({ testimonial, index, activeIndex, expandedId, onToggle
 export default function TestimonialsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const swipeStart = useRef<number | null>(null);
-  const wheelLocked = useRef(false);
 
   const move = (direction: number) => {
     setActiveIndex((current) => (current + direction + testimonials.length) % testimonials.length);
   };
+  const stageRef = useCarouselGestures<HTMLDivElement>(move);
+  const { data } = useLandingData();
+  const liveAnswers = ["knu-python", "poland-nurse", "ukraine-teacher"].flatMap((key) => {
+    const item = data?.scenarios.find((scenario) => scenario.key === key);
+    return item ? [item] : [];
+  });
 
   useEffect(() => {
     if (!expandedId) return;
@@ -131,27 +137,6 @@ export default function TestimonialsSection() {
       event.preventDefault();
       setExpandedId(null);
     }
-  };
-
-  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "touch") swipeStart.current = event.clientX;
-  };
-
-  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "touch" || swipeStart.current === null) return;
-    const delta = event.clientX - swipeStart.current;
-    swipeStart.current = null;
-    if (Math.abs(delta) < 42) return;
-    move(delta > 0 ? -1 : 1);
-  };
-
-  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    if (event.deltaX === 0 || Math.abs(event.deltaX) <= Math.abs(event.deltaY) || wheelLocked.current) return;
-    event.preventDefault();
-    if (Math.abs(event.deltaX) < 24) return;
-    move(event.deltaX > 0 ? 1 : -1);
-    wheelLocked.current = true;
-    window.setTimeout(() => { wheelLocked.current = false; }, 320);
   };
 
   const toggleStory = (id: string) => setExpandedId((current) => current === id ? null : id);
@@ -197,7 +182,7 @@ export default function TestimonialsSection() {
           </div>
           <a className="testimonials-cta" href="/register">Model my own decision <span aria-hidden="true"><ArrowIcon direction="next" /></span></a>
         </div>
-        <div className="testimonials-stage" data-active={activeIndex} data-expanded={expandedId ?? undefined} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onWheel={handleWheel}>
+        <div className="testimonials-stage" data-active={activeIndex} data-expanded={expandedId ?? undefined} ref={stageRef}>
           {testimonials.map((testimonial, index) => (
             <TestimonialCard
               key={testimonial.id}
@@ -210,6 +195,12 @@ export default function TestimonialsSection() {
           ))}
         </div>
       </div>
+      {liveAnswers.length > 0 && (
+        <div className="testimonials-live">
+          <h3>Same engine, different answers</h3>
+          <ul>{liveAnswers.map((item) => <li key={item.key}><span>{item.label}</span><b>{formatYears(item.result.payback_months)}</b><small>payback · {formatRoi(item.result.roi_percent)} ROI</small></li>)}</ul>
+        </div>
+      )}
       <p className="sr-only" aria-live="polite">Showing story {activeIndex + 1} of {testimonials.length}: {activeStory.name}.</p>
     </section>
   );

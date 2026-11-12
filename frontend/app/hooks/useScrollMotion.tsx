@@ -231,13 +231,14 @@ export function useLandingMotion({ pageRef, navigationTargets, onThemeChange, on
         entering.forEach((entry, index) => {
           const target = entry.target as HTMLElement;
           target.style.setProperty("--reveal-delay", `${Math.min(index, 6) * 70}ms`);
-          target.classList.add("is-in");
+          // An attribute, not a class: React rewrites className on re-render and would erase a class set here.
+          target.dataset.in = "true";
         });
         entries.forEach((entry) => {
           if (entry.isIntersecting) return;
           const target = entry.target as HTMLElement;
           target.style.setProperty("--reveal-delay", "0ms");
-          target.classList.remove("is-in");
+          delete target.dataset.in;
         });
       },
       { threshold: 0, rootMargin: "-4% 0px -10% 0px" },

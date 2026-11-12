@@ -52,6 +52,18 @@ def me(user: User) -> Response:
     return jsonify(response.model_dump(mode="json"))
 
 
+@blueprint.post("/change-email")
+@rate_limit(5, 60 * 60, "auth-change-email")
+@get_current_user
+def change_email(user: User) -> Response:
+    """Change the sign-in email; the current password confirms it is the account owner."""
+    from app.schemas import ChangeEmailSchema
+
+    payload = ChangeEmailSchema.model_validate(request.get_json(silent=True) or {})
+    updated = AuthService(db.session).change_email(user, str(payload.new_email), payload.password)
+    return jsonify({"email": updated.email})
+
+
 @blueprint.post("/register")
 @rate_limit(5, 60 * 60, "auth-register")
 def register() -> tuple[Response, int]:
@@ -110,7 +122,7 @@ def refresh() -> Response:
     logger.info("Token refresh requested")
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
-        raise AppError("Refresh token відсутній", status_code=401)
+        raise AppError("Refresh token is missing", status_code=401)
 
     token_pair = AuthService(db.session).refresh_tokens(refresh_token)
     logger.info("Token pair rotated successfully")
@@ -145,7 +157,7 @@ def password_reset_request() -> Response:
     payload = PasswordResetRequestSchema.model_validate(data)
     AuthService(db.session).request_password_reset(payload.email)
     # Always return success to prevent email enumeration
-    response = APIResponse(message="Якщо email існує в системі, ви отримаєте лист з інструкціями")
+    response = APIResponse(message="If this email is registered, you will receive a message with instructions")
     return jsonify(response.model_dump(mode="json"))
 
 
@@ -156,7 +168,7 @@ def password_reset() -> Response:
     data = request.get_json(silent=True) or {}
     payload = PasswordResetSchema.model_validate(data)
     AuthService(db.session).reset_password(payload.code, payload.new_password)
-    response = APIResponse(message="Пароль успішно змінено")
+    response = APIResponse(message="Password changed")
     return jsonify(response.model_dump(mode="json"))
 
 
@@ -199,7 +211,7 @@ def auth_providers() -> Response:
 @rate_limit(20, 60 * 60, "auth-google")
 def login_google():
     if not current_app.config.get("GOOGLE_OAUTH_CONFIGURED", False):
-        raise AppError("Google OAuth не налаштовано", status_code=503)
+        raise AppError("Google sign-in is not configured", status_code=503)
     from flask import session
     from app.core.oauth import oauth
 
@@ -214,7 +226,7 @@ def login_google():
 @blueprint.get("/callback/google")
 def auth_google_callback():
     if not current_app.config.get("GOOGLE_OAUTH_CONFIGURED", False):
-        raise AppError("Google OAuth не налаштовано", status_code=503)
+        raise AppError("Google sign-in is not configured", status_code=503)
     from authlib.integrations.base_client.errors import OAuthError
     from flask import session
     from redis.exceptions import RedisError

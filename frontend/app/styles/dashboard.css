@@ -1304,3 +1304,43 @@
 .ud-input-group { margin-bottom: 16px; position: relative; }
 .ud-input-group svg { position: absolute; left: 16px; top: 14px; width: 18px; height: 18px; color: #858e94; }
 .ud-input { width: 100%; height: 48px; border: 1px solid #e1e4e6; border-radius: 8px; padding: 0 16px 0 44px; font-size: 14px; color: #171819; outline: none; }
+
+/* Profile: read-only field of study, plan warning, resume assistant and CV builder. */
+.pi-readonly { display:flex; align-items:center; min-height:44px; padding:0 14px; border:1.5px dashed rgba(23,24,25,.25); border-radius:12px; font-weight:700; }
+.pi-hint { display:block; margin-top:6px; color:#5e6469; font-size:12px; }
+.plan-stat strong.is-full { color:#b42318; }
+.plan-warning { margin:12px 0 0; padding:10px 12px; border-radius:12px; background:#fff1ee; color:#7a271a; font-size:13px; line-height:1.4; }
+.plan-warning a { color:inherit; font-weight:800; }
+.widget-resume .resume-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+.widget-resume .btn-upload, .widget-resume .btn-create { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 18px; border:2px solid #171819; border-radius:14px; font:800 14px var(--font-manrope),sans-serif; cursor:pointer; }
+.widget-resume .btn-upload { background:#fff; color:#171819; } .widget-resume .btn-upload.is-busy { opacity:.6; cursor:progress; }
+.widget-resume .btn-create { background:#b7ff2a; color:#171819; }
+.resume-privacy { margin:8px 0 0; color:#5e6469; font-size:12px; }
+.resume-error { margin:10px 0 0; color:#b42318; font-weight:700; font-size:13px; }
+.resume-review { margin-top:16px; padding-top:14px; border-top:1px solid rgba(23,24,25,.12); }
+.resume-score { display:flex; align-items:baseline; gap:12px; }
+.resume-score strong { font:800 40px var(--font-manrope),sans-serif; } .resume-score small { font-size:16px; opacity:.6; }
+.resume-score span { font-weight:800; }
+.resume-checks { display:grid; gap:6px; margin:12px 0; padding:0; list-style:none; }
+.resume-checks li { display:grid; grid-template-columns:24px 1fr auto; align-items:start; gap:8px; padding:8px 10px; border-radius:10px; background:#fff7e6; font-size:13px; }
+.resume-checks li.is-ok { background:#f3fbe2; }
+.resume-checks b { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:#171819; color:#b7ff2a; font-size:12px; }
+.resume-checks li:not(.is-ok) b { background:#f79009; color:#171819; }
+.resume-checks small { display:block; color:#5e6469; } .resume-checks em { font-style:normal; font-weight:800; }
+.resume-note { margin:6px 0; padding:8px 10px; border-left:3px solid #d7c7ff; font-size:13px; }
+.resume-ai h4 { margin:10px 0 4px; } .resume-ai h4 small { font-weight:500; color:#5e6469; }
+.resume-method { margin:6px 0 0; color:#5e6469; font-size:12px; }
+.cv-builder { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:16px; }
+.cv-form { display:grid; gap:10px; align-content:start; }
+.cv-field { display:grid; gap:4px; font-size:12px; font-weight:800; }
+.cv-field input, .cv-field textarea { padding:9px 11px; border:2px solid #171819; border-radius:12px; font:500 13px var(--font-dm-sans),sans-serif; resize:vertical; }
+.cv-consent { display:flex; gap:8px; align-items:flex-start; font-size:12px; }
+.cv-preview { width:100%; min-height:640px; border:2px solid #171819; border-radius:14px; background:#fff; }
+@media (max-width:900px) { .cv-builder { grid-template-columns:1fr; } }
+.sp-delete { margin-top:14px; padding-top:12px; border-top:1px solid rgba(23,24,25,.12); }
+.sp-delete p { margin:0 0 8px; font-size:13px; }
+.sp-delete div { display:flex; gap:8px; }
+.sp-delete button { height:38px; padding:0 14px; border-radius:12px; font:800 13px var(--font-dm-sans),sans-serif; cursor:pointer; }
+.sp-delete-open { border:1.5px solid #b42318; background:#fff; color:#b42318; }
+.sp-delete-confirm { border:0; background:#b42318; color:#fff; }
+.sp-delete-cancel { border:1.5px solid #171819; background:#fff; color:#171819; }

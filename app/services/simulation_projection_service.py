@@ -5,6 +5,8 @@ import json
 from datetime import date
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -22,11 +24,15 @@ from app.models import (
     SimulationScenario,
     TuitionSnapshot,
 )
+from app.schemas import MarketSnapshotSelection
+from app.schemas import ProjectionCostItem
 from app.schemas import ProjectionEvidence, SimulationProjectionRequest
+from app.services.projection_assumptions import ProjectionAssumptions
 from app.services.market_snapshot_service import MarketSnapshotService
 from app.services.projection_ai_review_service import ProjectionAIReviewService
 
 
+logger = logging.getLogger(__name__)
 METHODOLOGY_VERSION = "scenario-projection-v5"
 SALARY_BASIS = "gross_annual"
 MONEY = Decimal("0.01")
@@ -98,8 +104,12 @@ class DeterministicProjectionEngine:
         payback_months: int | None = 0 if total_investment == 0 else None
         trajectory: list[dict] = []
 
+        ladder = payload.career_ladder or []
         for year in range(1, payload.horizon_years + 1):
             job_salary = start_salary * engine._growth(target_growth, study_years + year - 1)
+            if ladder:
+                # Promotion with experience; past the last known level the pay stays at that level.
+                job_salary = job_salary * ladder[min(year, len(ladder)) - 1]
             if year == 1 and payload.job_search_months:
                 job_salary = job_salary * Decimal(12 - min(payload.job_search_months, 12)) / Decimal("12")
             baseline_salary = payload.baseline_annual_salary * engine._growth(baseline_growth, study_years + year - 1)
@@ -337,7 +347,7 @@ class SimulationProjectionService:
             )
         ).scalar_one_or_none()
         if revision is None:
-            raise AppError("Ревізію сценарію не знайдено", status_code=404)
+            raise AppError("Scenario revision not found", status_code=404)
         return revision
 
     @staticmethod
@@ -352,6 +362,45 @@ class SimulationProjectionService:
             selectinload(SimulationProjection.warning_records),
             selectinload(SimulationProjection.ai_review),
         )
+
+    def _find_salary_now(self, assumptions: dict, selection: MarketSnapshotSelection) -> MarketSnapshot:
+        """A role without stored data: read current listings for it before the first calculation."""
+        import httpx
+
+        from app.services.market_ingestion_service import ROLE_CATALOG, MarketIngestionService, MarketProviderError
+        from app.services.official_wage_service import refresh_salary_snapshot
+
+        role, country, currency = assumptions["career_target"], assumptions["country"], assumptions["currency"]
+        try:
+            if any(name.casefold() == role.strip().casefold() for name in ROLE_CATALOG):
+                refresh_salary_snapshot(self.db, role, country, currency)
+            else:
+                MarketIngestionService(self.db).fetch_custom(role, country, currency)
+            return MarketSnapshotService(self.db).resolve_validated(
+                role=role, country=country, seniority=selection.seniority, currency=currency,
+                as_of_date=selection.as_of_date, max_age_days=selection.max_age_days, minimum_confidence="low",
+            )
+        except (MarketProviderError, httpx.HTTPError, AppError) as error:
+            logger.info("No salary data found for %s in %s: %s", role, country, error)
+            raise AppError(f"We could not find enough published salaries for '{role}' in {country}. Enter the salary you expect, or pick a similar role.", status_code=422) from error
+
+    def _prepare(self, revision: SimulationRevision, payload: SimulationProjectionRequest) -> tuple[dict, SimulationProjectionRequest, list[str], tuple[Decimal, Decimal] | None]:
+        """Everything the engine needs: salary source, automatic assumptions and cost lines."""
+        resolved, refs, salary_range = self._resolve_salary_source(revision.assumptions, payload)
+        resolved = self._with_tuition_evidence(revision, resolved)
+        assumptions = revision.assumptions
+        helper = ProjectionAssumptions(self.db)
+        if resolved.auto_assumptions:
+            resolved = helper.apply_auto(assumptions, resolved)
+        if resolved.auto_assumptions or resolved.cost_items:
+            assumptions, resolved = helper.to_engine_inputs(assumptions, resolved, helper.build_items(assumptions, resolved))
+        if resolved.auto_assumptions or any(item.metric == "career_level" for item in resolved.evidence):
+            # Pay growth with experience: new forecasts read (or collect) mid and senior pay; a recalculation
+            # reuses the snapshots its saved forecast cited.
+            from app.services.career_ladder_service import CareerLadderService
+            resolved = CareerLadderService(self.db).attach(revision.assumptions, resolved, fetch=resolved.auto_assumptions)
+        self._validate_evidence(revision.assumptions, resolved)
+        return assumptions, resolved, refs, salary_range
 
     def _resolve_salary_source(
         self, assumptions: dict, payload: SimulationProjectionRequest
@@ -372,28 +421,31 @@ class SimulationProjectionService:
                     minimum_confidence=selection.minimum_confidence,
                 )
             except AppError as e:
-                if e.status_code == 422:
+                if e.status_code != 422:
+                    raise
+                if payload.auto_assumptions:
+                    snapshot = self._find_salary_now(assumptions, selection)
+                else:
                     from app.tasks.market_tasks import refresh_market_snapshot
                     role = assumptions.get("career_target", "")
                     country = assumptions.get("country", "")
                     currency = assumptions.get("currency", "")
                     refresh_market_snapshot.delay(role, country, currency)
                     raise AppError(
-                        f"Дані про зарплати для '{role}' ще не завантажені. Ми почали їх оновлення — будь ласка, повторіть спробу через декілька секунд.",
+                        f"Salary data for '{role}' is not loaded yet. We started collecting it, so try again in a minute.",
                         status_code=409
                     )
-                raise e
         else:
             return payload, [], None
 
         if snapshot.role.casefold() != assumptions["career_target"].casefold():
-            raise AppError("Роль market snapshot не відповідає сценарію", status_code=422)
+            raise AppError("The market snapshot role does not match the scenario", status_code=422)
         if snapshot.country.casefold() != assumptions["country"].casefold():
-            raise AppError("Країна market snapshot не відповідає сценарію", status_code=422)
+            raise AppError("The market snapshot country does not match the scenario", status_code=422)
         if snapshot.currency != assumptions["currency"].upper():
-            raise AppError("Валюта market snapshot не відповідає сценарію", status_code=422)
+            raise AppError("The market snapshot currency does not match the scenario", status_code=422)
         if snapshot.salary_basis != SALARY_BASIS:
-            raise AppError("Salary basis market snapshot не підтримується", status_code=422)
+            raise AppError("The market snapshot salary basis is not supported", status_code=422)
 
         snapshot_evidence = ProjectionEvidence(
             metric="target_start_salary",
@@ -431,7 +483,7 @@ class SimulationProjectionService:
         try:
             snapshot_id = int(references[-1])
         except ValueError as error:
-            raise AppError("Некоректний tuition snapshot reference", status_code=422) from error
+            raise AppError("Invalid tuition snapshot reference", status_code=422) from error
 
         snapshot = self.db.execute(
             select(TuitionSnapshot).where(
@@ -440,13 +492,13 @@ class SimulationProjectionService:
             )
         ).scalar_one_or_none()
         if snapshot is None:
-            raise AppError("Tuition snapshot сценарію більше не доступний", status_code=422)
+            raise AppError("The scenario's tuition snapshot is no longer available", status_code=422)
         if snapshot.country.casefold() != revision.assumptions["country"].casefold():
-            raise AppError("Країна tuition snapshot не відповідає сценарію", status_code=422)
+            raise AppError("The tuition snapshot country does not match the scenario", status_code=422)
         if snapshot.currency != revision.assumptions["currency"].upper():
-            raise AppError("Валюта tuition snapshot не відповідає сценарію", status_code=422)
+            raise AppError("The tuition snapshot currency does not match the scenario", status_code=422)
         if Decimal(str(revision.assumptions["annual_tuition"])) != snapshot.annual_tuition:
-            raise AppError("Tuition snapshot не відповідає збереженому tuition", status_code=422)
+            raise AppError("The tuition snapshot does not match the saved tuition", status_code=422)
 
         reference = f"tuition_snapshot:{snapshot.id}"
         if any(item.source_reference == reference for item in payload.evidence):
@@ -468,17 +520,17 @@ class SimulationProjectionService:
     def _validate_evidence(assumptions: dict, payload: SimulationProjectionRequest) -> None:
         metrics = {item.metric for item in payload.evidence}
         if "target_start_salary" not in metrics:
-            raise AppError("Потрібне джерело для стартової зарплати", status_code=422)
+            raise AppError("A source is required for the starting salary", status_code=422)
         if payload.baseline_annual_salary > 0 and "baseline_salary" not in metrics:
-            raise AppError("Потрібне джерело для базової зарплати", status_code=422)
+            raise AppError("A source is required for the baseline salary", status_code=422)
 
         expected_country = assumptions["country"].casefold()
         expected_currency = assumptions["currency"].upper()
         for evidence in payload.evidence:
             if evidence.country.casefold() != expected_country:
-                raise AppError("Країна джерела не відповідає сценарію", status_code=422)
+                raise AppError("The source country does not match the scenario", status_code=422)
             if evidence.currency != expected_currency:
-                raise AppError("Валюта джерела не відповідає сценарію", status_code=422)
+                raise AppError("The source currency does not match the scenario", status_code=422)
 
     @staticmethod
     def _fingerprint(
@@ -507,11 +559,7 @@ class SimulationProjectionService:
     ) -> tuple[SimulationProjection, bool]:
         """Повертає прогноз і ознаку створення; повтор тих самих inputs повторно не рахуємо."""
         revision = self._get_revision(user_id, scenario_id, revision_number)
-        resolved_payload, source_snapshot_refs, salary_range = self._resolve_salary_source(
-            revision.assumptions, payload
-        )
-        resolved_payload = self._with_tuition_evidence(revision, resolved_payload)
-        self._validate_evidence(revision.assumptions, resolved_payload)
+        engine_assumptions, resolved_payload, source_snapshot_refs, salary_range = self._prepare(revision, payload)
         fingerprint = self._fingerprint(revision, resolved_payload, source_snapshot_refs)
 
         existing = self.db.execute(
@@ -525,7 +573,7 @@ class SimulationProjectionService:
             return existing, False
 
         result = DeterministicProjectionEngine.calculate(
-            revision.assumptions, resolved_payload, salary_range
+            engine_assumptions, resolved_payload, salary_range
         )
         cost_breakdown = result.pop("cost_breakdown")
         trajectory = result.pop("salary_trajectory")
@@ -562,6 +610,7 @@ class SimulationProjectionService:
             target_payback_years=resolved_payload.target_payback_years,
             market_snapshot_id=market_snapshot_id,
             salary_source_kind="market_snapshot" if market_snapshot_id else "manual_evidence",
+            cost_items=[item.model_dump(mode="json") for item in resolved_payload.cost_items],
         )
         projection.costs = ProjectionCost(**cost_breakdown)
         projection.trajectory_points = [ProjectionTrajectoryPoint(**point) for point in trajectory]
@@ -595,6 +644,43 @@ class SimulationProjectionService:
         self.db.refresh(projection)
         ProjectionAIReviewService(self.db).enqueue(projection)
         return projection, True
+
+    def recalculate(self, user_id: int, scenario_id: int, revision_number: int, projection_id: int, cost_items: list[ProjectionCostItem], save: bool) -> dict | tuple[SimulationProjection, bool]:
+        """The saved projection with changed cost lines: previewed, or stored as a new projection."""
+        revision = self._get_revision(user_id, scenario_id, revision_number)
+        projection = next((item for item in self.list_for_revision(user_id, scenario_id, revision_number) if item.id == projection_id), None)
+        if projection is None or projection.inputs is None:
+            raise AppError("Forecast not found", status_code=404)
+        inputs = projection.inputs
+        from_snapshot = inputs.market_snapshot_id is not None
+        evidence_fields = ("metric", "source_name", "source_reference", "acquired_at", "country", "role", "seniority", "currency", "sample_size", "confidence")
+        evidence = [
+            ProjectionEvidence(**{field: getattr(record, field) for field in evidence_fields})
+            for record in projection.evidence_records
+            if not (from_snapshot and record.metric == "target_start_salary") and not str(record.source_reference).startswith("tuition_snapshot:")
+        ]
+        payload = SimulationProjectionRequest(
+            market_snapshot_id=inputs.market_snapshot_id,
+            annual_start_salary=None if from_snapshot else inputs.annual_start_salary,
+            baseline_annual_salary=inputs.baseline_annual_salary,
+            annual_salary_growth_percent=inputs.annual_salary_growth_percent,
+            baseline_salary_growth_percent=inputs.baseline_salary_growth_percent,
+            # A saved projection with this line off stores 0; the line itself now decides.
+            foregone_income_percent=inputs.foregone_income_percent or Decimal("100"),
+            horizon_years=inputs.horizon_years,
+            discount_rate_percent=inputs.discount_rate_percent,
+            inflation_percent=inputs.inflation_percent,
+            job_search_months=inputs.job_search_months,
+            employment_probability_percent=inputs.employment_probability_percent,
+            target_payback_years=inputs.target_payback_years,
+            evidence=evidence,
+            cost_items=cost_items,
+        )
+        if save:
+            return self.create(user_id, scenario_id, revision_number, payload)
+        assumptions, resolved, _refs, salary_range = self._prepare(revision, payload)
+        result = DeterministicProjectionEngine.calculate(assumptions, resolved, salary_range)
+        return {**result, "cost_items": resolved.cost_items}
 
     def list_for_revision(
         self, user_id: int, scenario_id: int, revision_number: int
@@ -651,7 +737,7 @@ class SimulationProjectionService:
             )
         ).scalar_one_or_none()
         if projection is None:
-            raise AppError("Проєкцію не знайдено", status_code=404)
+            raise AppError("Forecast not found", status_code=404)
 
         parsed_refs: list[int] = []
         missing_refs: list[str] = []
@@ -727,7 +813,7 @@ class SimulationProjectionService:
             )
         ).scalar_one_or_none()
         if projection is None:
-            raise AppError("Проєкцію не знайдено", status_code=404)
+            raise AppError("Forecast not found", status_code=404)
         ProjectionAIReviewService(self.db).enqueue(projection)
         self.db.refresh(projection)
         return projection

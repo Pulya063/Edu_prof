@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 WORLD_BANK_CPI_URL = "https://api.worldbank.org/v2/country/{iso2}/indicator/FP.CPI.TOTL.ZG"
 NBU_RATE_URL = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange"
 NBP_RATE_URL = "https://api.nbp.pl/api/exchangerates/rates/a/{code}/{start}/{end}/"
+WORLD_BANK_ADVANCED_UNEMPLOYMENT_URL = "https://api.worldbank.org/v2/country/{iso2}/indicator/SL.UEM.ADVN.ZS"
 EUROSTAT_MIN_WAGE_URL = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/earn_mw_cur"
 
 # Country metadata only: ISO code, local currency and which central bank publishes its rates.
@@ -87,6 +88,19 @@ class EconomicDataService:
             year = int(row["date"])
             self._upsert(country, "cpi_inflation", date(year, 12, 31), Decimal(str(row["value"])), "percent",
                          "World Bank, Inflation, consumer prices (annual %)", f"https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG?locations={iso2}")
+            stored += 1
+        return stored
+
+    def _fetch_graduate_unemployment(self, country: str, iso2: str) -> int:
+        data = self._get_json(WORLD_BANK_ADVANCED_UNEMPLOYMENT_URL.format(iso2=iso2), {"format": "json", "mrnev": 3, "per_page": 3})
+        if not isinstance(data, list) or len(data) < 2 or not isinstance(data[1], list):
+            return 0
+        stored = 0
+        for row in data[1]:
+            if row.get("value") is None:
+                continue
+            self._upsert(country, "graduate_unemployment", date(int(row["date"]), 12, 31), Decimal(str(row["value"])), "percent",
+                         "World Bank, Unemployment with advanced education (%)", "https://data.worldbank.org/indicator/SL.UEM.ADVN.ZS")
             stored += 1
         return stored
 
@@ -160,6 +174,7 @@ class EconomicDataService:
         meta = COUNTRIES[name]
         today = today or date.today()
         result = {"cpi_inflation": self._fetch_inflation(name, meta["iso2"], today), "fx_rate": self._fetch_fx(name, meta, today)}
+        result["graduate_unemployment"] = self._fetch_graduate_unemployment(name, meta["iso2"])
         if meta["baseline"] == "minimum_wage":
             result["minimum_wage"] = self._fetch_minimum_wage(name, meta)
         else:
@@ -198,6 +213,8 @@ class EconomicDataService:
 
         baseline_rows = self._rows(name, meta.get("baseline", "")) if meta else []
         baseline = baseline_rows[-1] if baseline_rows else None
+        unemployment_rows = self._rows(name, "graduate_unemployment")
+        unemployment = unemployment_rows[-1] if unemployment_rows else None
 
         series = []
         for indicator, rows in (("cpi_inflation", inflation), ("fx_rate", fx), (meta.get("baseline", "baseline"), baseline_rows)):
@@ -224,5 +241,7 @@ class EconomicDataService:
             "baseline_wage_period": baseline.period if baseline else None,
             "baseline_wage_source_name": baseline.source_name if baseline else None,
             "baseline_wage_source_url": baseline.source_url if baseline else None,
+            "graduate_unemployment_percent": unemployment.value if unemployment else None,
+            "graduate_unemployment_year": unemployment.period.year if unemployment else None,
             "series": series,
         }

@@ -26,6 +26,17 @@ const footerColumns = [
   },
 ];
 
+const dataSources = [
+  { label: "World Bank", href: "https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG" },
+  { label: "Eurostat", href: "https://ec.europa.eu/eurostat/databrowser/view/earn_ses22_48/default/table" },
+  { label: "NBP", href: "https://nbp.pl/en/statistic-and-financial-reporting/rates/" },
+  { label: "NBU", href: "https://bank.gov.ua/en/markets/exchangerates" },
+  { label: "State Employment Service of Ukraine", href: "https://data.gov.ua/dataset/a95174b2-ff4b-43f8-bee2-a89d3a258215" },
+  { label: "Pracuj.pl", href: "https://www.pracuj.pl/" },
+  { label: "No Fluff Jobs", href: "https://nofluffjobs.com/" },
+  { label: "DOU", href: "https://github.com/devua/csv" },
+];
+
 const legalLinks = [
   { label: "Privacy", href: "/legal/privacy" },
   { label: "Terms", href: "/legal/terms" },
@@ -68,6 +79,7 @@ export default function LandingFooter() {
           {footerColumns.map((column) => <nav className="footer-column" aria-labelledby={`footer-${column.title.toLowerCase()}`} key={column.title}><h3 id={`footer-${column.title.toLowerCase()}`}>{column.title}</h3><ul>{column.links.map((link) => <li key={link.label}><FooterLink {...link} /></li>)}</ul></nav>)}
         </div>
       </div>
+      <div className="footer-sources"><span>Data sources</span><ul>{dataSources.map((source) => <li key={source.label}><a href={source.href} target="_blank" rel="noopener noreferrer">{source.label}</a></li>)}</ul></div>
       <div className="footer-legal"><p>© 2026 Fence. Education-to-career decision planning.</p><div className="footer-legal-actions">{legalLinks.map((link) => <FooterLink key={link.href} {...link} />)}<button className="footer-back-to-top" type="button" aria-label="Back to top" onClick={backToTop}><Arrow up /></button></div></div>
     </footer>
   );

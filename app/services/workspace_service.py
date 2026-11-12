@@ -12,6 +12,7 @@ from app.models import EducationProgram, SimulationScenario, University, User, U
 from app.schemas import RoadmapPreviewRequest, WorkspacePreferences, WorkspaceProfile
 from app.services.economic_data_service import COUNTRIES
 from app.services.university_catalog_service import UniversityCatalogService
+from app.services.university_facts_service import facts_for
 from app.services.university_profile_service import UniversityProfileService
 
 
@@ -102,13 +103,15 @@ class WorkspaceService:
         roadmap_data = None
         if roadmap:
             roadmap_data = {"id": roadmap.id, "target_job": roadmap.target_job, "updated_at": roadmap.updated_at.isoformat(), "plan": normalize_roadmap(roadmap.roadmap_data, roadmap.target_job)}
-        return {"user": {"id": user.id, "username": user.username, "email": user.email, "plan": user.plan, "scenario_count": scenarios}, **state, "roadmap": roadmap_data}
+        from app.services.plan_service import get_plan_details
+        return {"user": {"id": user.id, "username": user.username, "email": user.email, "plan": user.plan, "scenario_count": scenarios,
+                         "scenario_limit": get_plan_details(user)["limit"]}, **state, "roadmap": roadmap_data}
 
     def update_profile(self, user: User, username: str | None, profile: WorkspaceProfile) -> dict[str, Any]:
         if username:
             existing = self.session.execute(select(User.id).where(func.lower(User.username) == username.casefold(), User.id != user.id)).scalar_one_or_none()
             if existing is not None:
-                raise AppError("Це ім'я користувача вже зайняте", status_code=409)
+                raise AppError("This username is already taken", status_code=409)
             user.username = username
         state = _merged_workspace_data(user)
         state["profile"] = profile.model_dump()
@@ -155,7 +158,7 @@ class WorkspaceService:
 
     def set_course_saved(self, user: User, course_id: str, saved: bool) -> dict[str, Any]:
         if course_id not in {course["id"] for course in COURSES}:
-            raise AppError("Курс не знайдено", status_code=404)
+            raise AppError("Course not found", status_code=404)
         state = _merged_workspace_data(user)
         course_ids = set(state["saved_course_ids"])
         course_ids.add(course_id) if saved else course_ids.discard(course_id)
@@ -165,17 +168,25 @@ class WorkspaceService:
         return next({**course, "saved": saved} for course in COURSES if course["id"] == course_id)
 
     @staticmethod
-    def _university_summary(university: University, faculty: str = "") -> dict[str, Any]:
+    def _university_summary(university: University, faculty: str = "", programme_count: int = 0) -> dict[str, Any]:
         programs = university.programs
         if faculty:
             programs = [program for program in programs if faculty.casefold() in program.name.casefold()] or programs
         program: EducationProgram | None = programs[0] if programs else None
         profile = university.profile.payload if university.profile else {}
+        facts = facts_for(university)
+        fees = (facts or {}).get("fees") or {}
         return {
+            # Verified facts (address, official fee list, programme catalogue) for the top universities.
+            "verified_facts": facts is not None,
+            "fee_min": float(fees["min_per_year"]) if fees.get("min_per_year") is not None else None,
+            "fee_max": float(fees["max_per_year"]) if fees.get("max_per_year") is not None else None,
+            "fee_currency": fees.get("currency"),
+            "programme_count": programme_count or None,
             "id": f"db-{university.id}",
             "name": university.name,
             "country": university.country,
-            "city": (profile.get("facts") or {}).get("city") or university.state_province,
+            "city": (profile.get("facts") or {}).get("city") or ((facts or {}).get("address") or {}).get("city") or university.state_province,
             "website": university.website,
             "description": program.description if program and program.description else profile.get("summary"),
             "annual_tuition": float(program.tuition_cost) if program else None,
@@ -187,7 +198,14 @@ class WorkspaceService:
             "data_quality": "database" if program else "directory",
         }
 
-    def universities(self, country: str, faculty: str, query: str, limit: int = 24) -> list[dict[str, Any]]:
+    def universities(
+        self, country: str, faculty: str, query: str, limit: int = 24, *,
+        programme: str = "", city: str = "", has_fees: bool = False, sort: str = "relevance",
+    ) -> list[dict[str, Any]]:
+        """Catalogue search. Name words and programme run in SQL; city, fees and sorting use the verified facts."""
+        from app.models import StudyProgramme
+        from app.services.university_facts_service import sync_programmes
+
         if country:
             UniversityCatalogService(self.session).ensure_country(country)
         statement = select(University).options(selectinload(University.programs), selectinload(University.profile))
@@ -195,11 +213,38 @@ class WorkspaceService:
             statement = statement.where(func.lower(University.country) == country.casefold())
         for word in query.split():
             statement = statement.where(University.name.ilike(f"%{word}%"))
+        if programme:
+            if self.session.query(StudyProgramme.id).first() is None:
+                sync_programmes(self.session)
+            statement = statement.where(University.id.in_(select(StudyProgramme.university_id).where(StudyProgramme.name.ilike(f"%{programme}%"))))
         has_programs = select(EducationProgram.id).where(EducationProgram.university_id == University.id).exists()
         rows = self.session.execute(
-            statement.order_by(has_programs.desc(), func.length(University.name), University.name).limit(limit)
+            statement.order_by(has_programs.desc(), func.length(University.name), University.name).limit(400)
         ).scalars().unique().all()
-        return [self._university_summary(university, faculty) for university in rows]
+        counts = dict(self.session.execute(
+            select(StudyProgramme.university_id, func.count(StudyProgramme.id))
+            .where(StudyProgramme.university_id.in_([row.id for row in rows]))
+            .group_by(StudyProgramme.university_id)
+        ).all()) if rows else {}
+        items = [self._university_summary(university, faculty, counts.get(university.id, 0)) for university in rows]
+        if city:
+            items = [item for item in items if city.casefold() in (item.get("city") or "").casefold()]
+        if has_fees:
+            items = [item for item in items if item.get("fee_min") is not None or item.get("annual_tuition") is not None]
+        if sort == "name":
+            items.sort(key=lambda item: item["name"].casefold())
+        elif sort in ("fee_low", "fee_high"):
+            def fee(item: dict[str, Any]) -> float | None:
+                return item.get("fee_min") if item.get("fee_min") is not None else item.get("annual_tuition")
+            priced = [item for item in items if fee(item) is not None]
+            priced.sort(key=lambda item: fee(item), reverse=sort == "fee_high")  # type: ignore[arg-type, return-value]
+            items = priced + [item for item in items if fee(item) is None]
+        elif sort == "programmes":
+            items.sort(key=lambda item: item.get("programme_count") or 0, reverse=True)
+        else:
+            # Relevance: universities with verified facts first, the biggest programme catalogues leading.
+            items.sort(key=lambda item: (not item.get("verified_facts"), -(item.get("programme_count") or 0)))
+        return items[:limit]
 
     def university_details(self, university_id: str, refresh: bool = False) -> dict[str, Any]:
         try:
@@ -217,10 +262,11 @@ class WorkspaceService:
             .where(University.id == database_id)
         ).scalar_one_or_none()
         if university is None:
-            raise AppError("Університет не знайдено", status_code=404)
+            raise AppError("University not found", status_code=404)
         profile = UniversityProfileService(self.session).get(university, refresh=refresh)
         return {
             **self._university_summary(university),
+            "verified_facts": facts_for(university),
             "programmes": [
                 {
                     "id": programme.id,
@@ -254,7 +300,7 @@ class WorkspaceService:
     def update_roadmap_task(self, user: User, roadmap_id: int, task_id: str, completed: bool) -> dict[str, Any]:
         roadmap = self.session.execute(select(UserRoadmap).where(UserRoadmap.id == roadmap_id, UserRoadmap.user_id == user.id)).scalar_one_or_none()
         if roadmap is None:
-            raise AppError("Roadmap не знайдено", status_code=404)
+            raise AppError("Roadmap not found", status_code=404)
         data = deepcopy(roadmap.roadmap_data)
         normalized = normalize_roadmap(data, roadmap.target_job)
         found = False
@@ -264,7 +310,7 @@ class WorkspaceService:
                     task["completed"] = completed
                     found = True
         if not found:
-            raise AppError("Завдання roadmap не знайдено", status_code=404)
+            raise AppError("Roadmap task not found", status_code=404)
         data["normalized"] = normalized
         roadmap.roadmap_data = data
         self.session.commit()

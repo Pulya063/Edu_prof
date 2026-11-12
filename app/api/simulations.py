@@ -79,6 +79,35 @@ def create_simulation(user: User) -> tuple[Response, int]:
     return jsonify(response.model_dump(mode="json")), 201
 
 
+@blueprint.post("/calculate")
+@get_current_user
+def calculate_simulation(user: User) -> tuple[Response, int]:
+    """Create a scenario with its first forecast; if the forecast fails, no scenario is left behind."""
+    body = request.get_json(silent=True) or {}
+    # Validated separately so field errors keep the same paths as the two single-step endpoints.
+    scenario_payload = SimulationCreateRequest.model_validate(body.get("scenario") or {})
+    projection_payload = SimulationProjectionRequest.model_validate(body.get("projection") or {})
+    scenarios = SimulationService(db.session)
+    scenario = scenarios.create(user.id, scenario_payload)
+    scenario_id = scenario.id
+    try:
+        SimulationProjectionService(db.session).create(user.id, scenario_id, scenario.current_revision_number, projection_payload)
+    except Exception:
+        db.session.rollback()
+        scenarios.discard(user.id, scenario_id)
+        raise
+    response = SimulationScenarioResponse.model_validate(scenarios.get(user.id, scenario_id))
+    return jsonify(response.model_dump(mode="json")), 201
+
+
+@blueprint.delete("/<int:scenario_id>")
+@get_current_user
+def delete_simulation(scenario_id: int, user: User) -> tuple[Response, int]:
+    """Delete one of the user's saved calculations with its forecasts; frees a plan slot."""
+    SimulationService(db.session).discard(user.id, scenario_id)
+    return jsonify({"deleted": scenario_id}), 200
+
+
 @blueprint.get("")
 @get_current_user
 def list_simulations(user: User) -> Response:
@@ -213,3 +242,17 @@ def review_simulation_projection(
     response = SimulationProjectionResponse.model_validate(projection)
     queued = projection.ai_review is not None and projection.ai_review.status == "pending"
     return jsonify(response.model_dump(mode="json")), 202 if queued else 200
+
+
+@blueprint.post("/<int:scenario_id>/revisions/<int:revision_number>/projections/<int:projection_id>/recalculate")
+@get_current_user
+def recalculate_simulation_projection(scenario_id: int, revision_number: int, projection_id: int, user: User) -> Response | tuple[Response, int]:
+    """Switch or edit cost lines: returns what would change, or stores it when save is true."""
+    from app.schemas import ProjectionPreviewResponse, ProjectionRecalculateRequest
+
+    payload = ProjectionRecalculateRequest.model_validate(request.get_json(silent=True) or {})
+    result = SimulationProjectionService(db.session).recalculate(user.id, scenario_id, revision_number, projection_id, payload.cost_items, payload.save)
+    if payload.save:
+        projection, created = result
+        return jsonify(SimulationProjectionResponse.model_validate(projection).model_dump(mode="json")), 201 if created else 200
+    return jsonify(ProjectionPreviewResponse.model_validate(result).model_dump(mode="json"))

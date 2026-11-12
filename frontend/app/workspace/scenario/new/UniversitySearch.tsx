@@ -40,8 +40,8 @@ export default function UniversitySearch({ country, value, onChange }: { country
   return (
     <div className="university-search">
       <input
-        required minLength={2} value={value} role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list"
-        placeholder={country === "Ukraine" ? "e.g. Lviv Polytechnic" : "e.g. Warsaw University of Technology"}
+        value={value} role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list"
+        placeholder={country === "Ukraine" ? "e.g. Lviv Polytechnic" : "e.g. University of Warsaw"}
         onChange={(event) => { onChange(event.target.value); setOpen(true); }}
         onFocus={() => { window.clearTimeout(blurTimer.current); setOpen(true); }}
         onBlur={() => { blurTimer.current = window.setTimeout(() => setOpen(false), 150); }}

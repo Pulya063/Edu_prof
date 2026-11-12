@@ -105,7 +105,7 @@ class TuitionSnapshotService:
             )
         ).scalar_one_or_none()
         if snapshot is None:
-            raise AppError("Tuition snapshot не знайдено", status_code=404)
+            raise AppError("Tuition snapshot not found", status_code=404)
         return snapshot
 
     def resolve_validated(self, selection: TuitionSnapshotSelection) -> TuitionSnapshot:
@@ -195,7 +195,7 @@ class TuitionSnapshotService:
         ).scalar_one_or_none()
         if snapshot is None:
             raise AppError(
-                "Немає validated tuition snapshot, що відповідає програмі та правилам якості",
+                "No validated tuition snapshot matches this program and the quality rules",
                 status_code=422,
             )
         return snapshot

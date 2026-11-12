@@ -38,7 +38,7 @@ def create_university_letter(user: User) -> Response:
         select(University).where(University.id == payload.university_id)
     ).scalar_one_or_none()
     if university is None:
-        return jsonify({"detail": "Університет не знайдено"}), 404
+        return jsonify({"detail": "University not found"}), 404
 
     subject, body = build_university_letter(
         user=user,

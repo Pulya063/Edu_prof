@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CareerRoadmap, FinalDecision, LiveRoiCalculator, OutcomeFactors, Scholarships, UniversityComparison } from "./components/Features";
+import CoverageMap from "./components/CoverageMap";
 import MacbookDisplay from "./components/MacbookDisplay";
+import { LandingDataProvider, formatRoi, useLandingData } from "./context/LandingDataContext";
 import LandingFooter from "./components/LandingFooter";
 import TestimonialsSection from "./components/TestimonialsSection";
 import { HeadlineLine, JourneyThread, type HeaderTheme, useLandingMotion } from "./hooks/useScrollMotion";
@@ -13,6 +15,7 @@ import { SITE_NAV } from "./components/siteNav";
 import { useNavIndicator } from "./components/useNavIndicator";
 import "./styles/landing-lively.css";
 import "./styles/landing-motion.css";
+import "./styles/landing-live.css";
 import type { Lang } from "./context/LanguageContext";
 
 import Link from "next/link";
@@ -82,7 +85,16 @@ function LangSwitcher() {
   );
 }
 
+const compact = (value: number) => new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 0 }).format(value);
+
 export default function HomeClient() {
+  return <LandingDataProvider><LandingPage /></LandingDataProvider>;
+}
+
+function LandingPage() {
+  const { data, scenario } = useLandingData();
+  const example = scenario("warsaw-python");
+  const careerCount = new Set((data?.careers ?? []).map((item) => item.career_target)).size;
   const pageRef = useRef<HTMLElement>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [headerTheme, setHeaderTheme] = useState<HeaderTheme>("light");
@@ -158,14 +170,15 @@ export default function HomeClient() {
           <div className="dashboard-float-group">
             <div className="dashboard-device macbook-device"><MacbookDisplay /></div>
             <div className="iphone-device" aria-label="Fence mobile dashboard preview"><div className="iphone-screen"><span className="iphone-notch" aria-hidden="true" /><div className="iphone-status"><span>9:41</span><span>▮▮▮ ◉</span></div><div className="iphone-appbar"><span><b>F</b> Fence</span><span>•••</span></div><p className="iphone-greeting">Your next move,<br /><strong>Andrii.</strong></p><div className="iphone-scenario"><small>YOUR ACTIVE SCENARIO</small><strong>Computer<br />Science</strong><span>Rzeszów · On campus</span><i aria-hidden="true" /></div><div className="iphone-stats"><div><strong>442%</strong><span>ROI</span></div><div><strong>4.3y</strong><span>PAYBACK</span></div></div><div className="iphone-roadmap"><small>CAREER ROADMAP</small><strong>3 of 12 tasks</strong><span><i /></span></div></div></div>
+            <aside className="hero-coverage" aria-label="Coverage"><span>Live coverage</span><div><CoverageMap /></div><p>{careerCount ? `${careerCount} careers · ` : ""}Poland + Ukraine</p></aside>
             <div className="overlay-bento">
               <div className="bento-card bento-card--grey bento-card--tall">
                 <div className="bento-art bento-art--wave">
                   <div className="bento-wave-bg" />
                 </div>
                 <div className="bento-copy">
-                  <strong>$53k</strong>
-                  <span>example net<br />education cost</span>
+                  <strong>{example ? compact(example.total_investment) : "—"}<em>{example?.currency}</em></strong>
+                  <span>example total<br />investment</span>
                 </div>
               </div>
 
@@ -180,8 +193,8 @@ export default function HomeClient() {
                   <span aria-hidden="true" className="bento-arrow-btn">↗</span>
                 </div>
                 <div className="bento-copy bento-copy--push">
-                  <strong>4.3y</strong>
-                  <span>illustrative<br />payback period</span>
+                  <strong>{example ? (example.payback_months === null ? "10y+" : `${(example.payback_months / 12).toFixed(1)}y`) : "—"}</strong>
+                  <span>example<br />payback period</span>
                 </div>
               </div>
 
@@ -189,15 +202,15 @@ export default function HomeClient() {
                 <div className="bento-card bento-card--white">
                   <div className="bento-orb"></div>
                   <div className="bento-copy">
-                    <strong>89%</strong>
-                    <span>employment<br />assumption</span>
+                    <strong>{example ? formatRoi(example.roi_percent) : "—"}</strong>
+                    <span>example<br />10-year ROI</span>
                   </div>
                 </div>
 
                 <div className="bento-card bento-card--black">
                   <div className="bento-copy bento-copy--row">
-                    <strong>12</strong>
-                    <span>skills and<br />experience<br />steps</span>
+                    <strong>{careerCount || "—"}</strong>
+                    <span>careers with<br />live salary<br />data</span>
                   </div>
                 </div>
               </div>

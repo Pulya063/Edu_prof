@@ -25,7 +25,7 @@ blueprint = Blueprint("tuition", __name__)
 @get_current_user
 def create_tuition_snapshot(user: User) -> tuple[Response, int]:
     if not user.is_admin:
-        raise AppError("Недостатньо прав для завантаження tuition data", status_code=403)
+        raise AppError("You do not have permission to upload tuition data", status_code=403)
     payload = TuitionSnapshotCreateRequest.model_validate(request.get_json(silent=True) or {})
     snapshot, created = TuitionSnapshotService(db.session).create(payload)
     response = TuitionSnapshotResponse.model_validate(snapshot)
@@ -36,9 +36,9 @@ def create_tuition_snapshot(user: User) -> tuple[Response, int]:
 @get_current_user
 def queue_college_scorecard_refresh(user: User) -> tuple[Response, int]:
     if not user.is_admin:
-        raise AppError("Недостатньо прав для оновлення tuition data", status_code=403)
+        raise AppError("You do not have permission to refresh tuition data", status_code=403)
     if not os.getenv("COLLEGE_SCORECARD_API_KEY"):
-        raise AppError("College Scorecard provider не налаштований", status_code=503)
+        raise AppError("The College Scorecard provider is not configured", status_code=503)
 
     payload = CollegeScorecardTuitionRefreshRequest.model_validate(
         request.get_json(silent=True) or {}
@@ -46,7 +46,7 @@ def queue_college_scorecard_refresh(user: User) -> tuple[Response, int]:
     try:
         task = refresh_college_scorecard_tuition.delay(payload.scorecard_id)
     except Exception as error:
-        raise AppError("Черга оновлення tuition data недоступна", status_code=503) from error
+        raise AppError("The tuition data refresh queue is unavailable", status_code=503) from error
 
     response = TuitionRefreshAcceptedResponse(job_id=task.id)
     return jsonify(response.model_dump(mode="json")), 202
@@ -56,7 +56,7 @@ def queue_college_scorecard_refresh(user: User) -> tuple[Response, int]:
 @get_current_user
 def queue_batch_refresh(user: User) -> tuple[Response, int]:
     if not user.is_admin:
-        raise AppError("Недостатньо прав для оновлення tuition data", status_code=403)
+        raise AppError("You do not have permission to refresh tuition data", status_code=403)
         
     payload = request.get_json(silent=True) or {}
     scorecard_ids = payload.get("scorecard_ids")  # optional, None = use config
@@ -65,7 +65,7 @@ def queue_batch_refresh(user: User) -> tuple[Response, int]:
     try:
         task = refresh_tuition_batch.delay(scorecard_ids)
     except Exception as error:
-        raise AppError("Черга оновлення tuition data недоступна", status_code=503) from error
+        raise AppError("The tuition data refresh queue is unavailable", status_code=503) from error
 
     return jsonify({"job_id": task.id, "university_count": len(scorecard_ids) if scorecard_ids else "all"}), 202
 

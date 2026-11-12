@@ -71,3 +71,35 @@ def test_trial_options_list_only_roles_with_data(client, db_session):
 
     assert options == [{"country": "Ukraine", "currency": "UAH", "career_target": "Python Backend Developer", "median_salary": 546450.0,
                         "seniority": "junior", "salary_source": "listings"}]
+
+
+def test_showcase_contains_only_cases_with_data_and_can_be_cached(client, db_session):
+    _seed_ukraine_python(db_session)
+
+    response = client.get("/api/roi/preview/showcase")
+
+    assert response.status_code == 200 and "max-age=600" in response.headers["Cache-Control"]
+    body = response.get_json()
+    assert [item["key"] for item in body["scenarios"]] == ["knu-python"]
+    assert body["scenarios"][0]["result"]["payback_months"] == 29
+    assert body["grant_example"] is None and len(body["careers"]) == 1
+
+
+def test_showcase_grant_lowers_investment_by_the_grant(client, db_session):
+    now = datetime.now(UTC)
+    db_session.add(MarketSnapshot(
+        role="Python Backend Developer", country="Poland", seniority="junior", snapshot_date=date.today(), currency="PLN",
+        salary_basis="gross_annual", salary_min=Decimal("104400"), median_salary=Decimal("114000"), salary_max=Decimal("146340"), vacancy_count=11,
+        sources=[{"name": "test", "reference": "test:1"}], acquired_at=now, sample_size=11, confidence="medium",
+        methodology_version="listing-quartiles-v2", validation_status="validated", fingerprint="b" * 64,
+    ))
+    common = {"country": "Poland", "source_name": "test", "source_url": "https://example.org", "acquired_at": now}
+    for year in range(2021, 2026):
+        db_session.add(EconomicIndicator(indicator="cpi_inflation", period=date(year, 12, 31), value=Decimal("5.06"), unit="percent", **common))
+    db_session.add(EconomicIndicator(indicator="minimum_wage", period=date(2026, 7, 1), value=Decimal("4806"), unit="PLN per month", **common))
+    db_session.commit()
+
+    example = client.get("/api/roi/preview/showcase").get_json()["grant_example"]
+
+    assert example["without_grant"]["total_investment"] - example["with_grant"]["total_investment"] == 30000.0
+    assert example["with_grant"]["payback_months"] < example["without_grant"]["payback_months"]

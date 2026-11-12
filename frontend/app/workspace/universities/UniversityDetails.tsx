@@ -2,6 +2,7 @@
 
 import { Icon } from "../WorkspaceUI";
 import type { WorkspaceUniversityDetails } from "@/lib/api/workspace";
+import type { UniversityFeeItem, UniversityFees } from "@/lib/api/generated";
 import "../../styles/university-profile.css";
 
 const PERIOD_LABEL: Record<string, string> = { year: "per year", semester: "per semester", month: "per month", unknown: "period not stated" };
@@ -28,6 +29,28 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="uprof-empty">{children}</p>;
 }
 
+function feeLabel(item: UniversityFeeItem) {
+  return [item.programme, item.faculty, item.study_mode].filter(Boolean).join(" · ");
+}
+
+function FeeRange({ fees }: { fees: UniversityFees }) {
+  return (
+    <div className="uprof-fees">
+      <strong className="uprof-fees-range">{money(fees.min_per_year, fees.currency)} – {money(fees.max_per_year, fees.currency)} <small>per year, {fees.academic_year}</small></strong>
+      <dl>
+        <div><dt>Cheapest</dt><dd>{feeLabel(fees.cheapest)}</dd></div>
+        <div><dt>Most expensive</dt><dd>{feeLabel(fees.most_expensive)}</dd></div>
+      </dl>
+      <p>{fees.paid_programme_count} paid programmes{fees.free_programme_count ? `, ${fees.free_programme_count} without a fee` : ""}. {fees.source_kind === "press" ? "Published price list, not the original order: check with the university before paying." : "Copied from the official document."} Full-time state-funded places are free and are not in this range.</p>
+      <details>
+        <summary>All {fees.paid_programme_count} programmes</summary>
+        <ul>{fees.programmes.map((item, index) => <li key={`${item.programme}-${index}`}><span>{feeLabel(item)}{item.level ? ` · ${item.level}` : ""}</span><b>{money(item.amount_per_year, fees.currency)}</b></li>)}</ul>
+      </details>
+      <a className="uprof-link" href={fees.source_url} target="_blank" rel="noreferrer">{fees.source_title} ↗</a>
+    </div>
+  );
+}
+
 /** University profile body, shared by the full page and the compare side panel. */
 export default function UniversityDetails({ university, compact = false }: { university: WorkspaceUniversityDetails; compact?: boolean }) {
   const profile = university.profile;
@@ -37,11 +60,17 @@ export default function UniversityDetails({ university, compact = false }: { uni
   const heroImage = facts?.image_url || profile?.gallery[0]?.thumb_url;
   const tuitionMentions = profile?.tuition_mentions ?? [];
 
+  const verified = university.verified_facts;
+  const fees = verified?.fees;
+  const address = verified?.address;
+  const faculties = verified?.faculties.length ? verified.faculties : profile?.faculties ?? [];
+  const addressText = address ? [address.street, [address.postal_code, address.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") : facts?.city || "—";
+
   const tiles = [
-    { label: "Founded", value: facts?.founded || "—" },
-    { label: "Students", value: facts?.students ? facts.students.toLocaleString("en") : "—" },
-    { label: "Faculties", value: profile?.faculties.length ? String(profile.faculties.length) : "—" },
-    { label: "Annual tuition", value: university.annual_tuition != null ? money(university.annual_tuition, university.currency) : tuitionMentions.length ? "See fees" : "Not published" },
+    { label: "Founded", value: facts?.founded || verified?.founded || "—" },
+    { label: "Address", value: addressText },
+    { label: "Faculties", value: faculties.length ? String(faculties.length) : verified?.programme_count ? `${verified.programme_count} programmes` : "—" },
+    { label: "Tuition per year", value: fees ? `${money(fees.min_per_year, fees.currency)} – ${money(fees.max_per_year, fees.currency)}` : university.annual_tuition != null ? money(university.annual_tuition, university.currency) : tuitionMentions.length ? "See fees" : "Not published" },
   ];
 
   return (
@@ -69,8 +98,8 @@ export default function UniversityDetails({ university, compact = false }: { uni
 
       <div className="uprof-grid">
         <section className="uprof-card is-wide">
-          <header><span className="uprof-icon is-lime"><Icon name="graduation" size={20} /></span><div><h3>Faculties</h3><p>From Wikidata or the official faculties page.</p></div></header>
-          {profile?.faculties.length ? <div className="uprof-tags">{profile.faculties.map((faculty) => <span key={faculty}>{faculty}</span>)}</div> : <Empty>No faculty list was found in public sources.</Empty>}
+          <header><span className="uprof-icon is-lime"><Icon name="graduation" size={20} /></span><div><h3>Faculties{faculties.length ? ` (${faculties.length})` : ""}</h3><p>{verified?.faculties_source ? `From the official register, ${verified.faculties_source}.` : "From Wikidata or the official faculties page."}</p></div></header>
+          {faculties.length ? <div className="uprof-tags">{faculties.map((faculty) => <span key={faculty}>{faculty}</span>)}</div> : <Empty>No faculty list was found in public sources.</Empty>}
           {pagesOf("faculties").map((page) => <a key={page.url} className="uprof-link" href={page.url} target="_blank" rel="noreferrer">{page.title} ↗</a>)}
         </section>
 
@@ -83,9 +112,10 @@ export default function UniversityDetails({ university, compact = false }: { uni
 
         <section className="uprof-card">
           <header><span className="uprof-icon is-ink"><Icon name="wallet" size={20} /></span><div><h3>Tuition & fees</h3><p>Amounts parsed from official fee pages — verify before paying.</p></div></header>
+          {fees && <FeeRange fees={fees} />}
           {university.programmes.map((programme) => <div key={programme.id} className="uprof-row"><strong>{programme.name}</strong><span>{money(programme.tuition_cost, university.currency)} / year · {programme.duration_years} years</span></div>)}
           {tuitionMentions.map((item, index) => <div key={`${item.source_url}-${index}`} className="uprof-amount"><strong>{money(item.amount, item.currency)}</strong><span>{PERIOD_LABEL[item.period]}</span><p>{item.text}</p></div>)}
-          {!university.programmes.length && !tuitionMentions.length && <Empty>No fee amounts are published as text. Fees are often in PDF regulations on the fees page.</Empty>}
+          {!fees && !university.programmes.length && !tuitionMentions.length && <Empty>No fee amounts are published as text. Fees are often in PDF regulations on the fees page.</Empty>}
           {pagesOf("fees").map((page) => <a key={page.url} className="uprof-link" href={page.url} target="_blank" rel="noreferrer">{page.title} ↗</a>)}
         </section>
 

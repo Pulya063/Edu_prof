@@ -112,10 +112,10 @@ class PaymentService:
 
     def create_checkout(self, user: User, request: CheckoutRequest) -> CheckoutResponse:
         if not payments_configured():
-            raise AppError("Оплата ще не налаштована", status_code=503)
+            raise AppError("Payments are not configured yet", status_code=503)
         price = PLAN_CATALOG[(request.plan, request.cycle)]
         if not price.price_id:
-            raise AppError("Цей тариф поки недоступний для оплати", status_code=503)
+            raise AppError("This plan cannot be purchased yet", status_code=503)
 
         frontend = _frontend_url()
         metadata = {"fence_user_id": str(user.id), "plan": price.plan, "cycle": price.cycle}
@@ -137,7 +137,7 @@ class PaymentService:
             checkout = self._create_stripe_session(params)
         except stripe.StripeError as error:
             logger.warning("Stripe checkout creation failed for user_id=%s: %s", user.id, error.__class__.__name__)
-            raise AppError("Не вдалося відкрити оплату. Спробуйте пізніше.", status_code=502) from error
+            raise AppError("Could not open checkout. Try again later.", status_code=502) from error
 
         self.session.add(
             Payment(
@@ -174,7 +174,7 @@ class PaymentService:
             select(Payment).where(Payment.checkout_session_id == session_id, Payment.user_id == user.id)
         )
         if payment is None:
-            raise AppError("Платіж не знайдено", status_code=404)
+            raise AppError("Payment not found", status_code=404)
         return PaymentStatusResponse(
             session_id=payment.checkout_session_id,
             plan=payment.plan,
@@ -195,16 +195,16 @@ class PaymentService:
         """Verify, deduplicate and apply a Stripe event. Returns a short outcome label."""
         secret = stripe_webhook_secret()
         if not secret:
-            raise AppError("Webhook не налаштовано", status_code=503)
+            raise AppError("Webhook is not configured", status_code=503)
         if not signature:
-            raise AppError("Відсутній підпис Stripe", status_code=400)
+            raise AppError("Stripe signature is missing", status_code=400)
 
         text = payload.decode("utf-8")
         try:
             stripe.WebhookSignature.verify_header(text, signature, secret, WEBHOOK_TOLERANCE_SECONDS)
         except stripe.SignatureVerificationError as error:
             logger.warning("Rejected Stripe webhook with invalid signature")
-            raise AppError("Недійсний підпис Stripe", status_code=400) from error
+            raise AppError("Stripe signature is invalid", status_code=400) from error
 
         try:
             event = json.loads(text)
@@ -212,7 +212,7 @@ class PaymentService:
             event_type = str(event["type"])
             data_object = event["data"]["object"]
         except (ValueError, KeyError, TypeError) as error:
-            raise AppError("Некоректна подія Stripe", status_code=400) from error
+            raise AppError("Invalid Stripe event", status_code=400) from error
 
         if self.session.get(StripeEvent, event_id) is not None:
             logger.info("Skipping duplicate Stripe event %s", event_id)

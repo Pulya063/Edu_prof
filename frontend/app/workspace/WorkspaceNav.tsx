@@ -48,10 +48,6 @@ export default function WorkspaceNav() {
       </div>
       </>}
 
-      <Link href="/workspace/courses" aria-current={isActive("/workspace/courses") ? "page" : undefined}>
-        <NavIcon name="search" />
-        <span className="workspace-nav-label">Course search</span>
-      </Link>
     </nav>
   );
 }

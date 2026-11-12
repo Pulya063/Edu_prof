@@ -226,3 +226,9 @@
 .workspace-shell .payback-verdict.is-met .payback-verdict-badge { background:var(--lv-lime); }
 .workspace-shell .payback-verdict.is-missed .payback-verdict-badge { background:var(--lv-violet); }
 @media (prefers-reduced-motion: reduce) { .workspace-shell .payback-target-options button { transition:none; } }
+
+/* Scenario builder: a live note under a field, and the cost lines in the preview. */
+.field-live-note { display:block; margin-top:6px; color:#647694; font-size:12px; line-height:1.4; }
+.forecast-cost-lines > div { display:flex; justify-content:space-between; align-items:baseline; gap:14px; }
+.forecast-cost-lines dt small { display:block; margin-top:2px; font-size:11px; font-weight:400; opacity:.72; }
+.forecast-cost-lines dd { white-space:nowrap; }

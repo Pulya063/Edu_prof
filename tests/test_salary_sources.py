@@ -22,10 +22,10 @@ def _sample(values):
     return SalarySample(monthly=[Decimal(str(v)) for v in values], sources=SOURCE, vacancy_count=len(values))
 
 
-def test_catalogue_covers_fourteen_roles_in_both_countries():
-    assert len(SUPPORTED_ROLES) == 14
+def test_catalogue_covers_every_role_in_both_countries():
+    assert len(SUPPORTED_ROLES) >= 30
     providers = MarketIngestionService(None).providers()
-    assert len(providers) == 28
+    assert len(providers) == len(SUPPORTED_ROLES) * 2
     assert all("ses" in spec for spec in ROLE_CATALOG.values())
 
 

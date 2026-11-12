@@ -51,6 +51,11 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
     s.PaymentStatusResponse,
     s.TrialProjectionResponse,
     s.TrialProjectionOption,
+    s.TrialShowcaseResponse,
+    s.ProjectionPreviewResponse,
+    s.ProjectionRecalculateRequest,
+    s.LivingCostsResponse,
+    s.SpecializationsResponse,
 ]
 
 # Models the frontend sends (validation schema).
