@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.exceptions import AppError
@@ -22,7 +22,9 @@ from app.models import (
     SimulationProjection,
     SimulationRevision,
     SimulationScenario,
+    StudyProgramme,
     TuitionSnapshot,
+    University,
 )
 from app.schemas import MarketSnapshotSelection
 from app.schemas import ProjectionCostItem
@@ -478,7 +480,7 @@ class SimulationProjectionService:
             if str(reference).startswith("tuition_snapshot:")
         ]
         if not references:
-            return payload
+            return self._with_programme_tuition_evidence(revision.assumptions, payload)
 
         try:
             snapshot_id = int(references[-1])
@@ -513,6 +515,66 @@ class SimulationProjectionService:
             seniority=revision.assumptions["degree"],
             currency=snapshot.currency,
             confidence=snapshot.confidence,
+        )
+        return payload.model_copy(update={"evidence": [*payload.evidence, evidence]})
+
+    def _with_programme_tuition_evidence(
+        self,
+        assumptions: dict,
+        payload: SimulationProjectionRequest,
+    ) -> SimulationProjectionRequest:
+        """Cite the fee document when the saved tuition is exactly the chosen programme's published fee.
+
+        Programme fees come from the reviewed university_facts.json. The match must be the same university,
+        programme name, amount and currency, so a tuition the person typed by hand stays unverified.
+        """
+        if any(item.metric == "tuition" for item in payload.evidence):
+            return payload
+        university_name = str(assumptions.get("university") or "").strip()
+        programme_name = str(assumptions.get("specialization") or "").strip()
+        tuition = assumptions.get("annual_tuition")
+        if not university_name or not programme_name or tuition is None:
+            return payload
+        country, currency = assumptions["country"], assumptions["currency"].upper()
+
+        # Names are compared with casefold in Python: SQL lower() leaves Cyrillic unchanged on SQLite.
+        universities = self.db.execute(
+            select(University).where(func.lower(University.country) == country.strip().lower())
+        ).scalars()
+        university = next((row for row in universities if row.name.casefold() == university_name.casefold()), None)
+        if university is None:
+            return payload
+        candidates = self.db.execute(
+            select(StudyProgramme)
+            .where(
+                StudyProgramme.university_id == university.id,
+                StudyProgramme.annual_fee == Decimal(str(tuition)),
+                StudyProgramme.currency == currency,
+            )
+            .order_by(StudyProgramme.id)
+        ).scalars()
+        programme = next((row for row in candidates if row.name.casefold() == programme_name.casefold()), None)
+        if programme is None:
+            return payload
+
+        from app.services.university_facts_service import facts_for
+
+        fees = (facts_for(university) or {}).get("fees") or {}
+        if not fees.get("source_url"):
+            return payload
+        title = fees.get("source_title") or "University fee document"
+        academic_year = fees.get("academic_year")
+        evidence = ProjectionEvidence(
+            metric="tuition",
+            source_name=(f"{title} ({academic_year})" if academic_year else title)[:255],
+            source_reference=fees["source_url"][:1000],
+            acquired_at=programme.updated_at or programme.created_at or datetime.now(UTC),
+            country=country,
+            role=assumptions["career_target"],
+            seniority=assumptions["degree"],
+            currency=currency,
+            # An official fee table is the fee itself; a press report of it is reliable but second-hand.
+            confidence="high" if fees.get("source_kind") == "official" else "medium",
         )
         return payload.model_copy(update={"evidence": [*payload.evidence, evidence]})
 
