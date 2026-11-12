@@ -1,0 +1,17 @@
+profession,country,expected_start_salary,average_salary,forecast_growth_percent,demand_score,ai_risk_score
+Python Developer,United States,70000,110000,5.5,85,30
+Frontend Developer,United States,65000,105000,4.5,80,40
+Backend Developer,United States,72000,115000,5.0,85,30
+Data Scientist,United States,80000,125000,6.5,90,20
+Machine Learning Engineer,United States,85000,135000,7.5,95,15
+DevOps Engineer,United States,75000,120000,6.0,88,25
+Full Stack Developer,United States,70000,112000,5.0,85,35
+Mobile Developer,United States,68000,108000,4.8,82,35
+Software Engineer,United States,71000,113000,5.2,85,30
+Default,United States,60000,95000,4.0,70,40
+Computer Science,United States,82750,123091,16.25,75,30
+Nursing,United States,90269,113574,8.61,75,30
+Business Management,United States,58974,84653,14.51,75,30
+Mechanical Engineering,United States,68602,111735,20.96,75,30
+Psychology,United States,37138,69417,28.97,75,30
+Accounting,United States,55591,84227,17.17,75,30

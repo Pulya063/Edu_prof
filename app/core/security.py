@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from dns.dnssecalgs import algorithms
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
@@ -28,20 +27,28 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
         return False
 
 
-def create_jwt_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
+def create_jwt_access_token(
+    subject: str,
+    expires_delta: timedelta | None = None,
+    *,
+    purpose: str = "access",
+) -> str:
     expire = datetime.now(UTC) + (
         expires_delta if expires_delta is not None else timedelta(minutes=int(access_token_expire_minutes))
     )
-    payload: dict[str, Any] = {"sub": subject, "exp": expire}
+    payload: dict[str, Any] = {"sub": subject, "exp": expire, "purpose": purpose}
     return jwt.encode(payload, secret_key, algorithm=algorithm)
 
 
-def decode_access_token(token: str) -> str:
+def decode_access_token(token: str, *, expected_purpose: str = "access") -> str:
     try:
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         subject = payload.get("sub")
     except JWTError as exc:
         raise ValueError("Invalid access token") from exc
+    purpose = payload.get("purpose", "access")
+    if purpose != expected_purpose:
+        raise ValueError("Invalid access token purpose")
     if not isinstance(subject, str) or not subject:
         raise ValueError("Invalid access token subject")
     return subject

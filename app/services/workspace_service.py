@@ -1,0 +1,317 @@
+from __future__ import annotations
+
+from copy import deepcopy
+from math import ceil
+from typing import Any
+
+from sqlalchemy import desc, func, select
+from sqlalchemy.orm import Session, selectinload
+
+from app.core.exceptions import AppError
+from app.models import EducationProgram, SimulationScenario, University, User, UserRoadmap
+from app.schemas import RoadmapPreviewRequest, WorkspacePreferences, WorkspaceProfile
+from app.services.economic_data_service import COUNTRIES
+from app.services.university_catalog_service import UniversityCatalogService
+from app.services.university_facts_service import facts_for
+from app.services.university_profile_service import UniversityProfileService
+
+
+DEFAULT_PROFILE = WorkspaceProfile().model_dump()
+DEFAULT_PREFERENCES = WorkspacePreferences().model_dump()
+DEFAULT_CONNECTIONS = {
+    "youtube": {"connected": False, "available": False, "label": "Integration not configured"},
+    "github": {"connected": False, "available": False, "label": "OAuth not configured"},
+    "linkedin": {"connected": False, "available": False, "label": "OAuth not configured"},
+}
+
+COURSES = [
+    {"id": "sql-fundamentals", "title": "SQL fundamentals", "description": "Learn the core concepts of SQL and practice with real-world data examples.", "level": "Beginner", "language": "English", "format": "Self-paced", "duration": "4–6 hours", "skills": ["SQL", "Databases"], "provider_name": "Fence learning catalog", "provider_url": None},
+    {"id": "fastapi-zero", "title": "FastAPI from zero", "description": "Build practical APIs with validation, documentation and testing.", "level": "Beginner", "language": "English", "format": "Self-paced", "duration": "6–8 hours", "skills": ["FastAPI", "APIs", "Python"], "provider_name": "Fence learning catalog", "provider_url": None},
+    {"id": "git-essentials", "title": "Git essentials", "description": "Master version control with Git and collaborate confidently on real projects.", "level": "Beginner", "language": "English", "format": "Self-paced", "duration": "3–5 hours", "skills": ["Git", "Version control"], "provider_name": "Fence learning catalog", "provider_url": None},
+    {"id": "python-testing", "title": "Python testing", "description": "Write reliable automated tests and improve the quality of your projects.", "level": "Intermediate", "language": "English", "format": "Self-paced", "duration": "5–7 hours", "skills": ["Python", "Testing", "Pytest"], "provider_name": "Fence learning catalog", "provider_url": None},
+]
+
+RESOURCES = [
+    {"id": "fastapi-tutorial", "title": "FastAPI project walkthrough", "description": "Build a real API step by step with the official FastAPI tutorial.", "source": "Public web", "url": "https://fastapi.tiangolo.com/tutorial/", "skills": ["FastAPI", "APIs", "Python", "Backend"]},
+    {"id": "python-tutorial", "title": "Python language tutorial", "description": "Strengthen Python fundamentals with the official language guide.", "source": "Public web", "url": "https://docs.python.org/3/tutorial/", "skills": ["Python", "Programming", "Backend"]},
+    {"id": "postgresql-tutorial", "title": "PostgreSQL hands-on tutorial", "description": "Learn relational databases, queries and data modelling from the official documentation.", "source": "Public web", "url": "https://www.postgresql.org/docs/current/tutorial.html", "skills": ["SQL", "PostgreSQL", "Databases", "Backend"]},
+    {"id": "git-tutorial", "title": "Git project workflow", "description": "Use the official Git tutorial to practice a reliable version-control workflow.", "source": "Public web", "url": "https://git-scm.com/docs/gittutorial", "skills": ["Git", "Version control", "Portfolio"]},
+    {"id": "fastapi-video-search", "title": "FastAPI project video lessons", "description": "Explore practical FastAPI project walkthroughs on YouTube.", "source": "YouTube", "url": "https://www.youtube.com/results?search_query=FastAPI+project+tutorial", "skills": ["FastAPI", "APIs", "Python", "Backend"]},
+    {"id": "python-portfolio-video-search", "title": "Python portfolio project ideas", "description": "Find guided Python projects that can become portfolio case studies.", "source": "YouTube", "url": "https://www.youtube.com/results?search_query=Python+portfolio+projects", "skills": ["Python", "Portfolio", "Projects"]},
+]
+
+
+
+def _merged_workspace_data(user: User) -> dict[str, Any]:
+    stored = user.workspace_data if isinstance(user.workspace_data, dict) else {}
+    return {
+        "profile": {**DEFAULT_PROFILE, **stored.get("profile", {})},
+        "preferences": {**DEFAULT_PREFERENCES, **stored.get("preferences", {})},
+        "connections": {**DEFAULT_CONNECTIONS, **stored.get("connections", {})},
+        "saved_course_ids": list(stored.get("saved_course_ids", [])),
+    }
+
+
+def preview_roadmap(payload: RoadmapPreviewRequest) -> dict[str, Any]:
+    level_factor = {"Beginner": 1.0, "Intermediate": 0.78, "Advanced": 0.58}[payload.current_level]
+    skill_credit = min(len({skill.casefold() for skill in payload.skills}) * 8, 48)
+    phase_blueprints = [
+        ("foundations", "Foundations", 80, ["Python", "Data structures", "Problem solving"]),
+        ("backend", "Backend development", 100, ["APIs", "FastAPI", "Databases", "SQL", "Testing"]),
+        ("career", "Projects & career prep", 60, ["Project development", "Deployment", "Git workflow", "Technical interview prep"]),
+    ]
+    phases = []
+    remaining_credit = skill_credit
+    total_hours = 0
+    for phase_id, title, base_hours, skills in phase_blueprints:
+        adjusted = max(24, round(base_hours * level_factor) - min(remaining_credit, 16))
+        remaining_credit = max(0, remaining_credit - 16)
+        total_hours += adjusted
+        phases.append({"id": phase_id, "title": title, "hours": adjusted, "weeks": ceil(adjusted / payload.hours_per_week), "skills": skills})
+    return {"target_job": payload.target_job, "current_level": payload.current_level, "hours_per_week": payload.hours_per_week, "skills": payload.skills, "total_hours": total_hours, "weeks": ceil(total_hours / payload.hours_per_week), "phases": phases}
+
+
+def build_local_roadmap(payload: RoadmapPreviewRequest, source: str = "local") -> dict[str, Any]:
+    preview = preview_roadmap(payload)
+    task_sets = {
+        "foundations": [("python-fundamentals", "Python fundamentals", "Refresh core Python concepts"), ("git-version-control", "Git and version control", "Use Git for real projects")],
+        "backend": [("fastapi-project", "Build a FastAPI project", "Create a real-world API with FastAPI"), ("sql-postgresql", "SQL and PostgreSQL", "Work with databases"), ("testing-quality", "Testing and quality", "Write tests and improve code quality"), ("deploy-project", "Deploy your project", "Deploy to the cloud")],
+        "career": [("portfolio", "Create a portfolio", "Present your strongest projects"), ("interview-prep", "Prepare for interviews", "Practice technical and behavioural interviews")],
+    }
+    for phase in preview["phases"]:
+        phase["tasks"] = [{"id": task_id, "title": title, "description": description, "completed": False} for task_id, title, description in task_sets[phase["id"]]]
+    return {"source": source, "normalized": preview, "target_job": payload.target_job}
+
+
+def normalize_roadmap(data: dict[str, Any], target_job: str) -> dict[str, Any]:
+    normalized = data.get("normalized") if isinstance(data, dict) else None
+    if isinstance(normalized, dict) and isinstance(normalized.get("phases"), list):
+        return normalized
+    payload = RoadmapPreviewRequest(target_job=target_job, hours_per_week=8, skills=[])
+    return build_local_roadmap(payload, source="normalized_fallback")["normalized"]
+
+
+class WorkspaceService:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def state_for_user(self, user: User) -> dict[str, Any]:
+        state = _merged_workspace_data(user)
+        scenarios = self.session.scalar(select(func.count()).select_from(SimulationScenario).where(SimulationScenario.user_id == user.id)) or 0
+        # Roadmap is admin-only for now; other users get roadmap=None.
+        roadmap = self.session.execute(select(UserRoadmap).where(UserRoadmap.user_id == user.id).order_by(desc(UserRoadmap.updated_at))).scalars().first() if user.is_admin else None
+        roadmap_data = None
+        if roadmap:
+            roadmap_data = {"id": roadmap.id, "target_job": roadmap.target_job, "updated_at": roadmap.updated_at.isoformat(), "plan": normalize_roadmap(roadmap.roadmap_data, roadmap.target_job)}
+        from app.services.plan_service import get_plan_details
+        return {"user": {"id": user.id, "username": user.username, "email": user.email, "plan": user.plan, "scenario_count": scenarios,
+                         "scenario_limit": get_plan_details(user)["limit"]}, **state, "roadmap": roadmap_data}
+
+    def update_profile(self, user: User, username: str | None, profile: WorkspaceProfile) -> dict[str, Any]:
+        if username:
+            existing = self.session.execute(select(User.id).where(func.lower(User.username) == username.casefold(), User.id != user.id)).scalar_one_or_none()
+            if existing is not None:
+                raise AppError("This username is already taken", status_code=409)
+            user.username = username
+        state = _merged_workspace_data(user)
+        state["profile"] = profile.model_dump()
+        user.workspace_data = state
+        self.session.commit()
+        return self.state_for_user(user)
+
+    def update_preferences(self, user: User, preferences: WorkspacePreferences) -> dict[str, Any]:
+        state = _merged_workspace_data(user)
+        state["preferences"] = preferences.model_dump()
+        user.workspace_data = state
+        self.session.commit()
+        return self.state_for_user(user)
+
+    def courses(self, user: User, query: str = "", level: str = "", language: str = "", course_format: str = "") -> list[dict[str, Any]]:
+        saved = set(_merged_workspace_data(user)["saved_course_ids"])
+        normalized_query = query.strip().casefold()
+        results = []
+        for course in COURSES:
+            haystack = " ".join([course["title"], course["description"], *course["skills"]]).casefold()
+            if normalized_query and normalized_query not in haystack:
+                continue
+            if level and level != "All levels" and course["level"] != level:
+                continue
+            if language and language != "All languages" and course["language"] != language:
+                continue
+            if course_format and course_format != "Any" and course["format"] != course_format:
+                continue
+            results.append({**course, "saved": course["id"] in saved})
+        return results
+
+    def resources(self, query: str = "", source: str = "") -> list[dict[str, Any]]:
+        normalized_query = query.strip().casefold()
+        normalized_source = source.strip().casefold()
+        results = []
+        for resource in RESOURCES:
+            haystack = " ".join([resource["title"], resource["description"], *resource["skills"]]).casefold()
+            if normalized_query and normalized_query not in haystack:
+                continue
+            if normalized_source and resource["source"].casefold() != normalized_source:
+                continue
+            results.append(resource)
+        return results
+
+    def set_course_saved(self, user: User, course_id: str, saved: bool) -> dict[str, Any]:
+        if course_id not in {course["id"] for course in COURSES}:
+            raise AppError("Course not found", status_code=404)
+        state = _merged_workspace_data(user)
+        course_ids = set(state["saved_course_ids"])
+        course_ids.add(course_id) if saved else course_ids.discard(course_id)
+        state["saved_course_ids"] = sorted(course_ids)
+        user.workspace_data = state
+        self.session.commit()
+        return next({**course, "saved": saved} for course in COURSES if course["id"] == course_id)
+
+    @staticmethod
+    def _university_summary(university: University, faculty: str = "", programme_count: int = 0) -> dict[str, Any]:
+        programs = university.programs
+        if faculty:
+            programs = [program for program in programs if faculty.casefold() in program.name.casefold()] or programs
+        program: EducationProgram | None = programs[0] if programs else None
+        profile = university.profile.payload if university.profile else {}
+        facts = facts_for(university)
+        fees = (facts or {}).get("fees") or {}
+        return {
+            # Verified facts (address, official fee list, programme catalogue) for the top universities.
+            "verified_facts": facts is not None,
+            "fee_min": float(fees["min_per_year"]) if fees.get("min_per_year") is not None else None,
+            "fee_max": float(fees["max_per_year"]) if fees.get("max_per_year") is not None else None,
+            "fee_currency": fees.get("currency"),
+            "programme_count": programme_count or None,
+            "id": f"db-{university.id}",
+            "name": university.name,
+            "country": university.country,
+            "city": (profile.get("facts") or {}).get("city") or ((facts or {}).get("address") or {}).get("city") or university.state_province,
+            "website": university.website,
+            "description": program.description if program and program.description else profile.get("summary"),
+            "annual_tuition": float(program.tuition_cost) if program else None,
+            # Programme tuition is stored in the country's currency; the directory carries no prices.
+            "currency": COUNTRIES.get(university.country, {}).get("currency") if program else None,
+            "duration_years": float(program.duration_years) if program else None,
+            "study_mode": None,
+            "program_name": program.name if program else None,
+            "data_quality": "database" if program else "directory",
+        }
+
+    def universities(
+        self, country: str, faculty: str, query: str, limit: int = 24, *,
+        programme: str = "", city: str = "", has_fees: bool = False, sort: str = "relevance",
+    ) -> list[dict[str, Any]]:
+        """Catalogue search. Name words and programme run in SQL; city, fees and sorting use the verified facts."""
+        from app.models import StudyProgramme
+        from app.services.university_facts_service import sync_programmes
+
+        if country:
+            UniversityCatalogService(self.session).ensure_country(country)
+        statement = select(University).options(selectinload(University.programs), selectinload(University.profile))
+        if country:
+            statement = statement.where(func.lower(University.country) == country.casefold())
+        for word in query.split():
+            statement = statement.where(University.name.ilike(f"%{word}%"))
+        if programme:
+            if self.session.query(StudyProgramme.id).first() is None:
+                sync_programmes(self.session)
+            statement = statement.where(University.id.in_(select(StudyProgramme.university_id).where(StudyProgramme.name.ilike(f"%{programme}%"))))
+        has_programs = select(EducationProgram.id).where(EducationProgram.university_id == University.id).exists()
+        rows = self.session.execute(
+            statement.order_by(has_programs.desc(), func.length(University.name), University.name).limit(400)
+        ).scalars().unique().all()
+        counts = dict(self.session.execute(
+            select(StudyProgramme.university_id, func.count(StudyProgramme.id))
+            .where(StudyProgramme.university_id.in_([row.id for row in rows]))
+            .group_by(StudyProgramme.university_id)
+        ).all()) if rows else {}
+        items = [self._university_summary(university, faculty, counts.get(university.id, 0)) for university in rows]
+        if city:
+            items = [item for item in items if city.casefold() in (item.get("city") or "").casefold()]
+        if has_fees:
+            items = [item for item in items if item.get("fee_min") is not None or item.get("annual_tuition") is not None]
+        if sort == "name":
+            items.sort(key=lambda item: item["name"].casefold())
+        elif sort in ("fee_low", "fee_high"):
+            def fee(item: dict[str, Any]) -> float | None:
+                return item.get("fee_min") if item.get("fee_min") is not None else item.get("annual_tuition")
+            priced = [item for item in items if fee(item) is not None]
+            priced.sort(key=lambda item: fee(item), reverse=sort == "fee_high")  # type: ignore[arg-type, return-value]
+            items = priced + [item for item in items if fee(item) is None]
+        elif sort == "programmes":
+            items.sort(key=lambda item: item.get("programme_count") or 0, reverse=True)
+        else:
+            # Relevance: universities with verified facts first, the biggest programme catalogues leading.
+            items.sort(key=lambda item: (not item.get("verified_facts"), -(item.get("programme_count") or 0)))
+        return items[:limit]
+
+    def university_details(self, university_id: str, refresh: bool = False) -> dict[str, Any]:
+        try:
+            database_id = int(university_id.removeprefix("db-")) if university_id.startswith("db-") else None
+        except ValueError:
+            database_id = None
+        university = None if database_id is None else self.session.execute(
+            select(University)
+            .options(
+                selectinload(University.programs),
+                selectinload(University.documents),
+                selectinload(University.scholarships),
+                selectinload(University.profile),
+            )
+            .where(University.id == database_id)
+        ).scalar_one_or_none()
+        if university is None:
+            raise AppError("University not found", status_code=404)
+        profile = UniversityProfileService(self.session).get(university, refresh=refresh)
+        return {
+            **self._university_summary(university),
+            "verified_facts": facts_for(university),
+            "programmes": [
+                {
+                    "id": programme.id,
+                    "name": programme.name,
+                    "description": programme.description,
+                    "duration_years": float(programme.duration_years),
+                    "tuition_cost": float(programme.tuition_cost),
+                }
+                for programme in university.programs
+            ],
+            "documents": [
+                {"id": document.id, "title": document.title, "subject_name": document.subject_name, "source_url": document.source_url}
+                for document in university.documents
+            ],
+            "scholarships": [
+                {
+                    "id": scholarship.id,
+                    "name": scholarship.name,
+                    "description": scholarship.description,
+                    "amount": float(scholarship.amount) if scholarship.amount is not None else None,
+                    "currency": scholarship.currency,
+                    "eligibility": scholarship.eligibility,
+                    "application_url": scholarship.application_url,
+                    "deadline": scholarship.deadline.isoformat() if scholarship.deadline else None,
+                }
+                for scholarship in university.scholarships
+            ],
+            "profile": profile,
+        }
+
+    def update_roadmap_task(self, user: User, roadmap_id: int, task_id: str, completed: bool) -> dict[str, Any]:
+        roadmap = self.session.execute(select(UserRoadmap).where(UserRoadmap.id == roadmap_id, UserRoadmap.user_id == user.id)).scalar_one_or_none()
+        if roadmap is None:
+            raise AppError("Roadmap not found", status_code=404)
+        data = deepcopy(roadmap.roadmap_data)
+        normalized = normalize_roadmap(data, roadmap.target_job)
+        found = False
+        for phase in normalized.get("phases", []):
+            for task in phase.get("tasks", []):
+                if task.get("id") == task_id:
+                    task["completed"] = completed
+                    found = True
+        if not found:
+            raise AppError("Roadmap task not found", status_code=404)
+        data["normalized"] = normalized
+        roadmap.roadmap_data = data
+        self.session.commit()
+        return {"id": roadmap.id, "target_job": roadmap.target_job, "plan": normalized}

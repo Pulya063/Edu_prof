@@ -10,3 +10,19 @@ venv/
 htmlcov/
 .env
 /.env
+frontend/node_modules/
+frontend/.next/
+.pnpm-store/
+*.tsbuildinfo
+app/logs/
+uv.lock
+
+# Local binaries and data
+*.exe
+*.zip
+instance/
+chroma_db/
+logs/
+*.db
+*.sqlite3
+presentation-screens/

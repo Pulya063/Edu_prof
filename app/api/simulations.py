@@ -1,0 +1,258 @@
+from flask import Blueprint, Response, jsonify, request
+
+from app.core.database import db
+from app.core.dependencies import get_current_user
+from app.models import User
+from app.schemas import (
+    RecentCalculationSummary,
+    SimulationCreateRequest,
+    SimulationOverviewResponse,
+    SimulationRevisionCreateRequest,
+    SimulationProjectionRequest,
+    SimulationProjectionExplainabilityResponse,
+    SimulationProjectionResponse,
+    SimulationScenarioResponse,
+    SimulationScenarioListItem,
+    SimulationScenarioSummary,
+)
+from app.services.simulation_service import SimulationService
+from app.services.simulation_projection_service import SimulationProjectionService
+
+blueprint = Blueprint("simulations", __name__)
+
+RECENT_CALCULATIONS_LIMIT = 5
+
+
+def _list_item(scenario, projection) -> SimulationScenarioListItem:
+    """Поля беруться з поточної ревізії й збереженого прогнозу, нічого не домальовується."""
+    revision = next((item for item in scenario.revisions if item.revision_number == scenario.current_revision_number), None)
+    assumptions = revision.assumptions if revision else {}
+    # Validate rather than copy so stored JSON strings ("12000.00") become Decimals.
+    item = SimulationScenarioListItem.model_validate({
+        **SimulationScenarioSummary.model_validate(scenario).model_dump(),
+        **{key: assumptions.get(key) for key in ("university", "specialization", "degree", "study_duration_years", "annual_tuition")},
+    })
+    if projection is None:
+        return item
+    return item.model_copy(update={
+        "projection_id": projection.id,
+        "currency": projection.currency,
+        "total_investment": projection.total_investment,
+        "roi_percent": projection.roi_percent,
+        "payback_months": projection.payback_months,
+    })
+
+
+def _recent_calculation(scenario, projection) -> RecentCalculationSummary:
+    """Числа беруться лише зі збереженого детермінованого прогнозу; без нього поля порожні."""
+    summary = RecentCalculationSummary(
+        scenario_id=scenario.id,
+        name=scenario.name,
+        status=scenario.status,
+        target_role=scenario.target_role,
+        country=scenario.country,
+        currency=scenario.currency,
+        revision_number=scenario.current_revision_number,
+        updated_at=scenario.updated_at,
+    )
+    if projection is None:
+        return summary
+    return summary.model_copy(update={
+        "projection_id": projection.id,
+        "methodology_version": projection.methodology_version,
+        "currency": projection.currency,
+        "total_investment": projection.total_investment,
+        "roi_percent": projection.roi_percent,
+        "payback_months": projection.payback_months,
+        "break_even_reached": projection.break_even_reached,
+        "horizon_years": projection.horizon_years,
+    })
+
+
+@blueprint.post("")
+@get_current_user
+def create_simulation(user: User) -> tuple[Response, int]:
+    """Зберегти умови; прогноз запитується окремо й може бути недоступним без джерел."""
+    payload = SimulationCreateRequest.model_validate(request.get_json(silent=True) or {})
+    scenario = SimulationService(db.session).create(user.id, payload)
+    response = SimulationScenarioResponse.model_validate(scenario)
+    return jsonify(response.model_dump(mode="json")), 201
+
+
+@blueprint.post("/calculate")
+@get_current_user
+def calculate_simulation(user: User) -> tuple[Response, int]:
+    """Create a scenario with its first forecast; if the forecast fails, no scenario is left behind."""
+    body = request.get_json(silent=True) or {}
+    # Validated separately so field errors keep the same paths as the two single-step endpoints.
+    scenario_payload = SimulationCreateRequest.model_validate(body.get("scenario") or {})
+    projection_payload = SimulationProjectionRequest.model_validate(body.get("projection") or {})
+    scenarios = SimulationService(db.session)
+    scenario = scenarios.create(user.id, scenario_payload)
+    scenario_id = scenario.id
+    try:
+        SimulationProjectionService(db.session).create(user.id, scenario_id, scenario.current_revision_number, projection_payload)
+    except Exception:
+        db.session.rollback()
+        scenarios.discard(user.id, scenario_id)
+        raise
+    response = SimulationScenarioResponse.model_validate(scenarios.get(user.id, scenario_id))
+    return jsonify(response.model_dump(mode="json")), 201
+
+
+@blueprint.delete("/<int:scenario_id>")
+@get_current_user
+def delete_simulation(scenario_id: int, user: User) -> tuple[Response, int]:
+    """Delete one of the user's saved calculations with its forecasts; frees a plan slot."""
+    SimulationService(db.session).discard(user.id, scenario_id)
+    return jsonify({"deleted": scenario_id}), 200
+
+
+@blueprint.get("")
+@get_current_user
+def list_simulations(user: User) -> Response:
+    scenarios = SimulationService(db.session).list_for_user(user.id)
+    projections = SimulationProjectionService(db.session).latest_for_current_revisions(user.id, [item.id for item in scenarios])
+    return jsonify([_list_item(item, projections.get(item.id)).model_dump(mode="json") for item in scenarios])
+
+
+@blueprint.get("/overview")
+@get_current_user
+def get_simulation_overview(user: User) -> Response:
+    """Зібрати останній сценарій, його поточний прогноз і джерела для overview."""
+    simulation_service = SimulationService(db.session)
+    scenarios = simulation_service.list_for_user(user.id)
+    if not scenarios:
+        response = SimulationOverviewResponse(status="empty")
+        return jsonify(response.model_dump(mode="json"))
+
+    projection_service = SimulationProjectionService(db.session)
+    recent_scenarios = scenarios[:RECENT_CALCULATIONS_LIMIT]
+    latest = projection_service.latest_for_current_revisions(user.id, [item.id for item in recent_scenarios])
+    recent = [_recent_calculation(item, latest.get(item.id)) for item in recent_scenarios]
+
+    scenario = simulation_service.get(user.id, scenarios[0].id)
+    projections = projection_service.list_for_revision(
+        user.id,
+        scenario.id,
+        scenario.current_revision_number,
+    )
+    if not projections:
+        response = SimulationOverviewResponse(
+            status="scenario_only", scenario=scenario, recent_calculations=recent
+        )
+        return jsonify(response.model_dump(mode="json"))
+
+    projection = projections[0]
+    explainability = projection_service.explainability(
+        user.id,
+        scenario.id,
+        scenario.current_revision_number,
+        projection.id,
+    )
+    response = SimulationOverviewResponse(
+        status="projected",
+        scenario=scenario,
+        projection=projection,
+        explainability=explainability,
+        recent_calculations=recent,
+    )
+    return jsonify(response.model_dump(mode="json"))
+
+
+@blueprint.get("/<int:scenario_id>")
+@get_current_user
+def get_simulation(scenario_id: int, user: User) -> Response:
+    scenario = SimulationService(db.session).get(user.id, scenario_id)
+    response = SimulationScenarioResponse.model_validate(scenario)
+    return jsonify(response.model_dump(mode="json"))
+
+
+@blueprint.post("/<int:scenario_id>/revisions")
+@get_current_user
+def create_simulation_revision(scenario_id: int, user: User) -> tuple[Response, int]:
+    """Контракт для запланованого редактора: додати ревізію, зберігши старі результати."""
+    payload = SimulationRevisionCreateRequest.model_validate(request.get_json(silent=True) or {})
+    scenario = SimulationService(db.session).add_revision(user.id, scenario_id, payload)
+    response = SimulationScenarioResponse.model_validate(scenario)
+    return jsonify(response.model_dump(mode="json")), 201
+
+
+@blueprint.post("/<int:scenario_id>/revisions/<int:revision_number>/projections")
+@get_current_user
+def create_simulation_projection(
+    scenario_id: int, revision_number: int, user: User
+) -> tuple[Response, int]:
+    payload = SimulationProjectionRequest.model_validate(request.get_json(silent=True) or {})
+    projection, created = SimulationProjectionService(db.session).create(
+        user.id, scenario_id, revision_number, payload
+    )
+    response = SimulationProjectionResponse.model_validate(projection)
+    return jsonify(response.model_dump(mode="json")), 201 if created else 200
+
+
+@blueprint.get("/<int:scenario_id>/revisions/<int:revision_number>/projections")
+@get_current_user
+def list_simulation_projections(scenario_id: int, revision_number: int, user: User) -> Response:
+    projections = SimulationProjectionService(db.session).list_for_revision(
+        user.id, scenario_id, revision_number
+    )
+    response = [
+        SimulationProjectionResponse.model_validate(item).model_dump(mode="json")
+        for item in projections
+    ]
+    return jsonify(response)
+
+
+@blueprint.get(
+    "/<int:scenario_id>/revisions/<int:revision_number>/projections/<int:projection_id>/explainability"
+)
+@get_current_user
+def get_simulation_projection_explainability(
+    scenario_id: int,
+    revision_number: int,
+    projection_id: int,
+    user: User,
+) -> Response:
+    explanation = SimulationProjectionService(db.session).explainability(
+        user.id,
+        scenario_id,
+        revision_number,
+        projection_id,
+    )
+    response = SimulationProjectionExplainabilityResponse.model_validate(explanation)
+    return jsonify(response.model_dump(mode="json"))
+
+
+@blueprint.post(
+    "/<int:scenario_id>/revisions/<int:revision_number>/projections/"
+    "<int:projection_id>/ai-review"
+)
+@get_current_user
+def review_simulation_projection(
+    scenario_id: int,
+    revision_number: int,
+    projection_id: int,
+    user: User,
+) -> Response:
+    """Queue or retry the bounded Deep Agent review without changing canonical numbers."""
+    projection = SimulationProjectionService(db.session).review_projection(
+        user.id, scenario_id, revision_number, projection_id
+    )
+    response = SimulationProjectionResponse.model_validate(projection)
+    queued = projection.ai_review is not None and projection.ai_review.status == "pending"
+    return jsonify(response.model_dump(mode="json")), 202 if queued else 200
+
+
+@blueprint.post("/<int:scenario_id>/revisions/<int:revision_number>/projections/<int:projection_id>/recalculate")
+@get_current_user
+def recalculate_simulation_projection(scenario_id: int, revision_number: int, projection_id: int, user: User) -> Response | tuple[Response, int]:
+    """Switch or edit cost lines: returns what would change, or stores it when save is true."""
+    from app.schemas import ProjectionPreviewResponse, ProjectionRecalculateRequest
+
+    payload = ProjectionRecalculateRequest.model_validate(request.get_json(silent=True) or {})
+    result = SimulationProjectionService(db.session).recalculate(user.id, scenario_id, revision_number, projection_id, payload.cost_items, payload.save)
+    if payload.save:
+        projection, created = result
+        return jsonify(SimulationProjectionResponse.model_validate(projection).model_dump(mode="json")), 201 if created else 200
+    return jsonify(ProjectionPreviewResponse.model_validate(result).model_dump(mode="json"))

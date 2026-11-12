@@ -1,0 +1,881 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from datetime import UTC, date, datetime
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
+
+import logging
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
+
+from app.core.exceptions import AppError
+from app.models import (
+    MarketSnapshot,
+    ProjectionCost,
+    ProjectionEvidenceRecord,
+    ProjectionInput,
+    ProjectionSource,
+    ProjectionTrajectoryPoint,
+    ProjectionWarning,
+    SimulationProjection,
+    SimulationRevision,
+    SimulationScenario,
+    StudyProgramme,
+    TuitionSnapshot,
+    University,
+)
+from app.schemas import MarketSnapshotSelection
+from app.schemas import ProjectionCostItem
+from app.schemas import ProjectionEvidence, SimulationProjectionRequest
+from app.services.projection_assumptions import ProjectionAssumptions
+from app.services.market_snapshot_service import MarketSnapshotService
+from app.services.projection_ai_review_service import ProjectionAIReviewService
+
+
+logger = logging.getLogger(__name__)
+METHODOLOGY_VERSION = "scenario-projection-v5"
+SALARY_BASIS = "gross_annual"
+MONEY = Decimal("0.01")
+PERCENT = Decimal("0.01")
+
+
+def _money(value: Decimal) -> Decimal:
+    return value.quantize(MONEY, rounding=ROUND_HALF_UP)
+
+
+def _percent(value: Decimal) -> Decimal:
+    return value.quantize(PERCENT, rounding=ROUND_HALF_UP)
+
+
+class DeterministicProjectionEngine:
+    """Pure financial model; it never calls external APIs or an LLM.
+
+    scenario-projection-v5 (all amounts in today's money when inflation i is given):
+    - real growth = (1 + g) / (1 + i) − 1 for the target and the baseline path;
+    - both paths keep growing while the student studies: foregone income in study year y is
+      baseline × (1 + g_b)^(y−1), and after graduation baseline year t = baseline × (1 + g_b)^(S + t − 1)
+      and target year t = start × (1 + g)^(S + t − 1), because the start salary is today's market;
+    - year 1 after graduation pays (12 − job_search_months) / 12 of the target salary;
+    - with employment probability p the expected income is p × target + (1 − p) × baseline;
+    - pessimistic / base / optimistic start from the market snapshot min / median / max;
+    - optional NPV discounts year t by (1 + r)^(S + t), with all costs at enrollment;
+    - an optional target payback period T (years after graduation) yields a yes/no verdict.
+    """
+
+    @staticmethod
+    def _real_rate(nominal_percent: Decimal, inflation_percent: Decimal | None) -> Decimal:
+        nominal = nominal_percent / Decimal("100")
+        if inflation_percent is None:
+            return nominal
+        return (Decimal("1") + nominal) / (Decimal("1") + inflation_percent / Decimal("100")) - Decimal("1")
+
+    @staticmethod
+    def _growth(rate: Decimal, years: Decimal | int) -> Decimal:
+        """(1 + rate)^years; fractional study years use a real power."""
+        base = Decimal("1") + rate
+        if isinstance(years, int) or years == years.to_integral_value():
+            return base ** int(years)
+        return base ** years
+
+    @staticmethod
+    def _foregone_baseline(payload: SimulationProjectionRequest, study_years: Decimal) -> Decimal:
+        """Baseline income over the study period, growing each study year; a partial last year counts pro rata."""
+        growth = DeterministicProjectionEngine._real_rate(payload.baseline_salary_growth_percent, payload.inflation_percent)
+        full_years = int(study_years)
+        total = sum(
+            (payload.baseline_annual_salary * DeterministicProjectionEngine._growth(growth, year) for year in range(full_years)),
+            Decimal("0"),
+        )
+        remainder = study_years - full_years
+        if remainder:
+            total += payload.baseline_annual_salary * DeterministicProjectionEngine._growth(growth, full_years) * remainder
+        return total
+
+    @staticmethod
+    def _run_trajectory(
+        start_salary: Decimal, payload: SimulationProjectionRequest, total_investment: Decimal, study_years: Decimal = Decimal("0")
+    ) -> tuple[list[dict], Decimal, int | None]:
+        """Unrounded yearly points, cumulative incremental earnings and payback after graduation."""
+        engine = DeterministicProjectionEngine
+        target_growth = engine._real_rate(payload.annual_salary_growth_percent, payload.inflation_percent)
+        baseline_growth = engine._real_rate(payload.baseline_salary_growth_percent, payload.inflation_percent)
+        employed = payload.employment_probability_percent / Decimal("100")
+        cumulative = Decimal("0")
+        payback_months: int | None = 0 if total_investment == 0 else None
+        trajectory: list[dict] = []
+
+        ladder = payload.career_ladder or []
+        for year in range(1, payload.horizon_years + 1):
+            job_salary = start_salary * engine._growth(target_growth, study_years + year - 1)
+            if ladder:
+                # Promotion with experience; past the last known level the pay stays at that level.
+                job_salary = job_salary * ladder[min(year, len(ladder)) - 1]
+            if year == 1 and payload.job_search_months:
+                job_salary = job_salary * Decimal(12 - min(payload.job_search_months, 12)) / Decimal("12")
+            baseline_salary = payload.baseline_annual_salary * engine._growth(baseline_growth, study_years + year - 1)
+            target_salary = employed * job_salary + (Decimal("1") - employed) * baseline_salary
+            # Negative years are material: suppressing them would overstate ROI.
+            incremental = target_salary - baseline_salary
+            previous_cumulative = cumulative
+            cumulative += incremental
+
+            if payback_months is None and cumulative >= total_investment and incremental > 0:
+                remaining = total_investment - previous_cumulative
+                # Multiply before dividing: incremental / 12 is inexact and would push 6.000…01 up to 7.
+                months_in_year = (remaining * Decimal("12") / incremental).to_integral_value(
+                    rounding=ROUND_CEILING
+                )
+                payback_months = (year - 1) * 12 + int(months_in_year)
+
+            trajectory.append(
+                {
+                    "year": year,
+                    "target_salary": target_salary,
+                    "baseline_salary": baseline_salary,
+                    "incremental_earnings": incremental,
+                    "cumulative_incremental_earnings": cumulative,
+                }
+            )
+        return trajectory, cumulative, payback_months
+
+    @staticmethod
+    def _roi(cumulative: Decimal, total_investment: Decimal) -> Decimal | None:
+        if total_investment <= 0:
+            return None
+        return _percent((cumulative - total_investment) / total_investment * Decimal("100"))
+
+    @staticmethod
+    def _npv(
+        trajectory: list[dict],
+        total_investment: Decimal,
+        study_years: Decimal,
+        rate_percent: Decimal | None,
+    ) -> Decimal | None:
+        if rate_percent is None:
+            return None
+        factor = Decimal("1") + rate_percent / Decimal("100")
+        present = sum(
+            (point["incremental_earnings"] / factor ** (study_years + point["year"]) for point in trajectory),
+            Decimal("0"),
+        )
+        return _money(present - total_investment)
+
+    @staticmethod
+    def calculate(
+        assumptions: dict,
+        payload: SimulationProjectionRequest,
+        salary_range: tuple[Decimal, Decimal] | None = None,
+    ) -> dict:
+        """salary_range is the snapshot (min, max); without it only the base scenario is reported."""
+        if payload.annual_start_salary is None:
+            raise ValueError("Projection engine requires a resolved annual_start_salary")
+        study_years = Decimal(str(assumptions["study_duration_years"]))
+        if assumptions.get("annual_tuition") is None:
+            raise ValueError("Projection engine requires a resolved annual_tuition")
+        annual_tuition = Decimal(str(assumptions["annual_tuition"]))
+        tuition = annual_tuition * study_years
+        gross_direct_cost = (
+            tuition
+            + payload.mandatory_fees
+            + payload.additional_education_cost
+            + payload.incremental_living_cost
+        )
+        direct_cost = max(
+            gross_direct_cost - payload.scholarships_and_grants,
+            Decimal("0"),
+        )
+        baseline_income_during_study = (
+            DeterministicProjectionEngine._foregone_baseline(payload, study_years)
+            * payload.foregone_income_percent
+            / Decimal("100")
+        )
+        employment_income = payload.employment_income_during_study or Decimal("0")
+        opportunity_cost = max(
+            baseline_income_during_study - employment_income,
+            Decimal("0"),
+        )
+        total_investment = direct_cost + opportunity_cost
+        rate = payload.discount_rate_percent
+
+        engine = DeterministicProjectionEngine
+        trajectory, cumulative, payback_months = engine._run_trajectory(
+            payload.annual_start_salary, payload, total_investment, study_years
+        )
+        roi_percent = engine._roi(cumulative, total_investment)
+        npv = engine._npv(trajectory, total_investment, study_years, rate)
+
+        starts = [("base", payload.annual_start_salary)]
+        if salary_range is not None:
+            starts = [("pessimistic", salary_range[0]), *starts, ("optimistic", salary_range[1])]
+        scenario_outcomes = []
+        for scenario, start_salary in starts:
+            if scenario == "base":
+                points, total, payback = trajectory, cumulative, payback_months
+            else:
+                points, total, payback = engine._run_trajectory(start_salary, payload, total_investment, study_years)
+            scenario_roi = engine._roi(total, total_investment)
+            scenario_npv = engine._npv(points, total_investment, study_years, rate)
+            scenario_outcomes.append(
+                {
+                    "scenario": scenario,
+                    "start_salary": str(_money(start_salary)),
+                    "cumulative_incremental_earnings": str(_money(total)),
+                    "roi_percent": None if scenario_roi is None else str(scenario_roi),
+                    "payback_months": payback,
+                    "break_even_reached": payback is not None,
+                    "npv": None if scenario_npv is None else str(scenario_npv),
+                }
+            )
+
+        evidence_by_metric = {
+            metric: [item for item in payload.evidence if item.metric == metric]
+            for metric in {item.metric for item in payload.evidence}
+        }
+
+        def has_supported_evidence(metric: str) -> bool:
+            return any(
+                item.confidence in {"medium", "high"}
+                for item in evidence_by_metric.get(metric, [])
+            )
+
+        unverified_assumptions = []
+        if not has_supported_evidence("tuition"):
+            unverified_assumptions.append("annual_tuition")
+        if not has_supported_evidence("target_start_salary"):
+            unverified_assumptions.append("estimated_start_salary")
+        if not has_supported_evidence("salary_growth") and (
+            payload.annual_salary_growth_percent > 0 or payload.baseline_salary_growth_percent > 0
+        ):
+            unverified_assumptions.append("salary_growth")
+        if payload.mandatory_fees > 0 and not has_supported_evidence("mandatory_fees"):
+            unverified_assumptions.append("mandatory_fees")
+        if payload.scholarships_and_grants > 0 and not has_supported_evidence("scholarships"):
+            unverified_assumptions.append("scholarships_and_grants")
+        if employment_income > 0 and not has_supported_evidence("study_income"):
+            unverified_assumptions.append("employment_income_during_study")
+        if payload.inflation_percent is None:
+            unverified_assumptions.append("inflation_not_applied")
+        elif not has_supported_evidence("inflation"):
+            unverified_assumptions.append("inflation")
+
+        payback_from_enrollment_months = None
+        if payback_months is not None:
+            if total_investment == 0:
+                payback_from_enrollment_months = 0
+            else:
+                study_months = int(
+                    (study_years * Decimal("12")).to_integral_value(rounding=ROUND_CEILING)
+                )
+                payback_from_enrollment_months = study_months + payback_months
+
+        target_years = payload.target_payback_years
+        payback_within_target = None
+        payback_target_gap_months = None
+        if target_years is not None:
+            payback_within_target = payback_months is not None and payback_months <= target_years * 12
+            if payback_months is not None:
+                # Positive: months later than the target; negative: months to spare.
+                payback_target_gap_months = payback_months - target_years * 12
+
+        cost_breakdown = {
+            "tuition": str(_money(tuition)),
+            "mandatory_fees": str(_money(payload.mandatory_fees)),
+            "additional_education": str(_money(payload.additional_education_cost)),
+            "incremental_living_cost": str(_money(payload.incremental_living_cost)),
+            "scholarships_and_grants": str(_money(payload.scholarships_and_grants)),
+            "gross_direct_cost": str(_money(gross_direct_cost)),
+            "net_direct_cost": str(_money(direct_cost)),
+            "baseline_income_during_study": str(_money(baseline_income_during_study)),
+            "employment_income_during_study": str(_money(employment_income)),
+            "opportunity_cost": str(_money(opportunity_cost)),
+        }
+
+        return {
+            "currency": assumptions["currency"],
+            "salary_basis": SALARY_BASIS,
+            "total_direct_cost": _money(direct_cost),
+            "opportunity_cost": _money(opportunity_cost),
+            "total_investment": _money(total_investment),
+            "estimated_start_salary": _money(payload.annual_start_salary),
+            "cost_breakdown": cost_breakdown,
+            "payback_months": payback_months,
+            "payback_from_enrollment_months": payback_from_enrollment_months,
+            "break_even_reached": payback_months is not None,
+            "target_payback_years": target_years,
+            "payback_within_target": payback_within_target,
+            "payback_target_gap_months": payback_target_gap_months,
+            "horizon_years": payload.horizon_years,
+            "cumulative_incremental_earnings": _money(cumulative),
+            "roi_percent": roi_percent,
+            "npv": npv,
+            "scenario_outcomes": scenario_outcomes,
+            "salary_trajectory": [
+                {
+                    "year": point["year"],
+                    **{
+                        key: str(_money(point[key]))
+                        for key in (
+                            "target_salary",
+                            "baseline_salary",
+                            "incremental_earnings",
+                            "cumulative_incremental_earnings",
+                        )
+                    },
+                }
+                for point in trajectory
+            ],
+            # Normalized DateTime columns need real datetime values; API serialization
+            # converts them to ISO-8601 only at the transport boundary.
+            "evidence": [item.model_dump(mode="python") for item in payload.evidence],
+            "unverified_assumptions": unverified_assumptions,
+        }
+
+
+class SimulationProjectionService:
+    """Перевірка власника → джерела з БД → evidence → deterministic engine → збереження."""
+    def __init__(self, db_session: Session) -> None:
+        self.db = db_session
+
+    def _get_revision(self, user_id: int, scenario_id: int, revision_number: int) -> SimulationRevision:
+        revision = self.db.execute(
+            select(SimulationRevision)
+            .join(SimulationScenario)
+            .where(
+                SimulationScenario.id == scenario_id,
+                SimulationScenario.user_id == user_id,
+                SimulationRevision.revision_number == revision_number,
+            )
+        ).scalar_one_or_none()
+        if revision is None:
+            raise AppError("Scenario revision not found", status_code=404)
+        return revision
+
+    @staticmethod
+    def _projection_load_options() -> tuple:
+        """Relationships consumed by API serializers; eager loading prevents N+1 queries."""
+        return (
+            selectinload(SimulationProjection.inputs),
+            selectinload(SimulationProjection.costs),
+            selectinload(SimulationProjection.trajectory_points),
+            selectinload(SimulationProjection.evidence_records),
+            selectinload(SimulationProjection.source_records),
+            selectinload(SimulationProjection.warning_records),
+            selectinload(SimulationProjection.ai_review),
+        )
+
+    def _find_salary_now(self, assumptions: dict, selection: MarketSnapshotSelection) -> MarketSnapshot:
+        """A role without stored data: read current listings for it before the first calculation."""
+        import httpx
+
+        from app.services.market_ingestion_service import ROLE_CATALOG, MarketIngestionService, MarketProviderError
+        from app.services.official_wage_service import refresh_salary_snapshot
+
+        role, country, currency = assumptions["career_target"], assumptions["country"], assumptions["currency"]
+        try:
+            if any(name.casefold() == role.strip().casefold() for name in ROLE_CATALOG):
+                refresh_salary_snapshot(self.db, role, country, currency)
+            else:
+                MarketIngestionService(self.db).fetch_custom(role, country, currency)
+            return MarketSnapshotService(self.db).resolve_validated(
+                role=role, country=country, seniority=selection.seniority, currency=currency,
+                as_of_date=selection.as_of_date, max_age_days=selection.max_age_days, minimum_confidence="low",
+            )
+        except (MarketProviderError, httpx.HTTPError, AppError) as error:
+            logger.info("No salary data found for %s in %s: %s", role, country, error)
+            raise AppError(f"We could not find enough published salaries for '{role}' in {country}. Enter the salary you expect, or pick a similar role.", status_code=422) from error
+
+    def _prepare(self, revision: SimulationRevision, payload: SimulationProjectionRequest) -> tuple[dict, SimulationProjectionRequest, list[str], tuple[Decimal, Decimal] | None]:
+        """Everything the engine needs: salary source, automatic assumptions and cost lines."""
+        resolved, refs, salary_range = self._resolve_salary_source(revision.assumptions, payload)
+        resolved = self._with_tuition_evidence(revision, resolved)
+        assumptions = revision.assumptions
+        helper = ProjectionAssumptions(self.db)
+        if resolved.auto_assumptions:
+            resolved = helper.apply_auto(assumptions, resolved)
+        if resolved.auto_assumptions or resolved.cost_items:
+            assumptions, resolved = helper.to_engine_inputs(assumptions, resolved, helper.build_items(assumptions, resolved))
+        if resolved.auto_assumptions or any(item.metric == "career_level" for item in resolved.evidence):
+            # Pay growth with experience: new forecasts read (or collect) mid and senior pay; a recalculation
+            # reuses the snapshots its saved forecast cited.
+            from app.services.career_ladder_service import CareerLadderService
+            resolved = CareerLadderService(self.db).attach(revision.assumptions, resolved, fetch=resolved.auto_assumptions)
+        self._validate_evidence(revision.assumptions, resolved)
+        return assumptions, resolved, refs, salary_range
+
+    def _resolve_salary_source(
+        self, assumptions: dict, payload: SimulationProjectionRequest
+    ) -> tuple[SimulationProjectionRequest, list[str], tuple[Decimal, Decimal] | None]:
+        """Resolved payload, market snapshot refs and the snapshot (min, max) for the scenario range."""
+        if payload.market_snapshot_id is not None:
+            snapshot = MarketSnapshotService(self.db).get_validated(payload.market_snapshot_id)
+        elif payload.market_snapshot_selection is not None:
+            selection = payload.market_snapshot_selection
+            try:
+                snapshot = MarketSnapshotService(self.db).resolve_validated(
+                    role=assumptions["career_target"],
+                    country=assumptions["country"],
+                    seniority=selection.seniority,
+                    currency=assumptions["currency"],
+                    as_of_date=selection.as_of_date,
+                    max_age_days=selection.max_age_days,
+                    minimum_confidence=selection.minimum_confidence,
+                )
+            except AppError as e:
+                if e.status_code != 422:
+                    raise
+                if payload.auto_assumptions:
+                    snapshot = self._find_salary_now(assumptions, selection)
+                else:
+                    from app.tasks.market_tasks import refresh_market_snapshot
+                    role = assumptions.get("career_target", "")
+                    country = assumptions.get("country", "")
+                    currency = assumptions.get("currency", "")
+                    refresh_market_snapshot.delay(role, country, currency)
+                    raise AppError(
+                        f"Salary data for '{role}' is not loaded yet. We started collecting it, so try again in a minute.",
+                        status_code=409
+                    )
+        else:
+            return payload, [], None
+
+        if snapshot.role.casefold() != assumptions["career_target"].casefold():
+            raise AppError("The market snapshot role does not match the scenario", status_code=422)
+        if snapshot.country.casefold() != assumptions["country"].casefold():
+            raise AppError("The market snapshot country does not match the scenario", status_code=422)
+        if snapshot.currency != assumptions["currency"].upper():
+            raise AppError("The market snapshot currency does not match the scenario", status_code=422)
+        if snapshot.salary_basis != SALARY_BASIS:
+            raise AppError("The market snapshot salary basis is not supported", status_code=422)
+
+        snapshot_evidence = ProjectionEvidence(
+            metric="target_start_salary",
+            source_name="Fence market snapshot",
+            source_reference=f"market_snapshot:{snapshot.id}",
+            acquired_at=snapshot.acquired_at,
+            country=snapshot.country,
+            role=snapshot.role,
+            seniority=snapshot.seniority,
+            currency=snapshot.currency,
+            sample_size=snapshot.sample_size,
+            confidence=snapshot.confidence,
+        )
+        resolved = payload.model_copy(
+            update={
+                "annual_start_salary": snapshot.median_salary,
+                "evidence": [*payload.evidence, snapshot_evidence],
+            }
+        )
+        return resolved, [str(snapshot.id)], (snapshot.salary_min, snapshot.salary_max)
+
+    def _with_tuition_evidence(
+        self,
+        revision: SimulationRevision,
+        payload: SimulationProjectionRequest,
+    ) -> SimulationProjectionRequest:
+        references = [
+            str(reference).split(":", 1)[1]
+            for reference in revision.source_snapshot_refs
+            if str(reference).startswith("tuition_snapshot:")
+        ]
+        if not references:
+            return self._with_programme_tuition_evidence(revision.assumptions, payload)
+
+        try:
+            snapshot_id = int(references[-1])
+        except ValueError as error:
+            raise AppError("Invalid tuition snapshot reference", status_code=422) from error
+
+        snapshot = self.db.execute(
+            select(TuitionSnapshot).where(
+                TuitionSnapshot.id == snapshot_id,
+                TuitionSnapshot.validation_status == "validated",
+            )
+        ).scalar_one_or_none()
+        if snapshot is None:
+            raise AppError("The scenario's tuition snapshot is no longer available", status_code=422)
+        if snapshot.country.casefold() != revision.assumptions["country"].casefold():
+            raise AppError("The tuition snapshot country does not match the scenario", status_code=422)
+        if snapshot.currency != revision.assumptions["currency"].upper():
+            raise AppError("The tuition snapshot currency does not match the scenario", status_code=422)
+        if Decimal(str(revision.assumptions["annual_tuition"])) != snapshot.annual_tuition:
+            raise AppError("The tuition snapshot does not match the saved tuition", status_code=422)
+
+        reference = f"tuition_snapshot:{snapshot.id}"
+        if any(item.source_reference == reference for item in payload.evidence):
+            return payload
+        evidence = ProjectionEvidence(
+            metric="tuition",
+            source_name="Fence tuition snapshot",
+            source_reference=reference,
+            acquired_at=snapshot.acquired_at,
+            country=snapshot.country,
+            role=revision.assumptions["career_target"],
+            seniority=revision.assumptions["degree"],
+            currency=snapshot.currency,
+            confidence=snapshot.confidence,
+        )
+        return payload.model_copy(update={"evidence": [*payload.evidence, evidence]})
+
+    def _with_programme_tuition_evidence(
+        self,
+        assumptions: dict,
+        payload: SimulationProjectionRequest,
+    ) -> SimulationProjectionRequest:
+        """Cite the fee document when the saved tuition is exactly the chosen programme's published fee.
+
+        Programme fees come from the reviewed university_facts.json. The match must be the same university,
+        programme name, amount and currency, so a tuition the person typed by hand stays unverified.
+        """
+        if any(item.metric == "tuition" for item in payload.evidence):
+            return payload
+        university_name = str(assumptions.get("university") or "").strip()
+        programme_name = str(assumptions.get("specialization") or "").strip()
+        tuition = assumptions.get("annual_tuition")
+        if not university_name or not programme_name or tuition is None:
+            return payload
+        country, currency = assumptions["country"], assumptions["currency"].upper()
+
+        # Names are compared with casefold in Python: SQL lower() leaves Cyrillic unchanged on SQLite.
+        universities = self.db.execute(
+            select(University).where(func.lower(University.country) == country.strip().lower())
+        ).scalars()
+        university = next((row for row in universities if row.name.casefold() == university_name.casefold()), None)
+        if university is None:
+            return payload
+        candidates = self.db.execute(
+            select(StudyProgramme)
+            .where(
+                StudyProgramme.university_id == university.id,
+                StudyProgramme.annual_fee == Decimal(str(tuition)),
+                StudyProgramme.currency == currency,
+            )
+            .order_by(StudyProgramme.id)
+        ).scalars()
+        programme = next((row for row in candidates if row.name.casefold() == programme_name.casefold()), None)
+        if programme is None:
+            return payload
+
+        from app.services.university_facts_service import facts_for
+
+        fees = (facts_for(university) or {}).get("fees") or {}
+        if not fees.get("source_url"):
+            return payload
+        title = fees.get("source_title") or "University fee document"
+        academic_year = fees.get("academic_year")
+        evidence = ProjectionEvidence(
+            metric="tuition",
+            source_name=(f"{title} ({academic_year})" if academic_year else title)[:255],
+            source_reference=fees["source_url"][:1000],
+            acquired_at=programme.updated_at or programme.created_at or datetime.now(UTC),
+            country=country,
+            role=assumptions["career_target"],
+            seniority=assumptions["degree"],
+            currency=currency,
+            # An official fee table is the fee itself; a press report of it is reliable but second-hand.
+            confidence="high" if fees.get("source_kind") == "official" else "medium",
+        )
+        return payload.model_copy(update={"evidence": [*payload.evidence, evidence]})
+
+    @staticmethod
+    def _validate_evidence(assumptions: dict, payload: SimulationProjectionRequest) -> None:
+        metrics = {item.metric for item in payload.evidence}
+        if "target_start_salary" not in metrics:
+            raise AppError("A source is required for the starting salary", status_code=422)
+        if payload.baseline_annual_salary > 0 and "baseline_salary" not in metrics:
+            raise AppError("A source is required for the baseline salary", status_code=422)
+
+        expected_country = assumptions["country"].casefold()
+        expected_currency = assumptions["currency"].upper()
+        for evidence in payload.evidence:
+            if evidence.country.casefold() != expected_country:
+                raise AppError("The source country does not match the scenario", status_code=422)
+            if evidence.currency != expected_currency:
+                raise AppError("The source currency does not match the scenario", status_code=422)
+
+    @staticmethod
+    def _fingerprint(
+        revision: SimulationRevision,
+        payload: SimulationProjectionRequest,
+        source_snapshot_refs: list[str],
+    ) -> str:
+        canonical = json.dumps(
+            {
+                "methodology_version": METHODOLOGY_VERSION,
+                "assumptions": revision.assumptions,
+                "projection_inputs": payload.model_dump(mode="json"),
+                "source_snapshot_refs": source_snapshot_refs,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    def create(
+        self,
+        user_id: int,
+        scenario_id: int,
+        revision_number: int,
+        payload: SimulationProjectionRequest,
+    ) -> tuple[SimulationProjection, bool]:
+        """Повертає прогноз і ознаку створення; повтор тих самих inputs повторно не рахуємо."""
+        revision = self._get_revision(user_id, scenario_id, revision_number)
+        engine_assumptions, resolved_payload, source_snapshot_refs, salary_range = self._prepare(revision, payload)
+        fingerprint = self._fingerprint(revision, resolved_payload, source_snapshot_refs)
+
+        existing = self.db.execute(
+            select(SimulationProjection).where(
+                SimulationProjection.revision_id == revision.id,
+                SimulationProjection.methodology_version == METHODOLOGY_VERSION,
+                SimulationProjection.input_fingerprint == fingerprint,
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return existing, False
+
+        result = DeterministicProjectionEngine.calculate(
+            engine_assumptions, resolved_payload, salary_range
+        )
+        cost_breakdown = result.pop("cost_breakdown")
+        trajectory = result.pop("salary_trajectory")
+        evidence = result.pop("evidence")
+        warnings = result.pop("unverified_assumptions")
+        projection = SimulationProjection(
+            revision_id=revision.id,
+            methodology_version=METHODOLOGY_VERSION,
+            input_fingerprint=fingerprint,
+            **result,
+        )
+        market_snapshot_id = None
+        if source_snapshot_refs:
+            try:
+                market_snapshot_id = int(source_snapshot_refs[0])
+            except (TypeError, ValueError):
+                market_snapshot_id = None
+        projection.inputs = ProjectionInput(
+            annual_start_salary=resolved_payload.annual_start_salary,
+            baseline_annual_salary=resolved_payload.baseline_annual_salary,
+            annual_salary_growth_percent=resolved_payload.annual_salary_growth_percent,
+            baseline_salary_growth_percent=resolved_payload.baseline_salary_growth_percent,
+            foregone_income_percent=resolved_payload.foregone_income_percent,
+            mandatory_fees=resolved_payload.mandatory_fees,
+            scholarships_and_grants=resolved_payload.scholarships_and_grants,
+            additional_education_cost=resolved_payload.additional_education_cost,
+            incremental_living_cost=resolved_payload.incremental_living_cost,
+            employment_income_during_study=resolved_payload.employment_income_during_study,
+            horizon_years=resolved_payload.horizon_years,
+            discount_rate_percent=resolved_payload.discount_rate_percent,
+            inflation_percent=resolved_payload.inflation_percent,
+            job_search_months=resolved_payload.job_search_months,
+            employment_probability_percent=resolved_payload.employment_probability_percent,
+            target_payback_years=resolved_payload.target_payback_years,
+            market_snapshot_id=market_snapshot_id,
+            salary_source_kind="market_snapshot" if market_snapshot_id else "manual_evidence",
+            cost_items=[item.model_dump(mode="json") for item in resolved_payload.cost_items],
+        )
+        projection.costs = ProjectionCost(**cost_breakdown)
+        projection.trajectory_points = [ProjectionTrajectoryPoint(**point) for point in trajectory]
+        projection.evidence_records = [ProjectionEvidenceRecord(**item) for item in evidence]
+        projection.warning_records = [ProjectionWarning(code=code) for code in warnings]
+        projection.source_records = [
+            ProjectionSource(
+                source_kind="market_snapshot",
+                reference=str(reference),
+                market_snapshot_id=int(reference) if str(reference).isdigit() else None,
+            )
+            for reference in source_snapshot_refs
+        ]
+        for item in evidence:
+            reference = str(item.get("source_reference", ""))
+            if not reference.startswith("tuition_snapshot:"):
+                continue
+            try:
+                tuition_snapshot_id = int(reference.split(":", 1)[1])
+            except ValueError:
+                continue
+            projection.source_records.append(
+                ProjectionSource(
+                    source_kind="tuition_snapshot",
+                    reference=reference,
+                    tuition_snapshot_id=tuition_snapshot_id,
+                )
+            )
+        self.db.add(projection)
+        self.db.commit()
+        self.db.refresh(projection)
+        ProjectionAIReviewService(self.db).enqueue(projection)
+        return projection, True
+
+    def recalculate(self, user_id: int, scenario_id: int, revision_number: int, projection_id: int, cost_items: list[ProjectionCostItem], save: bool) -> dict | tuple[SimulationProjection, bool]:
+        """The saved projection with changed cost lines: previewed, or stored as a new projection."""
+        revision = self._get_revision(user_id, scenario_id, revision_number)
+        projection = next((item for item in self.list_for_revision(user_id, scenario_id, revision_number) if item.id == projection_id), None)
+        if projection is None or projection.inputs is None:
+            raise AppError("Forecast not found", status_code=404)
+        inputs = projection.inputs
+        from_snapshot = inputs.market_snapshot_id is not None
+        evidence_fields = ("metric", "source_name", "source_reference", "acquired_at", "country", "role", "seniority", "currency", "sample_size", "confidence")
+        evidence = [
+            ProjectionEvidence(**{field: getattr(record, field) for field in evidence_fields})
+            for record in projection.evidence_records
+            if not (from_snapshot and record.metric == "target_start_salary") and not str(record.source_reference).startswith("tuition_snapshot:")
+        ]
+        payload = SimulationProjectionRequest(
+            market_snapshot_id=inputs.market_snapshot_id,
+            annual_start_salary=None if from_snapshot else inputs.annual_start_salary,
+            baseline_annual_salary=inputs.baseline_annual_salary,
+            annual_salary_growth_percent=inputs.annual_salary_growth_percent,
+            baseline_salary_growth_percent=inputs.baseline_salary_growth_percent,
+            # A saved projection with this line off stores 0; the line itself now decides.
+            foregone_income_percent=inputs.foregone_income_percent or Decimal("100"),
+            horizon_years=inputs.horizon_years,
+            discount_rate_percent=inputs.discount_rate_percent,
+            inflation_percent=inputs.inflation_percent,
+            job_search_months=inputs.job_search_months,
+            employment_probability_percent=inputs.employment_probability_percent,
+            target_payback_years=inputs.target_payback_years,
+            evidence=evidence,
+            cost_items=cost_items,
+        )
+        if save:
+            return self.create(user_id, scenario_id, revision_number, payload)
+        assumptions, resolved, _refs, salary_range = self._prepare(revision, payload)
+        result = DeterministicProjectionEngine.calculate(assumptions, resolved, salary_range)
+        return {**result, "cost_items": resolved.cost_items}
+
+    def list_for_revision(
+        self, user_id: int, scenario_id: int, revision_number: int
+    ) -> list[SimulationProjection]:
+        revision = self._get_revision(user_id, scenario_id, revision_number)
+        return list(
+            self.db.execute(
+                select(SimulationProjection)
+                .options(*self._projection_load_options())
+                .where(SimulationProjection.revision_id == revision.id)
+                .order_by(SimulationProjection.created_at.desc())
+            ).scalars()
+        )
+
+    def latest_for_current_revisions(
+        self, user_id: int, scenario_ids: list[int]
+    ) -> dict[int, SimulationProjection]:
+        """Найсвіжіший прогноз поточної ревізії кожного сценарію одним запитом; без прогнозу — ключа немає."""
+        if not scenario_ids:
+            return {}
+        rows = self.db.execute(
+            select(SimulationProjection, SimulationScenario.id)
+            .join(SimulationRevision, SimulationProjection.revision_id == SimulationRevision.id)
+            .join(SimulationScenario, SimulationRevision.scenario_id == SimulationScenario.id)
+            .where(
+                SimulationScenario.user_id == user_id,
+                SimulationScenario.id.in_(scenario_ids),
+                SimulationRevision.revision_number == SimulationScenario.current_revision_number,
+            )
+            .order_by(SimulationProjection.created_at.desc(), SimulationProjection.id.desc())
+        ).all()
+        latest: dict[int, SimulationProjection] = {}
+        for projection, scenario_id in rows:
+            latest.setdefault(scenario_id, projection)
+        return latest
+
+    def explainability(
+        self,
+        user_id: int,
+        scenario_id: int,
+        revision_number: int,
+        projection_id: int,
+    ) -> dict:
+        projection = self.db.execute(
+            select(SimulationProjection)
+            .options(*self._projection_load_options())
+            .join(SimulationRevision)
+            .join(SimulationScenario)
+            .where(
+                SimulationProjection.id == projection_id,
+                SimulationRevision.revision_number == revision_number,
+                SimulationScenario.id == scenario_id,
+                SimulationScenario.user_id == user_id,
+            )
+        ).scalar_one_or_none()
+        if projection is None:
+            raise AppError("Forecast not found", status_code=404)
+
+        parsed_refs: list[int] = []
+        missing_refs: list[str] = []
+        market_references = [
+            source.reference
+            for source in projection.source_records
+            if source.source_kind == "market_snapshot"
+        ]
+        for reference in market_references:
+            try:
+                parsed_refs.append(int(reference))
+            except (TypeError, ValueError):
+                missing_refs.append(str(reference))
+
+        snapshots_by_id = {}
+        if parsed_refs:
+            snapshots = self.db.execute(
+                select(MarketSnapshot).where(MarketSnapshot.id.in_(parsed_refs))
+            ).scalars()
+            snapshots_by_id = {snapshot.id: snapshot for snapshot in snapshots}
+
+        source_snapshots = []
+        for snapshot_id in parsed_refs:
+            snapshot = snapshots_by_id.get(snapshot_id)
+            if snapshot is None:
+                missing_refs.append(str(snapshot_id))
+                continue
+            source_snapshots.append(
+                {
+                    "snapshot": snapshot,
+                    "age_days": max((date.today() - snapshot.snapshot_date).days, 0),
+                    "selected_metric": "median_salary",
+                    "selected_value": snapshot.median_salary,
+                }
+            )
+
+        uses_snapshot = bool(market_references)
+        return {
+            "projection_id": projection.id,
+            "calculation_type": "deterministic",
+            "ai_generated": False,
+            "methodology_version": projection.methodology_version,
+            "salary_basis": projection.salary_basis,
+            "currency": projection.currency,
+            "salary_source_kind": "market_snapshot" if uses_snapshot else "manual_evidence",
+            "selected_salary_metric": "median_salary" if uses_snapshot else "annual_start_salary",
+            "estimated_start_salary": projection.estimated_start_salary,
+            "source_snapshots": source_snapshots,
+            "source_integrity": "missing" if missing_refs else "complete",
+            "missing_source_snapshot_refs": missing_refs,
+            "evidence": projection.evidence,
+            "unverified_assumptions": projection.unverified_assumptions,
+        }
+
+    def review_projection(
+        self,
+        user_id: int,
+        scenario_id: int,
+        revision_number: int,
+        projection_id: int,
+    ) -> SimulationProjection:
+        """Queue (or re-queue) the advisory review for an owner-scoped projection."""
+        projection = self.db.execute(
+            select(SimulationProjection)
+            .options(*self._projection_load_options())
+            .join(SimulationRevision)
+            .join(SimulationScenario)
+            .where(
+                SimulationProjection.id == projection_id,
+                SimulationRevision.revision_number == revision_number,
+                SimulationScenario.id == scenario_id,
+                SimulationScenario.user_id == user_id,
+            )
+        ).scalar_one_or_none()
+        if projection is None:
+            raise AppError("Forecast not found", status_code=404)
+        ProjectionAIReviewService(self.db).enqueue(projection)
+        self.db.refresh(projection)
+        return projection

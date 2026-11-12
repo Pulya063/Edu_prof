@@ -1,0 +1,224 @@
+/* Lively layer for the public landing: the workspace's ink outlines and offset "pressable" shadows,
+   lime/violet colour blocks and the sliding nav bar. Loaded last; scoped to .landing-page so it
+   wins over final-pass.css without touching the motion system. */
+.landing-page {
+  --lv-ink:#171819; --lv-paper:#f7f7f3; --lv-lime:#b7ff2a; --lv-violet:#d7c7ff; --lv-violet-deep:#8f78d6;
+  --lv-shadow:0 4px 0 var(--lv-ink); --lv-shadow-lift:0 7px 0 var(--lv-ink);
+}
+
+/* ---------- Header: sliding lime bar, pressable buttons ---------- */
+.landing-page .desktop-nav { position:relative; }
+.landing-page .desktop-nav-link { cursor:pointer; user-select:auto; transition:opacity .2s ease; }
+.landing-page .desktop-nav-link:hover,
+.landing-page .desktop-nav-link:focus-visible { opacity:1; }
+
+
+.landing-page .landing-header .header-cta {
+  border:2px solid var(--lv-ink) !important; color:var(--lv-ink) !important; box-shadow:var(--lv-shadow) !important;
+  transition:transform .14s ease, box-shadow .14s ease !important;
+}
+.landing-page .landing-header .header-cta:hover { transform:translateY(-2px); box-shadow:var(--lv-shadow-lift), 0 10px 26px rgba(183,255,42,.55) !important; }
+.landing-page .landing-header .header-cta:active { transform:translateY(3px); box-shadow:0 1px 0 var(--lv-ink) !important; }
+.landing-page .landing-header .lang-switcher-trigger { border:2px solid currentColor; background:transparent; }
+.landing-page .landing-header .lang-switcher-trigger:hover { background:var(--lv-violet); color:var(--lv-ink); border-color:var(--lv-ink); }
+
+/* ---------- Hero ---------- */
+.landing-page #hero { position:relative; isolation:isolate; overflow:hidden; }
+.landing-page #hero::before,
+.landing-page #hero::after { content:""; position:absolute; z-index:-1; border-radius:50%; pointer-events:none; }
+.landing-page #hero::before { top:-140px; right:-120px; width:560px; height:560px; background:radial-gradient(circle, rgba(215,199,255,.75) 0 45%, transparent 70%); }
+.landing-page #hero::after { bottom:0; left:-120px; width:420px; height:420px; background:radial-gradient(circle, rgba(183,255,42,.35) 0 40%, transparent 70%); }
+
+.landing-page #hero .hero-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:6px 0 28px; }
+.hero-button {
+  display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:52px; padding:0 24px;
+  border:2px solid var(--lv-ink); border-radius:999px; color:var(--lv-ink); font-size:15px; font-weight:800; text-decoration:none;
+  box-shadow:var(--lv-shadow); transition:transform .14s ease, box-shadow .14s ease, background-color .2s ease;
+}
+.hero-button--primary { background:var(--lv-lime); }
+.hero-button--ghost { background:#fff; }
+.hero-button:hover { transform:translateY(-2px); box-shadow:var(--lv-shadow-lift); }
+.hero-button--primary:hover { box-shadow:var(--lv-shadow-lift), 0 12px 30px rgba(183,255,42,.55); }
+.hero-button--ghost:hover { background:var(--lv-violet); }
+.hero-button:active { transform:translateY(3px); box-shadow:0 1px 0 var(--lv-ink); }
+.hero-button span { transition:transform .2s ease; }
+.hero-button:hover span { transform:translateX(3px); }
+
+@media (min-width:901px) {
+  .landing-page #hero .hero-copy h1 { font-size:clamp(56px,6.1vw,100px); margin-bottom:30px; }
+}
+
+/* Info card: ink card with a violet offset */
+.landing-page #hero .info-card { border:2px solid var(--lv-ink); box-shadow:0 6px 0 var(--lv-violet-deep), 0 22px 40px rgba(23,24,25,.18) !important; }
+.landing-page #hero .info-card .tag-row span { border:1.5px solid var(--lv-ink); }
+
+/* KPI cards: outlined, colour-blocked (violet / lime / white / ink) */
+.landing-page #hero .bento-card { border:2px solid var(--lv-ink); box-shadow:var(--lv-shadow) !important; }
+.landing-page #hero .bento-card:hover { box-shadow:var(--lv-shadow-lift) !important; }
+.landing-page #hero .bento-card--grey { background:var(--lv-violet); }
+.landing-page #hero .bento-card--grey .bento-wave-bg { opacity:.55; mix-blend-mode:multiply; }
+.landing-page #hero .bento-card--white { background:#fff; }
+.landing-page #hero .bento-card--black { box-shadow:0 4px 0 var(--lv-lime), 0 0 0 0 transparent !important; }
+.landing-page #hero .bento-card--black:hover { box-shadow:0 7px 0 var(--lv-lime) !important; }
+.landing-page #hero .bento-arrow-btn { border:2px solid var(--lv-ink); }
+
+/* Centre the KPI cards under the MacBook instead of hugging its left edge. The MacBook box is
+   anchored to the stage's right edge (see final-pass.css), so the cards share that anchor. */
+@media (min-width:1101px) {
+  .landing-page #hero .overlay-bento {
+    left:auto !important;
+    right:calc(clamp(-58px,-2.4vw,-18px) + min(790px,105%) / 2 - 12px) !important;
+    translate:50% 0;
+  }
+}
+/* Single-column hero: centre the cards on the screen. Here final-pass.css already moves them by
+   translateX(-50%), so a translate:50% would cancel it and push the row to the left. */
+@media (min-width:901px) and (max-width:1100px) {
+  .landing-page #hero .overlay-bento { left:50% !important; right:auto !important; translate:none; }
+}
+/* The stacked pair stretches to the row height, so its bottom lines up with the other two cards. */
+@media (min-width:901px) {
+  .landing-page #hero .bento-col .bento-card { flex:1 1 auto; }
+}
+
+/* Mobile: keep the outlines visible inside the horizontal KPI scroller */
+@media (max-width:900px) {
+  .landing-page #hero .overlay-bento { padding-bottom:10px !important; }
+  .landing-page #hero .overlay-bento .bento-card,
+  .landing-page #hero .overlay-bento .bento-card:hover { box-shadow:var(--lv-shadow) !important; }
+  .landing-page #hero .overlay-bento .bento-card--black { box-shadow:0 4px 0 var(--lv-lime) !important; }
+}
+@media (max-width:720px) {
+  .landing-page #hero .hero-copy > .hero-actions { grid-row:3; justify-content:center; margin:0 0 30px; }
+  .landing-page #hero .dashboard-stage { grid-row:4; }
+  .landing-page #hero .info-card { grid-row:5; }
+  .landing-page #hero .hero-button { flex:1 1 220px; }
+}
+
+/* ---------- Sections: outlined cards ---------- */
+.landing-page .university-card,
+.landing-page .scholarship-card,
+.landing-page .decision-route,
+.landing-page .testimonial-card { border:2px solid var(--lv-ink) !important; }
+.landing-page .university-card,
+.landing-page .scholarship-card { box-shadow:var(--lv-shadow) !important; }
+.landing-page .decision-route--light,
+.landing-page .decision-route--lime,
+.landing-page .testimonial-card--lime,
+.landing-page .testimonial-card--light { box-shadow:0 5px 0 var(--lv-violet) !important; }
+.landing-page .decision-route--dark,
+.landing-page .testimonial-card--dark { border-color:rgba(247,247,243,.35) !important; box-shadow:0 5px 0 var(--lv-lime) !important; }
+
+.landing-page .lime-button,
+.landing-page .dark-pill-button,
+.landing-page .forecast-cta,
+.landing-page .testimonials-cta { border:2px solid var(--lv-ink) !important; box-shadow:var(--lv-shadow); text-decoration:none; transition:transform .14s ease, box-shadow .14s ease !important; }
+.landing-page .dark-feature .lime-button,
+.landing-page .dark-feature .forecast-cta,
+.landing-page .testimonials-section .testimonials-cta { box-shadow:0 4px 0 var(--lv-violet); }
+.landing-page .lime-button:hover,
+.landing-page .dark-pill-button:hover,
+.landing-page .forecast-cta:hover,
+.landing-page .testimonials-cta:hover { transform:translateY(-2px) !important; }
+.landing-page .lime-button:active,
+.landing-page .dark-pill-button:active,
+.landing-page .forecast-cta:active,
+.landing-page .testimonials-cta:active { transform:translateY(3px) !important; box-shadow:none; }
+
+/* ---------- Calculator screen on the iPad ----------
+   The same outlined, pressable language as the workspace, sized for the small projected screen:
+   ink outlines, offset shadows, paper fields, lime progress and a violet badge. */
+.landing-page .calculator-section .calculator-main { --scr-ink:#171819; --scr-shadow:0 2px 0 var(--scr-ink); color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-main h3 { font-family:var(--font-manrope),sans-serif; font-weight:800; letter-spacing:-.05em; }
+.landing-page .calculator-section .calculator-breadcrumb { padding:4px 8px; border:1.5px solid var(--scr-ink); border-radius:999px; background:#d7c7ff; color:var(--scr-ink); font-weight:800; letter-spacing:.04em; white-space:nowrap; }
+.landing-page .calculator-section .calculator-form label { font-weight:800; color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-form select { border:1.5px solid var(--scr-ink) !important; border-radius:12px !important; background:#fff !important; color:var(--scr-ink); font-weight:700; box-shadow:var(--scr-shadow) !important; }
+.landing-page .calculator-section .calculator-form select:hover { background:#f2edff !important; }
+.landing-page .calculator-section .calculator-form select:focus-visible { box-shadow:var(--scr-shadow), 0 0 0 3px #d7c7ff !important; }
+.landing-page .calculator-section .calculator-field--range output { border:1.5px solid var(--scr-ink); background:#b7ff2a; font-weight:800; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-webkit-slider-runnable-track { height:8px; border:1.5px solid var(--scr-ink); box-sizing:content-box; background:linear-gradient(90deg,#b7ff2a,#b7ff2a) no-repeat, #fff; background-size:var(--range-progress,50%) 100%; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-moz-range-track { height:8px; border:1.5px solid var(--scr-ink); background:#fff; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-moz-range-progress { height:8px; background:#b7ff2a; }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-webkit-slider-thumb { width:18px; height:18px; margin-top:-6.5px; border:2px solid var(--scr-ink); background:#fff; box-shadow:var(--scr-shadow); }
+.landing-page .calculator-section .calculator-field--range input[type="range"]::-moz-range-thumb { width:14px; height:14px; border:2px solid var(--scr-ink); background:#fff; box-shadow:var(--scr-shadow); }
+.landing-page .calculator-section .calculator-field--range input[type="range"]:hover::-webkit-slider-thumb,
+.landing-page .calculator-section .calculator-field--range input[type="range"]:focus-visible::-webkit-slider-thumb { background:#b7ff2a; }
+.landing-page .calculator-section .calculate-button { border:1.5px solid var(--scr-ink) !important; border-radius:999px !important; background:#b7ff2a !important; color:var(--scr-ink) !important; font-weight:800; box-shadow:0 3px 0 var(--scr-ink) !important; transition:transform .15s ease, box-shadow .15s ease !important; }
+.landing-page .calculator-section .calculate-button:hover { transform:translateY(-1px); box-shadow:0 4px 0 var(--scr-ink) !important; }
+.landing-page .calculator-section .calculate-button:active { transform:translateY(2px); box-shadow:0 1px 0 var(--scr-ink) !important; }
+.landing-page .calculator-section .calculator-board.ipad-device .calculator-results article { border:1.5px solid var(--scr-ink) !important; border-radius:16px !important; box-shadow:var(--scr-shadow) !important; color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-results .roi-result { background:#b7ff2a !important; }
+.landing-page .calculator-section .calculator-results .payback-result { background:#d7c7ff !important; }
+.landing-page .calculator-section .calculator-results .salary-result { background:#fff !important; }
+.landing-page .calculator-section .calculator-results strong { font-family:var(--font-manrope),sans-serif; font-weight:800; letter-spacing:-.04em; color:var(--scr-ink); }
+.landing-page .calculator-section .calculator-results span,
+.landing-page .calculator-section .calculator-results small { color:var(--scr-ink); opacity:.78; }
+.landing-page .calculator-section .calculator-results span { font-weight:800; opacity:1; }
+/* The header badge keeps its own height instead of stretching to the title block. */
+.landing-page .calculator-section .calculator-main header { align-items:flex-start; }
+.landing-page .calculator-section .calculator-breadcrumb { align-self:flex-start; height:auto; line-height:1.3; }
+/* Decorative glow and dot sat on top of the figures; the coloured cards carry the accent now. */
+.landing-page .calculator-section .calculator-results .blur-orb { display:none !important; }
+.landing-page .calculator-section .calculator-results .salary-result > b { width:14px !important; height:14px !important; top:12px !important; right:12px !important; left:auto !important; bottom:auto !important; border:1.5px solid var(--scr-ink); border-radius:50%; background:#b7ff2a !important; }
+/* On phones the projected screen is tiny: one results column keeps "14 months" on one line, and the
+   badge is dropped so it does not become a full-width strip under the title. */
+@media (max-width:600px) {
+  .landing-page .calculator-section .calculator-board.ipad-device .calculator-results { grid-template-columns:minmax(0, 1fr) !important; }
+  .landing-page .calculator-section .calculator-board.ipad-device .calculator-results .roi-result { grid-column:auto; }
+  .landing-page .calculator-section .calculator-breadcrumb { display:none; }
+}
+@media (prefers-reduced-motion:reduce) { .landing-page .calculator-section .calculate-button { transition:none !important; } }
+
+/* ---------- Hero order in one column ----------
+   Below 1100px the hero stacks. Read top to bottom: copy and the two buttons, then the device
+   preview, then the black info card (the phone layout already did this from 720px down). */
+@media (max-width: 1100px) {
+  .landing-page #hero .hero-content { display:grid !important; grid-template-columns:minmax(0, 1fr) !important; }
+  .landing-page #hero .hero-copy { display:contents !important; }
+  .landing-page #hero .hero-copy > .eyebrow { grid-row:1; }
+  .landing-page #hero .hero-copy > h1 { grid-row:2; }
+  .landing-page #hero .hero-actions { grid-row:3; margin-bottom:34px; }
+  .landing-page #hero .dashboard-stage { grid-row:4; margin-bottom:34px; }
+  .landing-page #hero .info-card { grid-row:5; width:min(100%, 460px); margin:0 auto 42px; }
+}
+
+/* ---------- Seams between chapters ----------
+   A dark chapter after a light one (and the reverse) used to start with a hard elliptical arc. Instead,
+   each chapter now opens in the colour of the chapter above and eases into its own over a tall band,
+   with a smoothstep ramp so neither edge of the blend shows. */
+.landing-page .comparison-section::before,
+.landing-page .testimonials-section::before,
+.landing-page .roadmap-section::before {
+  inset:0 0 auto 0 !important; left:0 !important; top:0 !important; width:100% !important;
+  height:clamp(120px, 12vw, 190px) !important; clip-path:none !important; z-index:0 !important;
+}
+.landing-page .comparison-section::before,
+.landing-page .testimonials-section::before {
+  background:linear-gradient(180deg,
+    rgba(231,233,237,1) 0%, rgba(231,233,237,0.97) 10%, rgba(231,233,237,0.9) 20%, rgba(231,233,237,0.78) 30%, rgba(231,233,237,0.65) 40%, rgba(231,233,237,0.5) 50%,
+    rgba(231,233,237,0.35) 60%, rgba(231,233,237,0.22) 70%, rgba(231,233,237,0.1) 80%, rgba(231,233,237,0.03) 90%, rgba(231,233,237,0) 100%) !important;
+}
+.landing-page .roadmap-section::before {
+  background:linear-gradient(180deg,
+    rgba(23,24,25,1) 0%, rgba(23,24,25,0.97) 10%, rgba(23,24,25,0.9) 20%, rgba(23,24,25,0.78) 30%, rgba(23,24,25,0.65) 40%, rgba(23,24,25,0.5) 50%,
+    rgba(23,24,25,0.35) 60%, rgba(23,24,25,0.22) 70%, rgba(23,24,25,0.1) 80%, rgba(23,24,25,0.03) 90%, rgba(23,24,25,0) 100%) !important;
+}
+/* Content sits above the blend band. */
+.landing-page .comparison-section > .feature-shell,
+.landing-page .roadmap-section > .feature-shell,
+.landing-page .testimonials-section > .testimonials-inner { position:relative; z-index:1; }
+/* Testimonials no longer stack above the page-wide contour lines, so the lines run on into the
+   final chapter instead of starting abruptly at its top edge. */
+.landing-page .testimonials-section { z-index:auto !important; }
+
+@media (prefers-reduced-motion:reduce) {
+  .nav-indicator,.hero-button,.hero-button span { transition:none; }
+  .hero-button:hover,.hero-button:active { transform:none; }
+}
+
+/* Factors chapter, single column: a plain 1fr track may grow past the section (its minimum is
+   "auto"), which pushed the centred intro to the right. Keep the track inside the section. */
+@media (max-width:900px) {
+  #landing .factors-shell { grid-template-columns:minmax(0,1fr); }
+  #landing .factors-intro { width:100%; min-width:0; }
+}
